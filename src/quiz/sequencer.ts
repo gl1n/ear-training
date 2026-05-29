@@ -12,8 +12,13 @@ export type TrainerState =
   | 'pause'
   | 'speaking'
   | 'gap'
+  | 'awaiting_answer'
+  | 'feedback_correct'
+  | 'feedback_incorrect'
 
 export type SpeedPreset = 'slow' | 'medium' | 'fast'
+
+export type AppMode = 'practice' | 'arcade'
 
 export type Settings = {
   noteDurationMs: number
@@ -91,6 +96,21 @@ export type SequencerCallbacks = {
   onAnswerRevealed: (quiz: Quiz) => void
 }
 
+export type ArcadeAnswer = {
+  selectedIntervalId: string
+  responseTimeMs: number
+}
+
+export type ArcadeCallbacks = {
+  onStateChange: (state: TrainerState) => void
+  waitForAnswer: (signal: AbortSignal) => Promise<ArcadeAnswer>
+  onAnswerSubmitted: (
+    quiz: Quiz,
+    answer: ArcadeAnswer,
+    correct: boolean,
+  ) => void
+}
+
 async function playNote(
   piano: Piano,
   midi: number,
@@ -111,6 +131,34 @@ async function playHarmonic(
   await delay(durationMs, signal)
 }
 
+async function playQuizAudio(
+  piano: Piano,
+  quiz: Quiz,
+  settings: Pick<Settings, 'noteDurationMs' | 'gapMs'>,
+  callbacks: Pick<SequencerCallbacks, 'onStateChange'>,
+  signal: AbortSignal,
+): Promise<void> {
+  if (quiz.direction === 'harmonic') {
+    callbacks.onStateChange('playing_harmonic')
+    const lower = Math.min(quiz.root, quiz.second)
+    const higher = Math.max(quiz.root, quiz.second)
+    await playHarmonic(piano, [lower, higher], settings.noteDurationMs, signal)
+    return
+  }
+
+  const [first, second] =
+    quiz.direction === 'ascending'
+      ? [Math.min(quiz.root, quiz.second), Math.max(quiz.root, quiz.second)]
+      : [Math.max(quiz.root, quiz.second), Math.min(quiz.root, quiz.second)]
+
+  callbacks.onStateChange('playing_root')
+  await playNote(piano, first, settings.noteDurationMs, signal)
+
+  callbacks.onStateChange('playing_second')
+  await delay(settings.gapMs, signal)
+  await playNote(piano, second, settings.noteDurationMs, signal)
+}
+
 export async function runLoop(
   piano: Piano,
   settings: Settings,
@@ -125,24 +173,7 @@ export async function runLoop(
       settings.rootMax,
     )
 
-    if (quiz.direction === 'harmonic') {
-      callbacks.onStateChange('playing_harmonic')
-      const lower = Math.min(quiz.root, quiz.second)
-      const higher = Math.max(quiz.root, quiz.second)
-      await playHarmonic(piano, [lower, higher], settings.noteDurationMs, signal)
-    } else {
-      const [first, second] =
-        quiz.direction === 'ascending'
-          ? [Math.min(quiz.root, quiz.second), Math.max(quiz.root, quiz.second)]
-          : [Math.max(quiz.root, quiz.second), Math.min(quiz.root, quiz.second)]
-
-      callbacks.onStateChange('playing_root')
-      await playNote(piano, first, settings.noteDurationMs, signal)
-
-      callbacks.onStateChange('playing_second')
-      await delay(settings.gapMs, signal)
-      await playNote(piano, second, settings.noteDurationMs, signal)
-    }
+    await playQuizAudio(piano, quiz, settings, callbacks, signal)
 
     callbacks.onStateChange('pause')
     await delay(settings.pauseBeforeAnswerMs, signal)
@@ -156,7 +187,54 @@ export async function runLoop(
   }
 }
 
+const ARCADE_FEEDBACK_INCORRECT_MS = 1200
+
+export async function runArcadeLoop(
+  piano: Piano,
+  settings: Settings,
+  callbacks: ArcadeCallbacks,
+  signal: AbortSignal,
+): Promise<void> {
+  while (!signal.aborted) {
+    const quiz = randomQuiz(
+      settings.enabledIntervalIds,
+      settings.direction,
+      settings.rootMin,
+      settings.rootMax,
+    )
+
+    await playQuizAudio(piano, quiz, settings, callbacks, signal)
+
+    callbacks.onStateChange('awaiting_answer')
+    const answerStart = performance.now()
+    const answer = await callbacks.waitForAnswer(signal)
+    const responseTimeMs = performance.now() - answerStart
+    const correct = answer.selectedIntervalId === quiz.interval.id
+
+    callbacks.onAnswerSubmitted(
+      quiz,
+      { ...answer, responseTimeMs },
+      correct,
+    )
+
+    if (!correct) {
+      callbacks.onStateChange('feedback_incorrect')
+      await delay(ARCADE_FEEDBACK_INCORRECT_MS, signal)
+      return
+    }
+  }
+}
+
 export function stopPlayback(piano: Piano | null): void {
   piano?.stop()
   cancelSpeech()
+}
+
+export async function replayQuiz(
+  piano: Piano,
+  quiz: Quiz,
+  settings: Pick<Settings, 'noteDurationMs' | 'gapMs'>,
+  signal: AbortSignal,
+): Promise<void> {
+  await playQuizAudio(piano, quiz, settings, { onStateChange: () => {} }, signal)
 }

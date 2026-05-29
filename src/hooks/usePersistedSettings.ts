@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { IntervalDirection } from '../quiz/intervals'
-import { createDefaultSettings, type SpeedPreset } from '../quiz/sequencer'
+import { createDefaultSettings, type AppMode, type SpeedPreset } from '../quiz/sequencer'
 
 const STORAGE_KEY = 'ear-trainer:settings'
 
@@ -8,6 +8,11 @@ type PersistedSettings = {
   speedPreset: SpeedPreset
   enabledIntervalIds: string[]
   direction: IntervalDirection
+  mode?: AppMode
+}
+
+function isAppMode(value: unknown): value is AppMode {
+  return value === 'practice' || value === 'arcade'
 }
 
 function isSpeedPreset(value: unknown): value is SpeedPreset {
@@ -57,21 +62,28 @@ function loadPersistedSettings(): PersistedSettings | null {
     }
 
     const direction = parseDirection(record) ?? 'ascending'
+    const mode = 'mode' in record && isAppMode(record.mode) ? record.mode : 'practice'
 
-    return { speedPreset, enabledIntervalIds, direction }
+    return { speedPreset, enabledIntervalIds, direction, mode }
   } catch {
     return null
   }
 }
 
-export function getInitialSettings(): { speedPreset: SpeedPreset; settings: ReturnType<typeof createDefaultSettings> } {
+export function getInitialSettings(): {
+  speedPreset: SpeedPreset
+  mode: AppMode
+  settings: ReturnType<typeof createDefaultSettings>
+} {
   const persisted = loadPersistedSettings()
   const speedPreset = persisted?.speedPreset ?? 'medium'
+  const mode = persisted?.mode ?? 'practice'
   const defaults = createDefaultSettings(speedPreset)
 
   if (persisted && persisted.enabledIntervalIds.length > 0) {
     return {
       speedPreset,
+      mode,
       settings: {
         ...defaults,
         enabledIntervalIds: persisted.enabledIntervalIds,
@@ -80,13 +92,14 @@ export function getInitialSettings(): { speedPreset: SpeedPreset; settings: Retu
     }
   }
 
-  return { speedPreset, settings: defaults }
+  return { speedPreset, mode, settings: defaults }
 }
 
 export function usePersistedSettings(
   speedPreset: SpeedPreset,
   enabledIntervalIds: string[],
   direction: IntervalDirection,
+  mode: AppMode,
 ) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -96,7 +109,7 @@ export function usePersistedSettings(
     }
 
     timeoutRef.current = setTimeout(() => {
-      const data: PersistedSettings = { speedPreset, enabledIntervalIds, direction }
+      const data: PersistedSettings = { speedPreset, enabledIntervalIds, direction, mode }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     }, 300)
 
@@ -105,5 +118,5 @@ export function usePersistedSettings(
         clearTimeout(timeoutRef.current)
       }
     }
-  }, [speedPreset, enabledIntervalIds, direction])
+  }, [speedPreset, enabledIntervalIds, direction, mode])
 }

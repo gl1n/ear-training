@@ -14,7 +14,7 @@ export function DirectionSelector({
   disabled,
 }: DirectionSelectorProps) {
   return (
-    <Card className="p-4">
+    <Card variant="compact">
       <h3 className="mb-3 text-sm font-medium">播放方式</h3>
       <SegmentedControl
         options={DIRECTION_SELECT_OPTIONS}

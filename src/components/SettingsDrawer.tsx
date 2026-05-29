@@ -48,7 +48,7 @@ export function SettingsDrawer({
       }
     >
       <div className="flex flex-col gap-6">
-        <Card className="p-4">
+        <Card variant="compact">
           <h3 className="mb-3 text-sm font-medium">播放速度</h3>
           <SegmentedControl
             options={SPEED_OPTIONS}

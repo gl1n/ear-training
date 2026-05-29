@@ -19,7 +19,7 @@ export function IntervalSelector({
 }: IntervalSelectorProps) {
   return (
     <div className="flex flex-col gap-4">
-      <Card className="p-4">
+      <Card variant="compact">
         <h3 className="mb-1 text-sm font-medium">训练预设</h3>
         <p className="mb-3 text-xs text-[var(--text-secondary)]">按训练优先级排列，点击快速切换题集</p>
         <div className="flex flex-col gap-2">
@@ -56,7 +56,7 @@ export function IntervalSelector({
         </div>
       </Card>
 
-      <Card className="p-4">
+      <Card variant="compact">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-medium">自定义选择</h3>
           <div className="flex gap-2 text-xs">

@@ -52,6 +52,11 @@ export function midiToNoteName(midi: number): string {
   return `${name}${octave}`
 }
 
+export function getIntervalsByIds(ids: string[]): Interval[] {
+  const idSet = new Set(ids)
+  return INTERVALS.filter((interval) => idSet.has(interval.id))
+}
+
 export function randomQuiz(
   enabledIds: string[],
   direction: IntervalDirection,

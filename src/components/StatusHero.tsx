@@ -1,11 +1,13 @@
 import { DIRECTION_OPTIONS, midiToNoteName, type Quiz } from '../quiz/intervals'
-import type { TrainerState } from '../quiz/sequencer'
+import type { AppMode, TrainerState } from '../quiz/sequencer'
 import { Button } from './ui/Button'
 import { Card } from './ui/Card'
 import { LoadProgressBar } from './LoadProgressBar'
 
 type StatusHeroProps = {
+  mode: AppMode
   state: TrainerState
+  isRunning: boolean
   lastQuiz: Quiz | null
   loadProgress: number | null
   loadIndeterminate: boolean
@@ -22,6 +24,9 @@ const STATE_LABELS: Record<TrainerState, string> = {
   pause: '请听辨音程…',
   speaking: '播报答案…',
   gap: '下一题准备中…',
+  awaiting_answer: '请选择音程',
+  feedback_correct: '回答正确！',
+  feedback_incorrect: '回答错误',
 }
 
 function formatQuizNotes(quiz: Quiz): string {
@@ -128,6 +133,48 @@ function StateIcon({ state }: { state: TrainerState }) {
           </svg>
         </div>
       )
+    case 'awaiting_answer':
+      return (
+        <div className={`${baseClass} bg-[var(--accent-muted)] ring-2 ring-sky-400/50`}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M8 10h8M8 14h5M12 3a9 9 0 100 18 9 9 0 000-18z"
+              stroke="var(--accent)"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+      )
+    case 'feedback_correct':
+      return (
+        <div className={`${baseClass} bg-emerald-500/20 ring-2 ring-emerald-400/40`}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M9 12l2 2 4-4M12 3a9 9 0 100 18 9 9 0 000-18z"
+              stroke="#6ee7b7"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+      )
+    case 'feedback_incorrect':
+      return (
+        <div className={`${baseClass} bg-red-500/20 ring-2 ring-red-400/40`}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M15 9l-6 6M9 9l6 6M12 3a9 9 0 100 18 9 9 0 000-18z"
+              stroke="#fca5a5"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+      )
     default:
       return (
         <div className={`${baseClass} bg-[var(--bg-elevated)]`}>
@@ -146,15 +193,24 @@ function StateIcon({ state }: { state: TrainerState }) {
 }
 
 export function StatusHero({
+  mode,
   state,
+  isRunning,
   lastQuiz,
   loadProgress,
   loadIndeterminate,
   loadError,
   onRetry,
 }: StatusHeroProps) {
+  const arcadeEnded = mode === 'arcade' && !isRunning && lastQuiz !== null
+  const showLastQuiz =
+    mode === 'practice' || state === 'feedback_incorrect' || arcadeEnded
+  const statusLabel = arcadeEnded
+    ? '挑战结束'
+    : STATE_LABELS[state]
+
   return (
-    <Card className="flex min-h-[280px] flex-col items-center justify-center p-8 text-center">
+    <Card variant="hero" className="flex min-h-72 flex-col items-center justify-center text-center">
       {loadError && (
         <div className="mb-4 flex max-w-md flex-col items-center gap-3">
           <p className="rounded-lg border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -182,16 +238,18 @@ export function StatusHero({
         />
       )}
 
-      <StateIcon state={state} />
+      <StateIcon state={arcadeEnded ? 'feedback_incorrect' : state} />
 
       <div aria-live="polite" aria-atomic="true" className="mt-6">
         <p className="mb-1 text-sm text-[var(--text-secondary)]">当前状态</p>
-        <h2 className="text-2xl font-semibold sm:text-3xl">{STATE_LABELS[state]}</h2>
+        <h2 className="text-2xl font-semibold sm:text-3xl">{statusLabel}</h2>
       </div>
 
-      {lastQuiz ? (
+      {showLastQuiz && lastQuiz ? (
         <div className="mt-8 space-y-2">
-          <p className="text-sm text-[var(--text-secondary)]">上一题</p>
+          <p className="text-sm text-[var(--text-secondary)]">
+            {mode === 'arcade' ? '正确答案' : '上一题'}
+          </p>
           <p className="text-4xl font-bold sm:text-5xl">{lastQuiz.interval.name}</p>
           <p className="text-lg text-[var(--text-secondary)]">
             {formatQuizNotes(lastQuiz)}
@@ -202,7 +260,9 @@ export function StatusHero({
         </div>
       ) : (
         <p className="mt-8 max-w-md text-base leading-relaxed text-[var(--text-secondary)]">
-          点击「开始练习」，系统将循环播放音程，停顿后用人声播报答案。
+          {mode === 'arcade'
+            ? '点击「开始挑战」，听音后选择答案；答错即结束，可查看各音程统计。'
+            : '点击「开始练习」，系统将循环播放音程，停顿后用人声播报答案。'}
         </p>
       )}
     </Card>
