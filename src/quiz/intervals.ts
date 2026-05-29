@@ -20,10 +20,28 @@ export const INTERVALS: Interval[] = [
   { id: 'P8', semitones: 12, name: '纯八度', short: '纯八' },
 ]
 
+export type IntervalDirection = 'ascending' | 'descending' | 'harmonic'
+
+export const DIRECTION_OPTIONS: {
+  value: IntervalDirection
+  label: string
+  description: string
+}[] = [
+  { value: 'ascending', label: '上行', description: '低音 → 高音' },
+  { value: 'descending', label: '下行', description: '高音 → 低音' },
+  { value: 'harmonic', label: '和弦', description: '两音同时' },
+]
+
+export const DIRECTION_SELECT_OPTIONS = DIRECTION_OPTIONS.map(({ value, label }) => ({
+  value,
+  label,
+}))
+
 export type Quiz = {
   root: number
   second: number
   interval: Interval
+  direction: IntervalDirection
 }
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
@@ -36,6 +54,7 @@ export function midiToNoteName(midi: number): string {
 
 export function randomQuiz(
   enabledIds: string[],
+  direction: IntervalDirection,
   rootMin = 48,
   rootMax = 72,
 ): Quiz {
@@ -45,12 +64,15 @@ export function randomQuiz(
   }
 
   const interval = pool[Math.floor(Math.random() * pool.length)]
+
+  if (direction === 'descending') {
+    const minRoot = rootMin + interval.semitones
+    const maxRoot = Math.min(rootMax, 127)
+    const root = minRoot + Math.floor(Math.random() * (maxRoot - minRoot + 1))
+    return { root, second: root - interval.semitones, interval, direction }
+  }
+
   const maxRoot = Math.min(rootMax, 127 - interval.semitones)
   const root = rootMin + Math.floor(Math.random() * (maxRoot - rootMin + 1))
-
-  return {
-    root,
-    second: root + interval.semitones,
-    interval,
-  }
+  return { root, second: root + interval.semitones, interval, direction }
 }

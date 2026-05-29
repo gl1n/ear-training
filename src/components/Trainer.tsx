@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPiano, type Piano } from '../audio/piano'
 import { createAudioContext, unlockAudioContextSync } from '../audio/context'
 import { getInitialSettings, usePersistedSettings } from '../hooks/usePersistedSettings'
-import { INTERVALS, type Quiz } from '../quiz/intervals'
+import { INTERVALS, type IntervalDirection, type Quiz } from '../quiz/intervals'
 import {
   createDefaultSettings,
   runLoop,
@@ -30,7 +30,7 @@ export function Trainer() {
   const pianoRef = useRef<Piano | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  usePersistedSettings(speedPreset, settings.enabledIntervalIds)
+  usePersistedSettings(speedPreset, settings.enabledIntervalIds, settings.direction)
 
   const resetLoadingState = useCallback(() => {
     setLoadProgress(null)
@@ -142,6 +142,7 @@ export function Trainer() {
       ...current,
       ...createDefaultSettings(preset),
       enabledIntervalIds: current.enabledIntervalIds,
+      direction: current.direction,
     }))
   }
 
@@ -170,6 +171,10 @@ export function Trainer() {
     setSettings((current) => ({ ...current, enabledIntervalIds: intervalIds }))
   }
 
+  const handleDirectionChange = (direction: IntervalDirection) => {
+    setSettings((current) => ({ ...current, direction }))
+  }
+
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 py-6 sm:px-6 sm:py-8">
       <PracticeView
@@ -178,6 +183,7 @@ export function Trainer() {
         isLoading={state === 'loading'}
         speedPreset={speedPreset}
         enabledIntervalIds={settings.enabledIntervalIds}
+        direction={settings.direction}
         lastQuiz={lastQuiz}
         loadProgress={loadProgress}
         loadIndeterminate={loadIndeterminate}
@@ -192,8 +198,10 @@ export function Trainer() {
         onClose={() => setDrawerOpen(false)}
         speedPreset={speedPreset}
         enabledIntervalIds={settings.enabledIntervalIds}
+        direction={settings.direction}
         isRunning={isRunning}
         onSpeedChange={handleSpeedChange}
+        onDirectionChange={handleDirectionChange}
         onIntervalToggle={handleIntervalToggle}
         onSelectAllIntervals={handleSelectAllIntervals}
         onClearIntervals={handleClearIntervals}

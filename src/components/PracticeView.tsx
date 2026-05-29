@@ -1,9 +1,9 @@
-import { INTERVALS } from '../quiz/intervals'
+import { DIRECTION_OPTIONS, INTERVALS } from '../quiz/intervals'
 import { SPEED_OPTIONS, type SpeedPreset } from '../quiz/sequencer'
 import { Button } from './ui/Button'
 import { Chip } from './ui/Chip'
 import { StatusHero } from './StatusHero'
-import type { Quiz } from '../quiz/intervals'
+import type { IntervalDirection, Quiz } from '../quiz/intervals'
 import type { TrainerState } from '../quiz/sequencer'
 
 type PracticeViewProps = {
@@ -12,6 +12,7 @@ type PracticeViewProps = {
   isLoading: boolean
   speedPreset: SpeedPreset
   enabledIntervalIds: string[]
+  direction: IntervalDirection
   lastQuiz: Quiz | null
   loadProgress: number | null
   loadIndeterminate: boolean
@@ -27,6 +28,7 @@ export function PracticeView({
   isLoading,
   speedPreset,
   enabledIntervalIds,
+  direction,
   lastQuiz,
   loadProgress,
   loadIndeterminate,
@@ -37,6 +39,8 @@ export function PracticeView({
 }: PracticeViewProps) {
   const canStart = enabledIntervalIds.length > 0
   const speedLabel = SPEED_OPTIONS.find((o) => o.value === speedPreset)?.label ?? '中'
+  const directionLabel =
+    DIRECTION_OPTIONS.find((option) => option.value === direction)?.label ?? '上行'
   const selectedIntervals = INTERVALS.filter((interval) =>
     enabledIntervalIds.includes(interval.id),
   )
@@ -46,9 +50,9 @@ export function PracticeView({
     <div className="flex flex-col gap-6">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold sm:text-2xl">旋律音程练耳</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">音程练耳</h1>
           <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
-            自动循环 · 钢琴音色 · 中文播报
+            上行 · 下行 · 和弦 · 中文播报
           </p>
         </div>
         <div className="relative">
@@ -109,6 +113,8 @@ export function PracticeView({
         <div className="flex items-center gap-3">
           <span className="text-sm text-[var(--text-secondary)]">速度</span>
           <Chip active>{speedLabel}</Chip>
+          <span className="text-[var(--text-secondary)]">·</span>
+          <Chip active>{directionLabel}</Chip>
           <span className="text-[var(--text-secondary)]">·</span>
           <span className="text-sm text-[var(--text-secondary)]">
             {enabledIntervalIds.length} 个音程

@@ -1,4 +1,4 @@
-import { midiToNoteName, type Quiz } from '../quiz/intervals'
+import { DIRECTION_OPTIONS, midiToNoteName, type Quiz } from '../quiz/intervals'
 import type { TrainerState } from '../quiz/sequencer'
 import { Button } from './ui/Button'
 import { Card } from './ui/Card'
@@ -16,11 +16,30 @@ type StatusHeroProps = {
 const STATE_LABELS: Record<TrainerState, string> = {
   idle: '准备就绪',
   loading: '正在加载钢琴音色…',
-  playing_root: '播放根音…',
-  playing_second: '播放二度音…',
+  playing_root: '播放第一音…',
+  playing_second: '播放第二音…',
+  playing_harmonic: '播放和弦…',
   pause: '请听辨音程…',
   speaking: '播报答案…',
   gap: '下一题准备中…',
+}
+
+function formatQuizNotes(quiz: Quiz): string {
+  const lower = midiToNoteName(Math.min(quiz.root, quiz.second))
+  const higher = midiToNoteName(Math.max(quiz.root, quiz.second))
+
+  switch (quiz.direction) {
+    case 'descending':
+      return `${higher} → ${lower}`
+    case 'harmonic':
+      return `${lower} + ${higher}`
+    default:
+      return `${lower} → ${higher}`
+  }
+}
+
+function formatQuizDirection(quiz: Quiz): string {
+  return DIRECTION_OPTIONS.find((option) => option.value === quiz.direction)?.label ?? ''
 }
 
 function StateIcon({ state }: { state: TrainerState }) {
@@ -29,6 +48,7 @@ function StateIcon({ state }: { state: TrainerState }) {
   switch (state) {
     case 'playing_root':
     case 'playing_second':
+    case 'playing_harmonic':
       return (
         <div className={`${baseClass} animate-pulse-ring bg-[var(--accent-muted)]`}>
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -174,12 +194,15 @@ export function StatusHero({
           <p className="text-sm text-[var(--text-secondary)]">上一题</p>
           <p className="text-4xl font-bold sm:text-5xl">{lastQuiz.interval.name}</p>
           <p className="text-lg text-[var(--text-secondary)]">
-            {midiToNoteName(lastQuiz.root)} → {midiToNoteName(lastQuiz.second)}
+            {formatQuizNotes(lastQuiz)}
+            {formatQuizDirection(lastQuiz) && (
+              <span className="ml-2 text-base">({formatQuizDirection(lastQuiz)})</span>
+            )}
           </p>
         </div>
       ) : (
         <p className="mt-8 max-w-md text-base leading-relaxed text-[var(--text-secondary)]">
-          点击「开始练习」，系统将循环播放旋律音程，停顿后用人声播报答案。
+          点击「开始练习」，系统将循环播放音程，停顿后用人声播报答案。
         </p>
       )}
     </Card>

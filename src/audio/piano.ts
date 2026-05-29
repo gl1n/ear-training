@@ -10,6 +10,7 @@ const MAX_INTERVAL_SEMITONES = 12
 
 export type Piano = {
   playNote: (midi: number, durationSec: number) => Promise<void>
+  playNotes: (midis: number[], durationSec: number) => Promise<void>
   stop: () => void
 }
 
@@ -55,6 +56,12 @@ function wrapInstrument(ctx: AudioContext, piano: Smplr): Piano {
     async playNote(midi: number, durationSec: number) {
       await unlockAudioContext(ctx)
       piano.start({ note: midi, velocity: 80, duration: durationSec })
+    },
+    async playNotes(midis: number[], durationSec: number) {
+      await unlockAudioContext(ctx)
+      for (const midi of midis) {
+        piano.start({ note: midi, velocity: 80, duration: durationSec })
+      }
     },
     stop() {
       piano.stop()

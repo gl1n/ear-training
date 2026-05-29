@@ -1,13 +1,14 @@
 import { cancelSpeech, speak } from '../audio/speech'
 import type { Piano } from '../audio/piano'
 import { delay } from '../utils/abort'
-import { randomQuiz, type Quiz } from './intervals'
+import { randomQuiz, type IntervalDirection, type Quiz } from './intervals'
 
 export type TrainerState =
   | 'idle'
   | 'loading'
   | 'playing_root'
   | 'playing_second'
+  | 'playing_harmonic'
   | 'pause'
   | 'speaking'
   | 'gap'
@@ -20,9 +21,12 @@ export type Settings = {
   pauseBeforeAnswerMs: number
   gapBetweenQuizzesMs: number
   enabledIntervalIds: string[]
+  direction: IntervalDirection
   rootMin: number
   rootMax: number
 }
+
+const DEFAULT_DIRECTION: IntervalDirection = 'ascending'
 
 const DEFAULT_ENABLED_INTERVAL_IDS = [
   'm2', 'M2', 'm3', 'M3', 'P4', 'A4', 'P5', 'm6', 'M6', 'm7', 'M7', 'P8',
@@ -76,6 +80,7 @@ export function createDefaultSettings(preset: SpeedPreset = 'medium'): Settings 
   return {
     ...getSpeedTiming(preset),
     enabledIntervalIds: [...DEFAULT_ENABLED_INTERVAL_IDS],
+    direction: DEFAULT_DIRECTION,
     rootMin: 48,
     rootMax: 72,
   }
@@ -96,6 +101,16 @@ async function playNote(
   await delay(durationMs, signal)
 }
 
+async function playHarmonic(
+  piano: Piano,
+  midis: number[],
+  durationMs: number,
+  signal: AbortSignal,
+): Promise<void> {
+  await piano.playNotes(midis, durationMs / 1000)
+  await delay(durationMs, signal)
+}
+
 export async function runLoop(
   piano: Piano,
   settings: Settings,
@@ -103,14 +118,31 @@ export async function runLoop(
   signal: AbortSignal,
 ): Promise<void> {
   while (!signal.aborted) {
-    const quiz = randomQuiz(settings.enabledIntervalIds, settings.rootMin, settings.rootMax)
+    const quiz = randomQuiz(
+      settings.enabledIntervalIds,
+      settings.direction,
+      settings.rootMin,
+      settings.rootMax,
+    )
 
-    callbacks.onStateChange('playing_root')
-    await playNote(piano, quiz.root, settings.noteDurationMs, signal)
+    if (quiz.direction === 'harmonic') {
+      callbacks.onStateChange('playing_harmonic')
+      const lower = Math.min(quiz.root, quiz.second)
+      const higher = Math.max(quiz.root, quiz.second)
+      await playHarmonic(piano, [lower, higher], settings.noteDurationMs, signal)
+    } else {
+      const [first, second] =
+        quiz.direction === 'ascending'
+          ? [Math.min(quiz.root, quiz.second), Math.max(quiz.root, quiz.second)]
+          : [Math.max(quiz.root, quiz.second), Math.min(quiz.root, quiz.second)]
 
-    callbacks.onStateChange('playing_second')
-    await delay(settings.gapMs, signal)
-    await playNote(piano, quiz.second, settings.noteDurationMs, signal)
+      callbacks.onStateChange('playing_root')
+      await playNote(piano, first, settings.noteDurationMs, signal)
+
+      callbacks.onStateChange('playing_second')
+      await delay(settings.gapMs, signal)
+      await playNote(piano, second, settings.noteDurationMs, signal)
+    }
 
     callbacks.onStateChange('pause')
     await delay(settings.pauseBeforeAnswerMs, signal)
