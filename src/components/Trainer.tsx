@@ -299,7 +299,7 @@ export function Trainer() {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col px-4 py-6 sm:px-6 sm:py-8">
+    <>
       <PracticeView
         mode={mode}
         state={state}
@@ -317,6 +317,12 @@ export function Trainer() {
         onToggle={handleToggle}
         onOpenSettings={() => setDrawerOpen(true)}
         onRetry={handleToggle}
+        onSpeedChange={handleSpeedChange}
+        onDirectionChange={handleDirectionChange}
+        onIntervalToggle={handleIntervalToggle}
+        onSelectAllIntervals={handleSelectAllIntervals}
+        onClearIntervals={handleClearIntervals}
+        onApplyPreset={handleApplyPreset}
         onAnswerSelect={handleAnswerSelect}
         onReplayLastQuiz={handleReplayLastQuiz}
         isReplayingLastQuiz={isReplayingLastQuiz}
@@ -336,6 +342,6 @@ export function Trainer() {
         onClearIntervals={handleClearIntervals}
         onApplyPreset={handleApplyPreset}
       />
-    </div>
+    </>
   )
 }

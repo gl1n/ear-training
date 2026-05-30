@@ -88,7 +88,7 @@ function PhaseIndicator({ state }: { state: TrainerState }) {
 function gridColumns(count: number): string {
   if (count <= 4) return 'grid-cols-2'
   if (count <= 6) return 'grid-cols-3'
-  if (count <= 9) return 'grid-cols-3 sm:grid-cols-3'
+  if (count <= 9) return 'grid-cols-3 sm:grid-cols-4'
   return 'grid-cols-4'
 }
 

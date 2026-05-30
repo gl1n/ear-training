@@ -1,13 +1,12 @@
-import { DIRECTION_OPTIONS, midiToNoteName, type Quiz } from '../quiz/intervals'
-import type { AppMode, TrainerState } from '../quiz/sequencer'
+import type { Quiz } from '../quiz/intervals'
+import { formatQuizDirection, formatQuizNotes } from '../lib/formatQuiz'
+import type { TrainerState } from '../quiz/sequencer'
 import { Button } from './ui/Button'
-import { Card } from './ui/Card'
 import { LoadProgressBar } from './LoadProgressBar'
+import { PlayAreaCard } from './PlayAreaCard'
 
 type StatusHeroProps = {
-  mode: AppMode
   state: TrainerState
-  isRunning: boolean
   lastQuiz: Quiz | null
   loadProgress: number | null
   loadIndeterminate: boolean
@@ -27,24 +26,6 @@ const STATE_LABELS: Record<TrainerState, string> = {
   awaiting_answer: '请选择音程',
   feedback_correct: '回答正确！',
   feedback_incorrect: '回答错误',
-}
-
-function formatQuizNotes(quiz: Quiz): string {
-  const lower = midiToNoteName(Math.min(quiz.root, quiz.second))
-  const higher = midiToNoteName(Math.max(quiz.root, quiz.second))
-
-  switch (quiz.direction) {
-    case 'descending':
-      return `${higher} → ${lower}`
-    case 'harmonic':
-      return `${lower} + ${higher}`
-    default:
-      return `${lower} → ${higher}`
-  }
-}
-
-function formatQuizDirection(quiz: Quiz): string {
-  return DIRECTION_OPTIONS.find((option) => option.value === quiz.direction)?.label ?? ''
 }
 
 function StateIcon({ state }: { state: TrainerState }) {
@@ -193,24 +174,17 @@ function StateIcon({ state }: { state: TrainerState }) {
 }
 
 export function StatusHero({
-  mode,
   state,
-  isRunning,
   lastQuiz,
   loadProgress,
   loadIndeterminate,
   loadError,
   onRetry,
 }: StatusHeroProps) {
-  const arcadeEnded = mode === 'arcade' && !isRunning && lastQuiz !== null
-  const showLastQuiz =
-    mode === 'practice' || state === 'feedback_incorrect' || arcadeEnded
-  const statusLabel = arcadeEnded
-    ? '挑战结束'
-    : STATE_LABELS[state]
+  const showLastQuiz = lastQuiz !== null && state !== 'loading'
 
   return (
-    <Card variant="hero" className="flex min-h-72 flex-col items-center justify-center text-center">
+    <PlayAreaCard>
       {loadError && (
         <div className="mb-4 flex max-w-md flex-col items-center gap-3">
           <p className="rounded-lg border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -238,18 +212,16 @@ export function StatusHero({
         />
       )}
 
-      <StateIcon state={arcadeEnded ? 'feedback_incorrect' : state} />
+      <StateIcon state={state} />
 
       <div aria-live="polite" aria-atomic="true" className="mt-6">
         <p className="mb-1 text-sm text-[var(--text-secondary)]">当前状态</p>
-        <h2 className="text-2xl font-semibold sm:text-3xl">{statusLabel}</h2>
+        <h2 className="text-2xl font-semibold sm:text-3xl">{STATE_LABELS[state]}</h2>
       </div>
 
       {showLastQuiz && lastQuiz ? (
         <div className="mt-8 space-y-2">
-          <p className="text-sm text-[var(--text-secondary)]">
-            {mode === 'arcade' ? '正确答案' : '上一题'}
-          </p>
+          <p className="text-sm text-[var(--text-secondary)]">上一题</p>
           <p className="text-4xl font-bold sm:text-5xl">{lastQuiz.interval.name}</p>
           <p className="text-lg text-[var(--text-secondary)]">
             {formatQuizNotes(lastQuiz)}
@@ -260,11 +232,9 @@ export function StatusHero({
         </div>
       ) : (
         <p className="mt-8 max-w-md text-base leading-relaxed text-[var(--text-secondary)]">
-          {mode === 'arcade'
-            ? '点击「开始挑战」，听音后选择答案；答错即结束，可查看各音程统计。'
-            : '点击「开始练习」，系统将循环播放音程，停顿后用人声播报答案。'}
+          点击「开始练习」，系统将循环播放音程，停顿后用人声播报答案。
         </p>
       )}
-    </Card>
+    </PlayAreaCard>
   )
 }
