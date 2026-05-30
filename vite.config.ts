@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process'
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -21,5 +22,8 @@ export default defineConfig({
   define: {
     __GIT_COMMIT__: JSON.stringify(gitInfo.commit),
     __GIT_COMMIT_DATE__: JSON.stringify(gitInfo.date),
+  },
+  test: {
+    environment: 'node',
   },
 })

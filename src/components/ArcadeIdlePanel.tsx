@@ -1,20 +1,24 @@
 import type { Quiz } from '../quiz/intervals'
 import type { ArcadeBestRecord } from '../quiz/arcadeBestRecord'
-import { formatQuizNotes } from '../lib/formatQuiz'
+import { getQuizPitchKey, type WeakPriorityItem } from '../quiz/quizPriority'
 import {
   getCorrectAnswerCount,
   hasSessionAttempts,
   type SessionStats,
 } from '../quiz/stats'
 import { PlayAreaCard } from './PlayAreaCard'
+import { PlayableIntervalCard } from './PlayableIntervalCard'
+import { WeakPrioritySection } from './WeakPrioritySection'
 
 type ArcadeIdlePanelProps = {
   lastQuiz: Quiz | null
   sessionStats: SessionStats
   bestRecord: ArcadeBestRecord | null
+  weakPriorityItems: WeakPriorityItem[]
   isNewBestRecord?: boolean
-  isReplayingLastQuiz?: boolean
-  onReplayLastQuiz?: () => void
+  replayingQuizKey: string | null
+  isReplayBusy: boolean
+  onPlayQuiz: (quiz: Quiz) => void
 }
 
 function ScoreCard({ correctCount }: { correctCount: number }) {
@@ -30,9 +34,11 @@ export function ArcadeIdlePanel({
   lastQuiz,
   sessionStats,
   bestRecord,
+  weakPriorityItems,
   isNewBestRecord = false,
-  isReplayingLastQuiz = false,
-  onReplayLastQuiz,
+  replayingQuizKey,
+  isReplayBusy,
+  onPlayQuiz,
 }: ArcadeIdlePanelProps) {
   const gameEnded = lastQuiz !== null && hasSessionAttempts(sessionStats)
   const correctCount = getCorrectAnswerCount(sessionStats)
@@ -67,37 +73,22 @@ export function ArcadeIdlePanel({
           </div>
         )}
 
+        <WeakPrioritySection
+          items={weakPriorityItems}
+          replayingQuizKey={replayingQuizKey}
+          isReplayBusy={isReplayBusy}
+          onPlayQuiz={onPlayQuiz}
+        />
+
         {lastQuiz && (
-          <button
-            type="button"
-            onClick={onReplayLastQuiz}
-            disabled={isReplayingLastQuiz || !onReplayLastQuiz}
-            className="group w-full max-w-sm rounded-xl border border-red-400/20 bg-red-500/5 px-4 py-3 text-center transition hover:border-red-400/40 hover:bg-red-500/10 disabled:cursor-wait disabled:opacity-80"
-            aria-label="重听错题"
-          >
-            <div className="flex items-center justify-center gap-2">
-              <span
-                className={`flex h-7 w-7 items-center justify-center rounded-full bg-red-500/15 transition ${
-                  isReplayingLastQuiz ? 'animate-pulse-ring' : 'group-hover:bg-red-500/25'
-                }`}
-                aria-hidden="true"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M9 18V6l10 6-10 6z"
-                    fill="currentColor"
-                    className="text-red-300"
-                  />
-                </svg>
-              </span>
-              <p className="text-xs text-[var(--text-secondary)]">
-                {isReplayingLastQuiz ? '播放中…' : '点击重听'}
-              </p>
-            </div>
-            <p className="mt-2 text-xs text-[var(--text-secondary)]">正确答案</p>
-            <p className="mt-1 text-2xl font-bold">{lastQuiz.interval.name}</p>
-            <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{formatQuizNotes(lastQuiz)}</p>
-          </button>
+          <PlayableIntervalCard
+            quiz={lastQuiz}
+            variant="prominent"
+            subtitle="正确答案"
+            isPlaying={replayingQuizKey === getQuizPitchKey(lastQuiz)}
+            disabled={isReplayBusy && replayingQuizKey !== getQuizPitchKey(lastQuiz)}
+            onPlay={() => onPlayQuiz(lastQuiz)}
+          />
         )}
       </PlayAreaCard>
     )

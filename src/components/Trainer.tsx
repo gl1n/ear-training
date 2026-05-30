@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { createPiano, type Piano } from '../audio/piano'
 import { createAudioContext, unlockAudioContextSync } from '../audio/context'
 import { getInitialSettings, usePersistedSettings } from '../hooks/usePersistedSettings'
@@ -28,6 +28,8 @@ import {
   type SessionStats,
 } from '../quiz/stats'
 import {
+  getQuizPitchKey,
+  listWeakPriorityItems,
   loadQuizPriorities,
   saveQuizPriorities,
   type QuizPriorityStore,
@@ -77,7 +79,17 @@ export function Trainer() {
   const [priorityVersion, setPriorityVersion] = useState(0)
   const [idleTip, setIdleTip] = useState<string | null>(null)
 
-  const [isReplayingLastQuiz, setIsReplayingLastQuiz] = useState(false)
+  const [replayingQuizKey, setReplayingQuizKey] = useState<string | null>(null)
+
+  const weakPriorityItems = useMemo(
+    () =>
+      listWeakPriorityItems(
+        priorityStoreRef.current,
+        settings.direction,
+        settings.enabledIntervalIds,
+      ),
+    [priorityVersion, settings.direction, settings.enabledIntervalIds],
+  )
 
   usePersistedSettings(speedPreset, settings.enabledIntervalIds, settings.direction, mode)
 
@@ -196,43 +208,47 @@ export function Trainer() {
     answerResolverRef.current?.(intervalId)
   }, [])
 
-  const handleReplayLastQuiz = useCallback(async () => {
-    if (!lastQuiz || isRunning || isReplayingLastQuiz) {
-      return
-    }
-
-    ensureAudioContext(audioContextRef)
-
-    replayAbortRef.current?.abort()
-    stopPlayback(pianoRef.current)
-
-    const controller = new AbortController()
-    replayAbortRef.current = controller
-    setIsReplayingLastQuiz(true)
-
-    try {
-      const ctx = audioContextRef.current!
-      if (!pianoRef.current) {
-        pianoRef.current = await createPiano(ctx, {
-          rootMin: settings.rootMin,
-          rootMax: settings.rootMax,
-          signal: controller.signal,
-        })
-      }
-
-      await replayQuiz(pianoRef.current, lastQuiz, settings, controller.signal)
-    } catch (error) {
-      if (isAbortError(error)) {
+  const handlePlayQuiz = useCallback(
+    async (quiz: Quiz) => {
+      if (isRunning || replayingQuizKey !== null) {
         return
       }
-      console.error(error)
-    } finally {
-      if (replayAbortRef.current === controller) {
-        setIsReplayingLastQuiz(false)
-        replayAbortRef.current = null
+
+      ensureAudioContext(audioContextRef)
+
+      replayAbortRef.current?.abort()
+      stopPlayback(pianoRef.current)
+
+      const controller = new AbortController()
+      replayAbortRef.current = controller
+      const pitchKey = getQuizPitchKey(quiz)
+      setReplayingQuizKey(pitchKey)
+
+      try {
+        const ctx = audioContextRef.current!
+        if (!pianoRef.current) {
+          pianoRef.current = await createPiano(ctx, {
+            rootMin: settings.rootMin,
+            rootMax: settings.rootMax,
+            signal: controller.signal,
+          })
+        }
+
+        await replayQuiz(pianoRef.current, quiz, settings, controller.signal)
+      } catch (error) {
+        if (isAbortError(error)) {
+          return
+        }
+        console.error(error)
+      } finally {
+        if (replayAbortRef.current === controller) {
+          setReplayingQuizKey(null)
+          replayAbortRef.current = null
+        }
       }
-    }
-  }, [isReplayingLastQuiz, isRunning, lastQuiz, settings])
+    },
+    [isRunning, replayingQuizKey, settings],
+  )
 
   const start = useCallback(async () => {
     if (settings.enabledIntervalIds.length === 0) {
@@ -448,8 +464,10 @@ export function Trainer() {
         onOpenSettings={() => setDrawerOpen(true)}
         onRetry={handleToggle}
         onAnswerSelect={handleAnswerSelect}
-        onReplayLastQuiz={handleReplayLastQuiz}
-        isReplayingLastQuiz={isReplayingLastQuiz}
+        weakPriorityItems={weakPriorityItems}
+        replayingQuizKey={replayingQuizKey}
+        isReplayBusy={replayingQuizKey !== null}
+        onPlayQuiz={handlePlayQuiz}
       />
 
       <SettingsDrawer

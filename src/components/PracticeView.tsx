@@ -10,6 +10,7 @@ import { StatusHero } from './StatusHero'
 import { Button } from './ui/Button'
 import { SegmentedControl } from './ui/SegmentedControl'
 import type { Quiz } from '../quiz/intervals'
+import type { WeakPriorityItem } from '../quiz/quizPriority'
 
 const MODE_OPTIONS = [
   { value: 'practice' as const, label: '练习模式' },
@@ -37,8 +38,10 @@ type PracticeViewProps = {
   onOpenSettings: () => void
   onRetry: () => void
   onAnswerSelect: (intervalId: string) => void
-  onReplayLastQuiz?: () => void
-  isReplayingLastQuiz?: boolean
+  weakPriorityItems: WeakPriorityItem[]
+  replayingQuizKey: string | null
+  isReplayBusy: boolean
+  onPlayQuiz: (quiz: Quiz) => void
 }
 
 export function PracticeView({
@@ -62,8 +65,10 @@ export function PracticeView({
   onOpenSettings,
   onRetry,
   onAnswerSelect,
-  onReplayLastQuiz,
-  isReplayingLastQuiz = false,
+  weakPriorityItems,
+  replayingQuizKey,
+  isReplayBusy,
+  onPlayQuiz,
 }: PracticeViewProps) {
   const { enabledIntervalIds } = settingsControls
   const canStart = enabledIntervalIds.length > 0
@@ -135,9 +140,11 @@ export function PracticeView({
             lastQuiz={lastQuiz}
             sessionStats={sessionStats}
             bestRecord={bestRecord}
+            weakPriorityItems={weakPriorityItems}
             isNewBestRecord={isNewBestRecord}
-            isReplayingLastQuiz={isReplayingLastQuiz}
-            onReplayLastQuiz={onReplayLastQuiz}
+            replayingQuizKey={replayingQuizKey}
+            isReplayBusy={isReplayBusy}
+            onPlayQuiz={onPlayQuiz}
           />
         )
       ) : (

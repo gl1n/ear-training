@@ -3,11 +3,11 @@ import type { Piano } from '../audio/piano'
 import { delay, isAbortError } from '../utils/abort'
 import { ALL_INTERVAL_IDS, randomQuiz, type IntervalDirection, type Quiz } from './intervals'
 import {
+  bumpLevel,
+  decayLevel,
   ensureIdleBoostIfEligible,
   getQuizPitchKey,
   IDLE_BOOST_MS,
-  recordCorrectDecay,
-  recordWrongBoost,
   weightedRandomQuiz,
   type QuizPriorityStore,
 } from './quizPriority'
@@ -251,12 +251,13 @@ export async function runArcadeLoop(
     }
 
     const applyWrongBoost = () => {
-      recordWrongBoost(priorityStore, quizKey)
+      bumpLevel(priorityStore, quizKey)
       notifyPriorityUpdated()
     }
 
     const notifyIdleBoost = () => {
-      applyWrongBoost()
+      bumpLevel(priorityStore, quizKey)
+      notifyPriorityUpdated()
       callbacks.onIdleBoost?.()
     }
 
@@ -342,7 +343,7 @@ export async function runArcadeLoop(
     const correct = !answer.timedOut && answer.selectedIntervalId === quiz.interval.id
 
     if (correct) {
-      recordCorrectDecay(priorityStore, quizKey)
+      decayLevel(priorityStore, quizKey)
       notifyPriorityUpdated()
     } else if (!answer.timedOut) {
       applyWrongBoost()

@@ -5,15 +5,109 @@ import {
   type Quiz,
 } from './intervals'
 
+/** Stored value is weak score 1..MAX_LEVEL; absent key = baseline (score 0). */
 export type QuizPriorityStore = Record<string, number>
 
 const STORAGE_KEY = 'ear-trainer:quiz-priorities'
 
 export const IDLE_BOOST_MS = 1_000
 
-const WRONG_BOOST_FACTOR = 1.5
-const CORRECT_DECAY_FACTOR = 0.8
+export const MIN_LEVEL = 1
+export const MAX_LEVEL = 5
+export const MISTAKE_SCORE_DELTA = 2
+export const CORRECT_SCORE_DELTA = 1
+/** 有薄弱项时：35% 从薄弱库按分加权抽，65% 全随机。 */
+export const WEAK_POOL_RATE = 0.35
+export const RANDOM_POOL_RATE = 1 - WEAK_POOL_RATE
 const BASELINE_MASS = 1
+const LEGACY_BOOST_RATIO = 1.5
+export function levelToWeight(level: number): number {
+  return BASELINE_MASS + level
+}
+
+export function migrateLegacyPriority(value: number): number {
+  if (!Number.isFinite(value)) return 0
+  if (Number.isInteger(value) && value >= MIN_LEVEL && value <= MAX_LEVEL) {
+    return value
+  }
+  if (value <= 1) return 0
+  const legacyLevel = Math.round(Math.log(value) / Math.log(LEGACY_BOOST_RATIO))
+  return Math.min(MAX_LEVEL, Math.max(MIN_LEVEL, legacyLevel * MISTAKE_SCORE_DELTA))
+}
+
+export function getStoredLevel(store: QuizPriorityStore, key: string): number {
+  const value = store[key]
+  if (value === undefined) return 0
+  return Math.min(MAX_LEVEL, Math.max(0, migrateLegacyPriority(value)))
+}
+
+/** 失误（答错、发呆等）：薄弱分 +2，封顶 5。 */
+export function bumpLevel(store: QuizPriorityStore, key: string): void {
+  const next = Math.min(MAX_LEVEL, getStoredLevel(store, key) + MISTAKE_SCORE_DELTA)
+  if (next < MIN_LEVEL) return
+  store[key] = next
+}
+
+/** 答对：薄弱分 -1，降至 0 则从加权库移除。 */
+export function decayLevel(store: QuizPriorityStore, key: string): void {
+  const current = getStoredLevel(store, key)
+  const next = current - CORRECT_SCORE_DELTA
+  if (next < MIN_LEVEL) {
+    delete store[key]
+    return
+  }
+  store[key] = next
+}
+
+/** @deprecated Use bumpLevel */
+export function recordWrongBoost(store: QuizPriorityStore, key: string): void {
+  bumpLevel(store, key)
+}
+
+/** @deprecated Use decayLevel */
+export function recordCorrectDecay(store: QuizPriorityStore, key: string): void {
+  decayLevel(store, key)
+}
+
+export type BoostedQuizEntry = {
+  key: string
+  level: number
+  weight: number
+  quiz: Quiz
+}
+
+export type WeakPriorityItem = {
+  key: string
+  level: number
+  quiz: Quiz
+}
+
+/** Boosted pitch keys for UI, strongest first. */
+export function listWeakPriorityItems(
+  store: QuizPriorityStore,
+  direction: IntervalDirection,
+  enabledIds: string[],
+): WeakPriorityItem[] {
+  return getBoostedEntries(store, direction, enabledIds)
+    .map(({ key, level, quiz }) => ({ key, level, quiz }))
+    .sort((a, b) => b.level - a.level || a.key.localeCompare(b.key))
+}
+
+export function getBoostedEntries(
+  store: QuizPriorityStore,
+  direction: IntervalDirection,
+  enabledIds: string[],
+): BoostedQuizEntry[] {
+  return Object.entries(store)
+    .map(([key, rawLevel]) => {
+      const level = migrateLegacyPriority(rawLevel)
+      if (level < 1) return null
+      const quiz = quizFromPitchKey(key, direction, enabledIds)
+      if (!quiz) return null
+      return { key, level, weight: levelToWeight(level), quiz }
+    })
+    .filter((entry): entry is BoostedQuizEntry => entry !== null)
+}
 
 export function getQuizPitchKey(quiz: Quiz): string {
   if (quiz.direction === 'harmonic') {
@@ -67,19 +161,6 @@ export function quizFromPitchKey(
   return null
 }
 
-export function recordWrongBoost(store: QuizPriorityStore, key: string): void {
-  store[key] = (store[key] ?? BASELINE_MASS) * WRONG_BOOST_FACTOR
-}
-
-export function recordCorrectDecay(store: QuizPriorityStore, key: string): void {
-  const next = Math.max(BASELINE_MASS, (store[key] ?? BASELINE_MASS) * CORRECT_DECAY_FACTOR)
-  if (next <= BASELINE_MASS) {
-    delete store[key]
-  } else {
-    store[key] = next
-  }
-}
-
 export function ensureIdleBoostIfEligible(
   store: QuizPriorityStore,
   key: string,
@@ -93,7 +174,7 @@ export function ensureIdleBoostIfEligible(
   }
 
   if (performance.now() - answerWindowStartMs >= IDLE_BOOST_MS) {
-    recordWrongBoost(store, key)
+    bumpLevel(store, key)
     onUpdated?.()
     return true
   }
@@ -108,34 +189,21 @@ export function weightedRandomQuiz(
   rootMax: number,
   store: QuizPriorityStore,
 ): Quiz {
-  const boosted = Object.entries(store).filter(([, priority]) => priority > 1)
-
-  if (boosted.length === 0) {
-    return randomQuiz(enabledIds, direction, rootMin, rootMax)
-  }
-
-  const validBoosted = boosted
-    .map(([key, priority]) => ({
-      key,
-      priority,
-      quiz: quizFromPitchKey(key, direction, enabledIds),
-    }))
-    .filter((entry): entry is { key: string; priority: number; quiz: Quiz } => entry.quiz !== null)
+  const validBoosted = getBoostedEntries(store, direction, enabledIds)
 
   if (validBoosted.length === 0) {
     return randomQuiz(enabledIds, direction, rootMin, rootMax)
   }
 
-  const boostedWeight = validBoosted.reduce((sum, entry) => sum + entry.priority, 0)
-  const total = boostedWeight + BASELINE_MASS
+  const boostedWeight = validBoosted.reduce((sum, entry) => sum + entry.weight, 0)
 
-  if (Math.random() * total >= boostedWeight) {
+  if (Math.random() >= WEAK_POOL_RATE) {
     return randomQuiz(enabledIds, direction, rootMin, rootMax)
   }
 
   let pick = Math.random() * boostedWeight
   for (const entry of validBoosted) {
-    pick -= entry.priority
+    pick -= entry.weight
     if (pick <= 0) {
       return entry.quiz
     }
@@ -147,9 +215,29 @@ export function weightedRandomQuiz(
 function isQuizPriorityStore(value: unknown): value is QuizPriorityStore {
   if (typeof value !== 'object' || value === null) return false
 
-  return Object.entries(value).every(
-    ([key, priority]) => key.length > 0 && typeof priority === 'number' && priority > 1,
-  )
+  return Object.entries(value).every(([key, level]) => {
+    return (
+      key.length > 0 &&
+      typeof level === 'number' &&
+      Number.isInteger(level) &&
+      level >= MIN_LEVEL &&
+      level <= MAX_LEVEL
+    )
+  })
+}
+
+function normalizeLoadedStore(parsed: Record<string, unknown>): QuizPriorityStore {
+  const store: QuizPriorityStore = {}
+
+  for (const [key, value] of Object.entries(parsed)) {
+    if (typeof value !== 'number' || key.length === 0) continue
+    const level = migrateLegacyPriority(value)
+    if (level >= 1) {
+      store[key] = level
+    }
+  }
+
+  return store
 }
 
 export function loadQuizPriorities(): QuizPriorityStore {
@@ -158,15 +246,30 @@ export function loadQuizPriorities(): QuizPriorityStore {
     if (!raw) return {}
 
     const parsed: unknown = JSON.parse(raw)
-    return isQuizPriorityStore(parsed) ? parsed : {}
+    if (typeof parsed !== 'object' || parsed === null) return {}
+
+    if (isQuizPriorityStore(parsed)) {
+      return { ...parsed }
+    }
+
+    return normalizeLoadedStore(parsed as Record<string, unknown>)
   } catch {
     return {}
   }
 }
 
 export function saveQuizPriorities(store: QuizPriorityStore): void {
+  const normalized: QuizPriorityStore = {}
+
+  for (const [key] of Object.entries(store)) {
+    const level = getStoredLevel(store, key)
+    if (level >= 1) {
+      normalized[key] = level
+    }
+  }
+
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized))
   } catch {
     // Ignore quota / private mode errors.
   }
