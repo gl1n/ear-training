@@ -27,6 +27,11 @@ import {
   recordResult,
   type SessionStats,
 } from '../quiz/stats'
+import {
+  loadQuizPriorities,
+  saveQuizPriorities,
+  type QuizPriorityStore,
+} from '../quiz/quizPriority'
 import { abortError, isAbortError } from '../utils/abort'
 import type { SettingsPanelProps } from './SettingsPanel'
 import { PracticeView } from './PracticeView'
@@ -65,10 +70,22 @@ export function Trainer() {
   const answerCleanupRef = useRef<(() => void) | null>(null)
   const replayAbortRef = useRef<AbortController | null>(null)
   const sessionStatsRef = useRef<SessionStats>(EMPTY_SESSION_STATS)
+  const priorityStoreRef = useRef<QuizPriorityStore>(loadQuizPriorities())
+  const [priorityVersion, setPriorityVersion] = useState(0)
 
   const [isReplayingLastQuiz, setIsReplayingLastQuiz] = useState(false)
 
   usePersistedSettings(speedPreset, settings.enabledIntervalIds, settings.direction, mode)
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      saveQuizPriorities(priorityStoreRef.current)
+    }, 300)
+
+    return () => {
+      clearTimeout(timeoutId)
+    }
+  }, [priorityVersion])
 
   const resetArcadeAnswerState = useCallback(() => {
     answerResolverRef.current = null
@@ -256,9 +273,13 @@ export function Trainer() {
                 return next
               })
             },
+            onPriorityUpdated: () => {
+              setPriorityVersion((version) => version + 1)
+            },
           },
           controller.signal,
           sessionDeadlineMs!,
+          priorityStoreRef.current,
         )
       } else {
         await runLoop(

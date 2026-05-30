@@ -2,6 +2,15 @@ import { cancelSpeech, speak } from '../audio/speech'
 import type { Piano } from '../audio/piano'
 import { delay, isAbortError } from '../utils/abort'
 import { ALL_INTERVAL_IDS, randomQuiz, type IntervalDirection, type Quiz } from './intervals'
+import {
+  ensureIdleBoostIfEligible,
+  getQuizPitchKey,
+  IDLE_BOOST_MS,
+  recordCorrectDecay,
+  recordWrongBoost,
+  weightedRandomQuiz,
+  type QuizPriorityStore,
+} from './quizPriority'
 
 export type TrainerState =
   | 'idle'
@@ -112,6 +121,7 @@ export type ArcadeCallbacks = {
     answer: ArcadeAnswer,
     correct: boolean,
   ) => void
+  onPriorityUpdated?: () => void
 }
 
 async function playNote(
@@ -198,6 +208,7 @@ export async function runArcadeLoop(
   callbacks: ArcadeCallbacks,
   signal: AbortSignal,
   sessionDeadlineMs: number,
+  priorityStore: QuizPriorityStore,
 ): Promise<void> {
   const getRemainingMs = () => Math.max(0, sessionDeadlineMs - performance.now())
 
@@ -206,11 +217,12 @@ export async function runArcadeLoop(
       return
     }
 
-    const quiz = randomQuiz(
+    const quiz = weightedRandomQuiz(
       settings.enabledIntervalIds,
       settings.direction,
       settings.rootMin,
       settings.rootMax,
+      priorityStore,
     )
 
     const remainingMs = getRemainingMs()
@@ -223,6 +235,44 @@ export async function runArcadeLoop(
       callbacks.onStateChange('feedback_incorrect')
       await delay(ARCADE_FEEDBACK_INCORRECT_MS, signal)
       return
+    }
+
+    const quizKey = getQuizPitchKey(quiz)
+    const questionState = {
+      playerAnswered: false,
+      idleBoosted: false,
+      answerWindowStartMs: null as number | null,
+      idleTimer: null as ReturnType<typeof setTimeout> | null,
+    }
+
+    const notifyPriorityUpdated = () => {
+      callbacks.onPriorityUpdated?.()
+    }
+
+    const clearIdleTimer = () => {
+      if (questionState.idleTimer !== null) {
+        clearTimeout(questionState.idleTimer)
+        questionState.idleTimer = null
+      }
+    }
+
+    const startIdleTimerIfNeeded = () => {
+      if (
+        questionState.playerAnswered ||
+        questionState.idleBoosted ||
+        questionState.answerWindowStartMs !== null
+      ) {
+        return
+      }
+
+      questionState.answerWindowStartMs = performance.now()
+      questionState.idleTimer = setTimeout(() => {
+        if (!questionState.playerAnswered) {
+          recordWrongBoost(priorityStore, quizKey)
+          questionState.idleBoosted = true
+          notifyPriorityUpdated()
+        }
+      }, IDLE_BOOST_MS)
     }
 
     const audioAbort = new AbortController()
@@ -238,8 +288,9 @@ export async function runArcadeLoop(
 
     const audioPromise = playQuizAudio(piano, quiz, settings, { onStateChange }, audioAbort.signal)
       .then(() => {
-        if (!audioAbort.signal.aborted) {
+        if (!audioAbort.signal.aborted && !questionState.playerAnswered) {
           callbacks.onStateChange('awaiting_answer')
+          startIdleTimerIfNeeded()
         }
       })
       .catch((error) => {
@@ -251,7 +302,9 @@ export async function runArcadeLoop(
     let answer: ArcadeAnswer
     try {
       answer = await answerPromise
+      questionState.playerAnswered = !answer.timedOut && answer.selectedIntervalId !== ''
     } finally {
+      clearIdleTimer()
       audioAbort.abort()
       stopPlayback(piano)
       signal.removeEventListener('abort', onSessionAbort)
@@ -262,7 +315,24 @@ export async function runArcadeLoop(
       }
     }
 
+    questionState.idleBoosted = ensureIdleBoostIfEligible(
+      priorityStore,
+      quizKey,
+      questionState.answerWindowStartMs,
+      questionState.playerAnswered,
+      questionState.idleBoosted,
+      notifyPriorityUpdated,
+    )
+
     const correct = !answer.timedOut && answer.selectedIntervalId === quiz.interval.id
+
+    if (correct) {
+      recordCorrectDecay(priorityStore, quizKey)
+      notifyPriorityUpdated()
+    } else if (!answer.timedOut) {
+      recordWrongBoost(priorityStore, quizKey)
+      notifyPriorityUpdated()
+    }
 
     callbacks.onAnswerSubmitted(quiz, answer, correct)
 
