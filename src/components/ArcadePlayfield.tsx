@@ -110,7 +110,8 @@ export function ArcadePlayfield({
 }: ArcadePlayfieldProps) {
   const options = getIntervalsByIds(optionIds)
   const phase = getPhase(state)
-  const canAnswer = state === 'awaiting_answer'
+  const canAnswer =
+    state === 'awaiting_answer' || LISTENING_STATES.includes(state)
   const isWrong = state === 'feedback_incorrect'
   const correctCount = getCorrectAnswerCount(sessionStats)
   const currentQuestion = correctCount + (canAnswer || LISTENING_STATES.includes(state) ? 1 : 0)

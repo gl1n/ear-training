@@ -2,8 +2,6 @@ import type { Quiz } from '../quiz/intervals'
 import type { ArcadeBestRecord } from '../quiz/arcadeBestRecord'
 import { formatQuizNotes } from '../lib/formatQuiz'
 import {
-  formatResponseTime,
-  getAverageResponseTimeMs,
   getCorrectAnswerCount,
   hasSessionAttempts,
   type SessionStats,
@@ -19,25 +17,11 @@ type ArcadeIdlePanelProps = {
   onReplayLastQuiz?: () => void
 }
 
-function ScoreGrid({
-  correctCount,
-  avgResponseMs,
-}: {
-  correctCount: number
-  avgResponseMs: number | null
-}) {
+function ScoreCard({ correctCount }: { correctCount: number }) {
   return (
-    <div className="grid w-full max-w-sm grid-cols-2 gap-3">
-      <div className="rounded-xl border border-[var(--border-subtle)] bg-black/20 px-4 py-4 text-center">
-        <p className="text-3xl font-bold tabular-nums">{correctCount}</p>
-        <p className="mt-1 text-xs text-[var(--text-secondary)]">正确答题</p>
-      </div>
-      <div className="rounded-xl border border-[var(--border-subtle)] bg-black/20 px-4 py-4 text-center">
-        <p className="text-3xl font-bold tabular-nums">
-          {avgResponseMs !== null ? formatResponseTime(avgResponseMs) : '—'}
-        </p>
-        <p className="mt-1 text-xs text-[var(--text-secondary)]">平均反应时间</p>
-      </div>
+    <div className="w-full max-w-sm rounded-xl border border-[var(--border-subtle)] bg-black/20 px-4 py-4 text-center">
+      <p className="text-3xl font-bold tabular-nums">{correctCount}</p>
+      <p className="mt-1 text-xs text-[var(--text-secondary)]">正确答题</p>
     </div>
   )
 }
@@ -52,7 +36,6 @@ export function ArcadeIdlePanel({
 }: ArcadeIdlePanelProps) {
   const gameEnded = lastQuiz !== null && hasSessionAttempts(sessionStats)
   const correctCount = getCorrectAnswerCount(sessionStats)
-  const avgResponseMs = getAverageResponseTimeMs(sessionStats)
 
   if (gameEnded) {
     return (
@@ -65,7 +48,7 @@ export function ArcadeIdlePanel({
           <p className="text-center text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
             本次成绩
           </p>
-          <ScoreGrid correctCount={correctCount} avgResponseMs={avgResponseMs} />
+          <ScoreCard correctCount={correctCount} />
         </div>
 
         {bestRecord && (
@@ -80,10 +63,7 @@ export function ArcadeIdlePanel({
                 </span>
               )}
             </div>
-            <ScoreGrid
-              correctCount={bestRecord.correctCount}
-              avgResponseMs={bestRecord.avgResponseTimeMs}
-            />
+            <ScoreCard correctCount={bestRecord.correctCount} />
           </div>
         )}
 

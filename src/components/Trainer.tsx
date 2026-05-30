@@ -22,7 +22,6 @@ import {
 } from '../quiz/arcadeBestRecord'
 import {
   EMPTY_SESSION_STATS,
-  getAverageResponseTimeMs,
   getCorrectAnswerCount,
   hasSessionAttempts,
   recordResult,
@@ -108,8 +107,7 @@ export function Trainer() {
   }, [abortSession])
 
   const waitForAnswer = useCallback((signal: AbortSignal, timeoutMs: number) => {
-    return new Promise<{ selectedIntervalId: string; responseTimeMs: number; timedOut?: boolean }>(
-      (resolve, reject) => {
+    return new Promise<{ selectedIntervalId: string; timedOut?: boolean }>((resolve, reject) => {
         let timeoutId: ReturnType<typeof setTimeout> | null = null
 
         const onAbort = () => {
@@ -128,23 +126,22 @@ export function Trainer() {
 
         answerResolverRef.current = (intervalId: string) => {
           cleanup()
-          resolve({ selectedIntervalId: intervalId, responseTimeMs: 0 })
+          resolve({ selectedIntervalId: intervalId })
         }
         answerCleanupRef.current = cleanup
         signal.addEventListener('abort', onAbort)
 
         if (timeoutMs <= 0) {
           cleanup()
-          resolve({ selectedIntervalId: '', responseTimeMs: 0, timedOut: true })
+          resolve({ selectedIntervalId: '', timedOut: true })
           return
         }
 
         timeoutId = setTimeout(() => {
           cleanup()
-          resolve({ selectedIntervalId: '', responseTimeMs: 0, timedOut: true })
+          resolve({ selectedIntervalId: '', timedOut: true })
         }, timeoutMs)
-      },
-    )
+    })
   }, [])
 
   const handleAnswerSelect = useCallback((intervalId: string) => {
@@ -254,10 +251,7 @@ export function Trainer() {
               }
               setLastQuiz(quiz)
               setSessionStats((current) => {
-                const next = recordResult(current, quiz.interval.id, {
-                  correct,
-                  responseTimeMs: answer.responseTimeMs,
-                })
+                const next = recordResult(current, quiz.interval.id, { correct })
                 sessionStatsRef.current = next
                 return next
               })
@@ -290,15 +284,11 @@ export function Trainer() {
         if (mode === 'arcade') {
           const stats = sessionStatsRef.current
           if (hasSessionAttempts(stats)) {
-            const avgResponseTimeMs = getAverageResponseTimeMs(stats)
-            if (avgResponseTimeMs !== null) {
-              const { record, isNew } = tryUpdateArcadeBestRecord({
-                correctCount: getCorrectAnswerCount(stats),
-                avgResponseTimeMs,
-              })
-              setBestRecord(record)
-              setIsNewBestRecord(isNew)
-            }
+            const { record, isNew } = tryUpdateArcadeBestRecord({
+              correctCount: getCorrectAnswerCount(stats),
+            })
+            setBestRecord(record)
+            setIsNewBestRecord(isNew)
           }
         }
 

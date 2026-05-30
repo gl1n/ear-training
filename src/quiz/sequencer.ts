@@ -1,6 +1,6 @@
 import { cancelSpeech, speak } from '../audio/speech'
 import type { Piano } from '../audio/piano'
-import { delay } from '../utils/abort'
+import { delay, isAbortError } from '../utils/abort'
 import { ALL_INTERVAL_IDS, randomQuiz, type IntervalDirection, type Quiz } from './intervals'
 
 export type TrainerState =
@@ -101,7 +101,6 @@ export const ARCADE_SESSION_TIME_MS = 30_000
 
 export type ArcadeAnswer = {
   selectedIntervalId: string
-  responseTimeMs: number
   timedOut?: boolean
 }
 
@@ -214,13 +213,11 @@ export async function runArcadeLoop(
       settings.rootMax,
     )
 
-    await playQuizAudio(piano, quiz, settings, callbacks, signal)
-
     const remainingMs = getRemainingMs()
     if (remainingMs <= 0) {
       callbacks.onAnswerSubmitted(
         quiz,
-        { selectedIntervalId: '', responseTimeMs: remainingMs, timedOut: true },
+        { selectedIntervalId: '', timedOut: true },
         false,
       )
       callbacks.onStateChange('feedback_incorrect')
@@ -228,17 +225,46 @@ export async function runArcadeLoop(
       return
     }
 
-    callbacks.onStateChange('awaiting_answer')
-    const answerStart = performance.now()
-    const answer = await callbacks.waitForAnswer(signal, remainingMs)
-    const responseTimeMs = performance.now() - answerStart
+    const audioAbort = new AbortController()
+
+    const onSessionAbort = () => audioAbort.abort()
+    signal.addEventListener('abort', onSessionAbort)
+
+    const onStateChange = (state: TrainerState) => {
+      callbacks.onStateChange(state)
+    }
+
+    const answerPromise = callbacks.waitForAnswer(signal, remainingMs)
+
+    const audioPromise = playQuizAudio(piano, quiz, settings, { onStateChange }, audioAbort.signal)
+      .then(() => {
+        if (!audioAbort.signal.aborted) {
+          callbacks.onStateChange('awaiting_answer')
+        }
+      })
+      .catch((error) => {
+        if (!isAbortError(error)) {
+          throw error
+        }
+      })
+
+    let answer: ArcadeAnswer
+    try {
+      answer = await answerPromise
+    } finally {
+      audioAbort.abort()
+      stopPlayback(piano)
+      signal.removeEventListener('abort', onSessionAbort)
+      try {
+        await audioPromise
+      } catch {
+        // Audio stopped early when the player answered.
+      }
+    }
+
     const correct = !answer.timedOut && answer.selectedIntervalId === quiz.interval.id
 
-    callbacks.onAnswerSubmitted(
-      quiz,
-      { ...answer, responseTimeMs },
-      correct,
-    )
+    callbacks.onAnswerSubmitted(quiz, answer, correct)
 
     if (!correct) {
       callbacks.onStateChange('feedback_incorrect')

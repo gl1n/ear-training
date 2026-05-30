@@ -2,28 +2,19 @@ const STORAGE_KEY = 'ear-trainer:arcade-best'
 
 export type ArcadeBestRecord = {
   correctCount: number
-  avgResponseTimeMs: number
 }
 
 function isArcadeBestRecord(value: unknown): value is ArcadeBestRecord {
   if (typeof value !== 'object' || value === null) return false
   const record = value as Record<string, unknown>
-  return (
-    typeof record.correctCount === 'number' &&
-    Number.isFinite(record.correctCount) &&
-    typeof record.avgResponseTimeMs === 'number' &&
-    Number.isFinite(record.avgResponseTimeMs)
-  )
+  return typeof record.correctCount === 'number' && Number.isFinite(record.correctCount)
 }
 
 function isBetterArcadeRecord(
   candidate: ArcadeBestRecord,
   existing: ArcadeBestRecord,
 ): boolean {
-  if (candidate.correctCount !== existing.correctCount) {
-    return candidate.correctCount > existing.correctCount
-  }
-  return candidate.avgResponseTimeMs < existing.avgResponseTimeMs
+  return candidate.correctCount > existing.correctCount
 }
 
 export function loadArcadeBestRecord(): ArcadeBestRecord | null {
