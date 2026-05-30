@@ -1,9 +1,9 @@
 import { getIntervalsByIds, type Quiz } from '../quiz/intervals'
-import type { TrainerState } from '../quiz/sequencer'
+import { LISTENING_STATES, type TrainerState } from '../quiz/sequencer'
 import { getCorrectAnswerCount, type SessionStats } from '../quiz/stats'
 import { ArcadeFuseTimer } from './ArcadeFuseTimer'
 import { Card } from './ui/Card'
-import { LoadProgressBar } from './LoadProgressBar'
+import { SessionLoadStatus } from './SessionLoadStatus'
 
 type ArcadePlayfieldProps = {
   optionIds: string[]
@@ -18,12 +18,6 @@ type ArcadePlayfieldProps = {
   onSelect: (intervalId: string) => void
   onRetry?: () => void
 }
-
-const LISTENING_STATES: TrainerState[] = [
-  'playing_root',
-  'playing_second',
-  'playing_harmonic',
-]
 
 function getPhase(state: TrainerState) {
   if (state === 'loading') return 'loading' as const
@@ -143,28 +137,16 @@ export function ArcadePlayfield({
         <PhaseIndicator state={state} timedOut={arcadeTimedOut} />
       </div>
 
-      {loadError && (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-red-400/30 bg-red-500/10 px-4 py-3">
-          <p className="text-sm text-red-200">{loadError}</p>
-          {onRetry && (
-            <button
-              type="button"
-              onClick={onRetry}
-              className="text-sm text-red-300 underline underline-offset-2 hover:text-red-200"
-            >
-              重试
-            </button>
-          )}
-        </div>
-      )}
-
-      {state === 'loading' && loadIndeterminate && (
-        <LoadProgressBar label="下载音色包…" indeterminate />
-      )}
-
-      {state === 'loading' && loadProgress !== null && !loadIndeterminate && (
-        <LoadProgressBar label={`采样加载 ${loadProgress}%`} percent={loadProgress} />
-      )}
+      {loadError || state === 'loading' ? (
+        <SessionLoadStatus
+          state={state}
+          loadProgress={loadProgress}
+          loadIndeterminate={loadIndeterminate}
+          loadError={loadError}
+          onRetry={onRetry}
+          variant="compact"
+        />
+      ) : null}
 
       <div
         className={`grid flex-1 gap-2 sm:gap-2.5 ${gridColumns(options.length)}`}

@@ -1,9 +1,8 @@
 import type { Quiz } from '../quiz/intervals'
 import { formatQuizDirection, formatQuizNotes } from '../lib/formatQuiz'
 import type { TrainerState } from '../quiz/sequencer'
-import { Button } from './ui/Button'
-import { LoadProgressBar } from './LoadProgressBar'
 import { PlayAreaCard } from './PlayAreaCard'
+import { SessionLoadStatus } from './SessionLoadStatus'
 
 type StatusHeroProps = {
   state: TrainerState
@@ -24,7 +23,6 @@ const STATE_LABELS: Record<TrainerState, string> = {
   speaking: '播报答案…',
   gap: '下一题准备中…',
   awaiting_answer: '请选择音程',
-  feedback_correct: '回答正确！',
   feedback_incorrect: '回答错误',
 }
 
@@ -128,20 +126,6 @@ function StateIcon({ state }: { state: TrainerState }) {
           </svg>
         </div>
       )
-    case 'feedback_correct':
-      return (
-        <div className={`${baseClass} bg-emerald-500/20 ring-2 ring-emerald-400/40`}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-              d="M9 12l2 2 4-4M12 3a9 9 0 100 18 9 9 0 000-18z"
-              stroke="#6ee7b7"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-      )
     case 'feedback_incorrect':
       return (
         <div className={`${baseClass} bg-red-500/20 ring-2 ring-red-400/40`}>
@@ -185,32 +169,13 @@ export function StatusHero({
 
   return (
     <PlayAreaCard>
-      {loadError && (
-        <div className="mb-4 flex max-w-md flex-col items-center gap-3">
-          <p className="rounded-lg border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-            {loadError}
-          </p>
-          {onRetry && (
-            <Button variant="ghost" onClick={onRetry}>
-              重试
-            </Button>
-          )}
-        </div>
-      )}
-
-      {state === 'loading' && loadIndeterminate && (
-        <LoadProgressBar
-          label="下载音色包…（Safari 首次约需 10 秒）"
-          indeterminate
-        />
-      )}
-
-      {state === 'loading' && loadProgress !== null && !loadIndeterminate && (
-        <LoadProgressBar
-          label={`采样加载 ${loadProgress}%（首次约需几秒）`}
-          percent={loadProgress}
-        />
-      )}
+      <SessionLoadStatus
+        state={state}
+        loadProgress={loadProgress}
+        loadIndeterminate={loadIndeterminate}
+        loadError={loadError}
+        onRetry={onRetry}
+      />
 
       <StateIcon state={state} />
 

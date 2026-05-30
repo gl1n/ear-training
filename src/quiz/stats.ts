@@ -1,5 +1,3 @@
-import { INTERVALS } from './intervals'
-
 export type QuizResult = {
   correct: boolean
   responseTimeMs: number
@@ -66,25 +64,10 @@ export function formatResponseTime(ms: number): string {
   return `${(ms / 1000).toFixed(1)} s`
 }
 
-export function getTotalAnswerCount(stats: SessionStats): number {
+function getTotalAnswerCount(stats: SessionStats): number {
   return Object.values(stats.byInterval).reduce((sum, interval) => sum + interval.totalCount, 0)
 }
 
 export function hasSessionAttempts(stats: SessionStats): boolean {
   return getTotalAnswerCount(stats) > 0
-}
-
-export function getAttemptedIntervals(stats: SessionStats) {
-  return INTERVALS.filter((interval) => (stats.byInterval[interval.id]?.totalCount ?? 0) > 0)
-}
-
-export function computeIntervalAccuracy(stats: IntervalStats): number {
-  if (stats.totalCount === 0) return 0
-  return stats.correctCount / stats.totalCount
-}
-
-export function formatIntervalAccuracy(stats: IntervalStats): string {
-  if (stats.totalCount === 0) return '—'
-  const percent = Math.round(computeIntervalAccuracy(stats) * 100)
-  return `${percent}%`
 }

@@ -132,7 +132,7 @@ export function ArcadeIdlePanel({
         </p>
       </div>
       <p className="mt-8 max-w-md text-base leading-relaxed text-[var(--text-secondary)]">
-        点击「开始挑战」，在 30 秒内尽可能多答对；答错或超时即结束，可查看各音程统计。
+        点击「开始挑战」，在 30 秒内尽可能多答对；答错或超时即结束。
       </p>
     </PlayAreaCard>
   )

@@ -1,6 +1,6 @@
-import { DIRECTION_OPTIONS, INTERVALS } from '../quiz/intervals'
-import { SPEED_OPTIONS, type SpeedPreset } from '../quiz/sequencer'
-import type { IntervalDirection } from '../quiz/intervals'
+import { INTERVALS, type IntervalDirection } from '../quiz/intervals'
+import { getDirectionLabel, getSpeedLabel } from '../lib/labels'
+import type { SpeedPreset } from '../quiz/sequencer'
 import { cardClasses } from './ui/Card'
 import { Chip } from './ui/Chip'
 
@@ -21,9 +21,6 @@ export function SettingsSummary({
   showHint,
   onOpenSettings,
 }: SettingsSummaryProps) {
-  const speedLabel = SPEED_OPTIONS.find((o) => o.value === speedPreset)?.label ?? '中'
-  const directionLabel =
-    DIRECTION_OPTIONS.find((option) => option.value === direction)?.label ?? '上行'
   const selectedIntervals = INTERVALS.filter((interval) =>
     enabledIntervalIds.includes(interval.id),
   )
@@ -46,9 +43,9 @@ export function SettingsSummary({
       <div className="flex w-full items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <span className="text-sm text-[var(--text-secondary)]">速度</span>
-          <Chip active>{speedLabel}</Chip>
+          <Chip active>{getSpeedLabel(speedPreset)}</Chip>
           <span className="text-[var(--text-secondary)]">·</span>
-          <Chip active>{directionLabel}</Chip>
+          <Chip active>{getDirectionLabel(direction)}</Chip>
           <span className="text-[var(--text-secondary)]">·</span>
           <span className="text-sm text-[var(--text-secondary)]">
             {enabledIntervalIds.length} 个音程

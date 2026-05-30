@@ -5,7 +5,7 @@ import { IntervalSelector } from './IntervalSelector'
 import { Card } from './ui/Card'
 import { SegmentedControl } from './ui/SegmentedControl'
 
-type SettingsPanelProps = {
+export type SettingsPanelProps = {
   speedPreset: SpeedPreset
   enabledIntervalIds: string[]
   direction: IntervalDirection

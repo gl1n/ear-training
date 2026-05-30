@@ -16,7 +16,7 @@ function isArcadeBestRecord(value: unknown): value is ArcadeBestRecord {
   )
 }
 
-export function isBetterArcadeRecord(
+function isBetterArcadeRecord(
   candidate: ArcadeBestRecord,
   existing: ArcadeBestRecord,
 ): boolean {

@@ -20,6 +20,8 @@ export const INTERVALS: Interval[] = [
   { id: 'P8', semitones: 12, name: '纯八度', short: '纯八' },
 ]
 
+export const ALL_INTERVAL_IDS = INTERVALS.map((interval) => interval.id)
+
 export type IntervalDirection = 'ascending' | 'descending' | 'harmonic'
 
 export const DIRECTION_OPTIONS: {

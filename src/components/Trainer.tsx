@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { createPiano, type Piano } from '../audio/piano'
 import { createAudioContext, unlockAudioContextSync } from '../audio/context'
 import { getInitialSettings, usePersistedSettings } from '../hooks/usePersistedSettings'
-import { INTERVALS, type IntervalDirection, type Quiz } from '../quiz/intervals'
+import { ALL_INTERVAL_IDS, type IntervalDirection, type Quiz } from '../quiz/intervals'
 import {
   createDefaultSettings,
   replayQuiz,
@@ -28,8 +28,18 @@ import {
   recordResult,
   type SessionStats,
 } from '../quiz/stats'
+import { abortError, isAbortError } from '../utils/abort'
+import type { SettingsPanelProps } from './SettingsPanel'
 import { PracticeView } from './PracticeView'
 import { SettingsDrawer } from './SettingsDrawer'
+
+function ensureAudioContext(ref: RefObject<AudioContext | null>): AudioContext {
+  if (!ref.current) {
+    ref.current = createAudioContext()
+  }
+  unlockAudioContextSync(ref.current)
+  return ref.current
+}
 
 export function Trainer() {
   const initial = getInitialSettings()
@@ -104,7 +114,7 @@ export function Trainer() {
 
         const onAbort = () => {
           cleanup()
-          reject(new DOMException('Aborted', 'AbortError'))
+          reject(abortError())
         }
 
         const cleanup = () => {
@@ -146,10 +156,7 @@ export function Trainer() {
       return
     }
 
-    if (!audioContextRef.current) {
-      audioContextRef.current = createAudioContext()
-    }
-    unlockAudioContextSync(audioContextRef.current)
+    ensureAudioContext(audioContextRef)
 
     replayAbortRef.current?.abort()
     stopPlayback(pianoRef.current)
@@ -159,7 +166,7 @@ export function Trainer() {
     setIsReplayingLastQuiz(true)
 
     try {
-      const ctx = audioContextRef.current
+      const ctx = audioContextRef.current!
       if (!pianoRef.current) {
         pianoRef.current = await createPiano(ctx, {
           rootMin: settings.rootMin,
@@ -170,7 +177,7 @@ export function Trainer() {
 
       await replayQuiz(pianoRef.current, lastQuiz, settings, controller.signal)
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (isAbortError(error)) {
         return
       }
       console.error(error)
@@ -271,7 +278,7 @@ export function Trainer() {
         )
       }
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (isAbortError(error)) {
         return
       }
       console.error(error)
@@ -310,10 +317,7 @@ export function Trainer() {
       return
     }
 
-    if (!audioContextRef.current) {
-      audioContextRef.current = createAudioContext()
-    }
-    unlockAudioContextSync(audioContextRef.current)
+    ensureAudioContext(audioContextRef)
 
     void start()
   }
@@ -349,7 +353,7 @@ export function Trainer() {
   const handleSelectAllIntervals = () => {
     setSettings((current) => ({
       ...current,
-      enabledIntervalIds: INTERVALS.map((interval) => interval.id),
+      enabledIntervalIds: [...ALL_INTERVAL_IDS],
     }))
   }
 
@@ -365,6 +369,19 @@ export function Trainer() {
     setSettings((current) => ({ ...current, direction }))
   }
 
+  const settingsControls: SettingsPanelProps = {
+    speedPreset,
+    enabledIntervalIds: settings.enabledIntervalIds,
+    direction: settings.direction,
+    isRunning,
+    onSpeedChange: handleSpeedChange,
+    onDirectionChange: handleDirectionChange,
+    onIntervalToggle: handleIntervalToggle,
+    onSelectAllIntervals: handleSelectAllIntervals,
+    onClearIntervals: handleClearIntervals,
+    onApplyPreset: handleApplyPreset,
+  }
+
   return (
     <>
       <PracticeView
@@ -372,9 +389,7 @@ export function Trainer() {
         state={state}
         isRunning={isRunning}
         isLoading={state === 'loading'}
-        speedPreset={speedPreset}
-        enabledIntervalIds={settings.enabledIntervalIds}
-        direction={settings.direction}
+        settingsControls={settingsControls}
         lastQuiz={lastQuiz}
         sessionStats={sessionStats}
         bestRecord={bestRecord}
@@ -388,12 +403,6 @@ export function Trainer() {
         onToggle={handleToggle}
         onOpenSettings={() => setDrawerOpen(true)}
         onRetry={handleToggle}
-        onSpeedChange={handleSpeedChange}
-        onDirectionChange={handleDirectionChange}
-        onIntervalToggle={handleIntervalToggle}
-        onSelectAllIntervals={handleSelectAllIntervals}
-        onClearIntervals={handleClearIntervals}
-        onApplyPreset={handleApplyPreset}
         onAnswerSelect={handleAnswerSelect}
         onReplayLastQuiz={handleReplayLastQuiz}
         isReplayingLastQuiz={isReplayingLastQuiz}
@@ -402,16 +411,7 @@ export function Trainer() {
       <SettingsDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        speedPreset={speedPreset}
-        enabledIntervalIds={settings.enabledIntervalIds}
-        direction={settings.direction}
-        isRunning={isRunning}
-        onSpeedChange={handleSpeedChange}
-        onDirectionChange={handleDirectionChange}
-        onIntervalToggle={handleIntervalToggle}
-        onSelectAllIntervals={handleSelectAllIntervals}
-        onClearIntervals={handleClearIntervals}
-        onApplyPreset={handleApplyPreset}
+        {...settingsControls}
       />
     </>
   )

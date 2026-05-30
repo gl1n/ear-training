@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
-type ButtonVariant = 'primary' | 'ghost' | 'icon'
+type ButtonVariant = 'primary' | 'ghost'
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant
@@ -12,7 +12,6 @@ const variantClasses: Record<ButtonVariant, string> = {
     'rounded-[var(--radius-btn)] bg-sky-500 px-6 py-3 text-base font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-white/20',
   ghost:
     'rounded-[var(--radius-btn)] border border-[var(--border-subtle)] px-3 py-1.5 text-sm text-[var(--text-secondary)] transition hover:border-white/20 hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50',
-  icon: 'flex h-9 w-9 items-center justify-center rounded-[var(--radius-btn)] border border-[var(--border-subtle)] text-[var(--text-secondary)] transition hover:border-white/20 hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50',
 }
 
 export function Button({

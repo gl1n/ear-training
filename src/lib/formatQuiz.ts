@@ -1,4 +1,5 @@
-import { DIRECTION_OPTIONS, midiToNoteName, type Quiz } from '../quiz/intervals'
+import { midiToNoteName, type Quiz } from '../quiz/intervals'
+import { getDirectionLabel } from './labels'
 
 export function formatQuizNotes(quiz: Quiz): string {
   const lower = midiToNoteName(Math.min(quiz.root, quiz.second))
@@ -15,5 +16,5 @@ export function formatQuizNotes(quiz: Quiz): string {
 }
 
 export function formatQuizDirection(quiz: Quiz): string {
-  return DIRECTION_OPTIONS.find((option) => option.value === quiz.direction)?.label ?? ''
+  return getDirectionLabel(quiz.direction)
 }

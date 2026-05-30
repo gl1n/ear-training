@@ -4,13 +4,12 @@ import type { SessionStats } from '../quiz/stats'
 import { ArcadeIdlePanel } from './ArcadeIdlePanel'
 import { ArcadePlayfield } from './ArcadePlayfield'
 import { AppShell } from './AppShell'
-import { SettingsPanel } from './SettingsPanel'
+import { SettingsPanel, type SettingsPanelProps } from './SettingsPanel'
 import { SettingsSummary } from './SettingsSummary'
 import { StatusHero } from './StatusHero'
 import { Button } from './ui/Button'
 import { SegmentedControl } from './ui/SegmentedControl'
-import type { IntervalDirection, Quiz } from '../quiz/intervals'
-import type { SpeedPreset } from '../quiz/sequencer'
+import type { Quiz } from '../quiz/intervals'
 
 const MODE_OPTIONS = [
   { value: 'practice' as const, label: '练习模式' },
@@ -22,9 +21,7 @@ type PracticeViewProps = {
   state: TrainerState
   isRunning: boolean
   isLoading: boolean
-  speedPreset: SpeedPreset
-  enabledIntervalIds: string[]
-  direction: IntervalDirection
+  settingsControls: SettingsPanelProps
   lastQuiz: Quiz | null
   sessionStats: SessionStats
   bestRecord: ArcadeBestRecord | null
@@ -38,12 +35,6 @@ type PracticeViewProps = {
   onToggle: () => void
   onOpenSettings: () => void
   onRetry: () => void
-  onSpeedChange: (preset: SpeedPreset) => void
-  onDirectionChange: (direction: IntervalDirection) => void
-  onIntervalToggle: (id: string) => void
-  onSelectAllIntervals: () => void
-  onClearIntervals: () => void
-  onApplyPreset: (intervalIds: string[]) => void
   onAnswerSelect: (intervalId: string) => void
   onReplayLastQuiz?: () => void
   isReplayingLastQuiz?: boolean
@@ -54,9 +45,7 @@ export function PracticeView({
   state,
   isRunning,
   isLoading,
-  speedPreset,
-  enabledIntervalIds,
-  direction,
+  settingsControls,
   lastQuiz,
   sessionStats,
   bestRecord,
@@ -70,32 +59,14 @@ export function PracticeView({
   onToggle,
   onOpenSettings,
   onRetry,
-  onSpeedChange,
-  onDirectionChange,
-  onIntervalToggle,
-  onSelectAllIntervals,
-  onClearIntervals,
-  onApplyPreset,
   onAnswerSelect,
   onReplayLastQuiz,
   isReplayingLastQuiz = false,
 }: PracticeViewProps) {
+  const { enabledIntervalIds } = settingsControls
   const canStart = enabledIntervalIds.length > 0
   const showSettingsHint = !canStart && !isRunning
   const isArcade = mode === 'arcade'
-
-  const settingsPanelProps = {
-    speedPreset,
-    enabledIntervalIds,
-    direction,
-    isRunning,
-    onSpeedChange,
-    onDirectionChange,
-    onIntervalToggle,
-    onSelectAllIntervals,
-    onClearIntervals,
-    onApplyPreset,
-  }
 
   return (
     <AppShell
@@ -110,15 +81,15 @@ export function PracticeView({
       }
       settingsSummary={
         <SettingsSummary
-          speedPreset={speedPreset}
-          enabledIntervalIds={enabledIntervalIds}
-          direction={direction}
-          isRunning={isRunning}
+          speedPreset={settingsControls.speedPreset}
+          enabledIntervalIds={settingsControls.enabledIntervalIds}
+          direction={settingsControls.direction}
+          isRunning={settingsControls.isRunning}
           showHint={showSettingsHint}
           onOpenSettings={onOpenSettings}
         />
       }
-      settingsPanel={<SettingsPanel {...settingsPanelProps} />}
+      settingsPanel={<SettingsPanel {...settingsControls} />}
       footer={
         <>
           <Button

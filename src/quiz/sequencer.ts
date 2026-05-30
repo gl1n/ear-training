@@ -1,7 +1,7 @@
 import { cancelSpeech, speak } from '../audio/speech'
 import type { Piano } from '../audio/piano'
 import { delay } from '../utils/abort'
-import { randomQuiz, type IntervalDirection, type Quiz } from './intervals'
+import { ALL_INTERVAL_IDS, randomQuiz, type IntervalDirection, type Quiz } from './intervals'
 
 export type TrainerState =
   | 'idle'
@@ -13,7 +13,6 @@ export type TrainerState =
   | 'speaking'
   | 'gap'
   | 'awaiting_answer'
-  | 'feedback_correct'
   | 'feedback_incorrect'
 
 export type SpeedPreset = 'slow' | 'medium' | 'fast'
@@ -33,11 +32,13 @@ export type Settings = {
 
 const DEFAULT_DIRECTION: IntervalDirection = 'ascending'
 
-const DEFAULT_ENABLED_INTERVAL_IDS = [
-  'm2', 'M2', 'm3', 'M3', 'P4', 'A4', 'P5', 'm6', 'M6', 'm7', 'M7', 'P8',
+export const LISTENING_STATES: TrainerState[] = [
+  'playing_root',
+  'playing_second',
+  'playing_harmonic',
 ]
 
-export const SPEED_PRESETS: Record<
+const SPEED_PRESETS: Record<
   SpeedPreset,
   {
     label: string
@@ -84,7 +85,7 @@ function getSpeedTiming(preset: SpeedPreset) {
 export function createDefaultSettings(preset: SpeedPreset = 'medium'): Settings {
   return {
     ...getSpeedTiming(preset),
-    enabledIntervalIds: [...DEFAULT_ENABLED_INTERVAL_IDS],
+    enabledIntervalIds: [...ALL_INTERVAL_IDS],
     direction: DEFAULT_DIRECTION,
     rootMin: 48,
     rootMax: 72,

@@ -1,3 +1,5 @@
+import { ALL_INTERVAL_IDS } from './intervals'
+
 export type IntervalPreset = {
   id: string
   label: string
@@ -54,6 +56,6 @@ export const INTERVAL_PRESETS: IntervalPreset[] = [
     label: '全部音程',
     description: '十二种旋律音程',
     priority: 7,
-    intervalIds: ['m2', 'M2', 'm3', 'M3', 'P4', 'A4', 'P5', 'm6', 'M6', 'm7', 'M7', 'P8'],
+    intervalIds: [...ALL_INTERVAL_IDS],
   },
 ]
