@@ -11,8 +11,8 @@ const STORAGE_KEY = 'ear-trainer:quiz-priorities'
 
 export const IDLE_BOOST_MS = 1_000
 
-const WRONG_BOOST_FACTOR = 2
-const CORRECT_DECAY_FACTOR = 0.5
+const WRONG_BOOST_FACTOR = 1.5
+const CORRECT_DECAY_FACTOR = 0.8
 const BASELINE_MASS = 1
 
 export function getQuizPitchKey(quiz: Quiz): string {
@@ -68,12 +68,12 @@ export function quizFromPitchKey(
 }
 
 export function recordWrongBoost(store: QuizPriorityStore, key: string): void {
-  store[key] = (store[key] ?? 1) * WRONG_BOOST_FACTOR
+  store[key] = (store[key] ?? BASELINE_MASS) * WRONG_BOOST_FACTOR
 }
 
 export function recordCorrectDecay(store: QuizPriorityStore, key: string): void {
-  const next = (store[key] ?? 1) * CORRECT_DECAY_FACTOR
-  if (next <= 1) {
+  const next = Math.max(BASELINE_MASS, (store[key] ?? BASELINE_MASS) * CORRECT_DECAY_FACTOR)
+  if (next <= BASELINE_MASS) {
     delete store[key]
   } else {
     store[key] = next

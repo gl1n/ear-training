@@ -2,6 +2,7 @@ import { getIntervalsByIds, type Quiz } from '../quiz/intervals'
 import { LISTENING_STATES, type TrainerState } from '../quiz/sequencer'
 import { getCorrectAnswerCount, type SessionStats } from '../quiz/stats'
 import { ArcadeFuseTimer } from './ArcadeFuseTimer'
+import { IdleTipToast } from './IdleTipToast'
 import { Card } from './ui/Card'
 import { SessionLoadStatus } from './SessionLoadStatus'
 
@@ -12,6 +13,7 @@ type ArcadePlayfieldProps = {
   lastQuiz: Quiz | null
   arcadeDeadlineMs: number | null
   arcadeTimedOut: boolean
+  idleTip: string | null
   loadProgress: number | null
   loadIndeterminate: boolean
   loadError: string | null
@@ -102,6 +104,7 @@ export function ArcadePlayfield({
   lastQuiz,
   arcadeDeadlineMs,
   arcadeTimedOut,
+  idleTip,
   loadProgress,
   loadIndeterminate,
   loadError,
@@ -117,7 +120,7 @@ export function ArcadePlayfield({
   const currentQuestion = correctCount + (canAnswer || LISTENING_STATES.includes(state) ? 1 : 0)
 
   return (
-    <Card variant="default" className="flex flex-1 flex-col gap-4 p-4 sm:p-5">
+    <Card variant="default" className="relative flex flex-1 flex-col gap-4 p-4 sm:p-5">
       {arcadeDeadlineMs !== null && (
         <ArcadeFuseTimer deadlineMs={arcadeDeadlineMs} />
       )}
@@ -147,6 +150,12 @@ export function ArcadePlayfield({
           onRetry={onRetry}
           variant="compact"
         />
+      ) : null}
+
+      {idleTip ? (
+        <div className="pointer-events-none absolute inset-x-0 top-14 z-10 flex justify-center px-4">
+          <IdleTipToast message={idleTip} />
+        </div>
       ) : null}
 
       <div

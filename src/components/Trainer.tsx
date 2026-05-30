@@ -32,6 +32,8 @@ import {
   saveQuizPriorities,
   type QuizPriorityStore,
 } from '../quiz/quizPriority'
+import { IDLE_TIP_MESSAGES } from './IdleTipToast'
+import { LISTENING_STATES } from '../quiz/sequencer'
 import { abortError, isAbortError } from '../utils/abort'
 import type { SettingsPanelProps } from './SettingsPanel'
 import { PracticeView } from './PracticeView'
@@ -71,7 +73,9 @@ export function Trainer() {
   const replayAbortRef = useRef<AbortController | null>(null)
   const sessionStatsRef = useRef<SessionStats>(EMPTY_SESSION_STATS)
   const priorityStoreRef = useRef<QuizPriorityStore>(loadQuizPriorities())
+  const idleTipIndexRef = useRef(0)
   const [priorityVersion, setPriorityVersion] = useState(0)
+  const [idleTip, setIdleTip] = useState<string | null>(null)
 
   const [isReplayingLastQuiz, setIsReplayingLastQuiz] = useState(false)
 
@@ -86,6 +90,32 @@ export function Trainer() {
       clearTimeout(timeoutId)
     }
   }, [priorityVersion])
+
+  useEffect(() => {
+    if (LISTENING_STATES.includes(state)) {
+      setIdleTip(null)
+    }
+  }, [state])
+
+  useEffect(() => {
+    if (!idleTip) {
+      return
+    }
+
+    const timeoutId = setTimeout(() => {
+      setIdleTip(null)
+    }, 2500)
+
+    return () => {
+      clearTimeout(timeoutId)
+    }
+  }, [idleTip])
+
+  const showIdleTip = useCallback(() => {
+    const message = IDLE_TIP_MESSAGES[idleTipIndexRef.current % IDLE_TIP_MESSAGES.length]
+    idleTipIndexRef.current += 1
+    setIdleTip(message)
+  }, [])
 
   const resetArcadeAnswerState = useCallback(() => {
     answerResolverRef.current = null
@@ -113,6 +143,7 @@ export function Trainer() {
     setIsRunning(false)
     setState('idle')
     setArcadeDeadlineMs(null)
+    setIdleTip(null)
     resetLoadingState()
   }, [abortSession, resetLoadingState])
 
@@ -276,6 +307,7 @@ export function Trainer() {
             onPriorityUpdated: () => {
               setPriorityVersion((version) => version + 1)
             },
+            onIdleBoost: showIdleTip,
           },
           controller.signal,
           sessionDeadlineMs!,
@@ -320,7 +352,7 @@ export function Trainer() {
         resetArcadeAnswerState()
       }
     }
-  }, [mode, resetArcadeAnswerState, resetLoadingState, settings, waitForAnswer])
+  }, [mode, resetArcadeAnswerState, resetLoadingState, settings, showIdleTip, waitForAnswer])
 
   const handleToggle = () => {
     if (isRunning) {
@@ -407,6 +439,7 @@ export function Trainer() {
         isNewBestRecord={isNewBestRecord}
         arcadeDeadlineMs={arcadeDeadlineMs}
         arcadeTimedOut={arcadeTimedOut}
+        idleTip={idleTip}
         loadProgress={loadProgress}
         loadIndeterminate={loadIndeterminate}
         loadError={loadError}

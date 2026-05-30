@@ -122,6 +122,7 @@ export type ArcadeCallbacks = {
     correct: boolean,
   ) => void
   onPriorityUpdated?: () => void
+  onIdleBoost?: () => void
 }
 
 async function playNote(
@@ -249,6 +250,21 @@ export async function runArcadeLoop(
       callbacks.onPriorityUpdated?.()
     }
 
+    const applyWrongBoost = () => {
+      recordWrongBoost(priorityStore, quizKey)
+      notifyPriorityUpdated()
+    }
+
+    const notifyIdleBoost = () => {
+      applyWrongBoost()
+      callbacks.onIdleBoost?.()
+    }
+
+    const notifyIdleBoostRecorded = () => {
+      notifyPriorityUpdated()
+      callbacks.onIdleBoost?.()
+    }
+
     const clearIdleTimer = () => {
       if (questionState.idleTimer !== null) {
         clearTimeout(questionState.idleTimer)
@@ -268,9 +284,8 @@ export async function runArcadeLoop(
       questionState.answerWindowStartMs = performance.now()
       questionState.idleTimer = setTimeout(() => {
         if (!questionState.playerAnswered) {
-          recordWrongBoost(priorityStore, quizKey)
           questionState.idleBoosted = true
-          notifyPriorityUpdated()
+          notifyIdleBoost()
         }
       }, IDLE_BOOST_MS)
     }
@@ -321,7 +336,7 @@ export async function runArcadeLoop(
       questionState.answerWindowStartMs,
       questionState.playerAnswered,
       questionState.idleBoosted,
-      notifyPriorityUpdated,
+      () => notifyIdleBoostRecorded(),
     )
 
     const correct = !answer.timedOut && answer.selectedIntervalId === quiz.interval.id
@@ -330,8 +345,7 @@ export async function runArcadeLoop(
       recordCorrectDecay(priorityStore, quizKey)
       notifyPriorityUpdated()
     } else if (!answer.timedOut) {
-      recordWrongBoost(priorityStore, quizKey)
-      notifyPriorityUpdated()
+      applyWrongBoost()
     }
 
     callbacks.onAnswerSubmitted(quiz, answer, correct)

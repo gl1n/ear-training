@@ -28,6 +28,7 @@ type PracticeViewProps = {
   isNewBestRecord?: boolean
   arcadeDeadlineMs: number | null
   arcadeTimedOut: boolean
+  idleTip: string | null
   loadProgress: number | null
   loadIndeterminate: boolean
   loadError: string | null
@@ -52,6 +53,7 @@ export function PracticeView({
   isNewBestRecord = false,
   arcadeDeadlineMs,
   arcadeTimedOut,
+  idleTip,
   loadProgress,
   loadIndeterminate,
   loadError,
@@ -121,6 +123,7 @@ export function PracticeView({
             lastQuiz={lastQuiz}
             arcadeDeadlineMs={arcadeDeadlineMs}
             arcadeTimedOut={arcadeTimedOut}
+            idleTip={idleTip}
             loadProgress={loadProgress}
             loadIndeterminate={loadIndeterminate}
             loadError={loadError}
