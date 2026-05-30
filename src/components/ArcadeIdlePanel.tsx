@@ -1,4 +1,5 @@
 import type { Quiz } from '../quiz/intervals'
+import type { ArcadeBestRecord } from '../quiz/arcadeBestRecord'
 import { formatQuizNotes } from '../lib/formatQuiz'
 import {
   formatResponseTime,
@@ -12,13 +13,40 @@ import { PlayAreaCard } from './PlayAreaCard'
 type ArcadeIdlePanelProps = {
   lastQuiz: Quiz | null
   sessionStats: SessionStats
+  bestRecord: ArcadeBestRecord | null
+  isNewBestRecord?: boolean
   isReplayingLastQuiz?: boolean
   onReplayLastQuiz?: () => void
+}
+
+function ScoreGrid({
+  correctCount,
+  avgResponseMs,
+}: {
+  correctCount: number
+  avgResponseMs: number | null
+}) {
+  return (
+    <div className="grid w-full max-w-sm grid-cols-2 gap-3">
+      <div className="rounded-xl border border-[var(--border-subtle)] bg-black/20 px-4 py-4 text-center">
+        <p className="text-3xl font-bold tabular-nums">{correctCount}</p>
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">正确答题</p>
+      </div>
+      <div className="rounded-xl border border-[var(--border-subtle)] bg-black/20 px-4 py-4 text-center">
+        <p className="text-3xl font-bold tabular-nums">
+          {avgResponseMs !== null ? formatResponseTime(avgResponseMs) : '—'}
+        </p>
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">平均反应时间</p>
+      </div>
+    </div>
+  )
 }
 
 export function ArcadeIdlePanel({
   lastQuiz,
   sessionStats,
+  bestRecord,
+  isNewBestRecord = false,
   isReplayingLastQuiz = false,
   onReplayLastQuiz,
 }: ArcadeIdlePanelProps) {
@@ -33,18 +61,31 @@ export function ArcadeIdlePanel({
           <p className="text-xs font-medium uppercase tracking-wider text-red-400/90">挑战结束</p>
         </div>
 
-        <div className="grid w-full max-w-sm grid-cols-2 gap-3">
-          <div className="rounded-xl border border-[var(--border-subtle)] bg-black/20 px-4 py-4 text-center">
-            <p className="text-3xl font-bold tabular-nums">{correctCount}</p>
-            <p className="mt-1 text-xs text-[var(--text-secondary)]">正确答题</p>
-          </div>
-          <div className="rounded-xl border border-[var(--border-subtle)] bg-black/20 px-4 py-4 text-center">
-            <p className="text-3xl font-bold tabular-nums">
-              {avgResponseMs !== null ? formatResponseTime(avgResponseMs) : '—'}
-            </p>
-            <p className="mt-1 text-xs text-[var(--text-secondary)]">平均反应时间</p>
-          </div>
+        <div className="flex w-full max-w-sm flex-col gap-3">
+          <p className="text-center text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+            本次成绩
+          </p>
+          <ScoreGrid correctCount={correctCount} avgResponseMs={avgResponseMs} />
         </div>
+
+        {bestRecord && (
+          <div className="flex w-full max-w-sm flex-col gap-3">
+            <div className="flex items-center justify-center gap-2">
+              <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+                最佳记录
+              </p>
+              {isNewBestRecord && (
+                <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                  新纪录
+                </span>
+              )}
+            </div>
+            <ScoreGrid
+              correctCount={bestRecord.correctCount}
+              avgResponseMs={bestRecord.avgResponseTimeMs}
+            />
+          </div>
+        )}
 
         {lastQuiz && (
           <button
@@ -87,11 +128,11 @@ export function ArcadeIdlePanel({
       <div className="text-center">
         <p className="text-sm font-medium">街机挑战</p>
         <p className="mt-2 max-w-sm text-sm leading-relaxed text-[var(--text-secondary)]">
-          听音后点选答案 · 答错即结束 · 挑战连对记录
+          听音后点选答案 · 30 秒时限 · 答错或超时即结束
         </p>
       </div>
       <p className="mt-8 max-w-md text-base leading-relaxed text-[var(--text-secondary)]">
-        点击「开始挑战」，听音后选择答案；答错即结束，可查看各音程统计。
+        点击「开始挑战」，在 30 秒内尽可能多答对；答错或超时即结束，可查看各音程统计。
       </p>
     </PlayAreaCard>
   )

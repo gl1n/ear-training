@@ -1,4 +1,5 @@
 import type { AppMode, TrainerState } from '../quiz/sequencer'
+import type { ArcadeBestRecord } from '../quiz/arcadeBestRecord'
 import type { SessionStats } from '../quiz/stats'
 import { ArcadeIdlePanel } from './ArcadeIdlePanel'
 import { ArcadePlayfield } from './ArcadePlayfield'
@@ -26,6 +27,10 @@ type PracticeViewProps = {
   direction: IntervalDirection
   lastQuiz: Quiz | null
   sessionStats: SessionStats
+  bestRecord: ArcadeBestRecord | null
+  isNewBestRecord?: boolean
+  arcadeDeadlineMs: number | null
+  arcadeTimedOut: boolean
   loadProgress: number | null
   loadIndeterminate: boolean
   loadError: string | null
@@ -54,6 +59,10 @@ export function PracticeView({
   direction,
   lastQuiz,
   sessionStats,
+  bestRecord,
+  isNewBestRecord = false,
+  arcadeDeadlineMs,
+  arcadeTimedOut,
   loadProgress,
   loadIndeterminate,
   loadError,
@@ -139,6 +148,8 @@ export function PracticeView({
             state={state}
             sessionStats={sessionStats}
             lastQuiz={lastQuiz}
+            arcadeDeadlineMs={arcadeDeadlineMs}
+            arcadeTimedOut={arcadeTimedOut}
             loadProgress={loadProgress}
             loadIndeterminate={loadIndeterminate}
             loadError={loadError}
@@ -149,6 +160,8 @@ export function PracticeView({
           <ArcadeIdlePanel
             lastQuiz={lastQuiz}
             sessionStats={sessionStats}
+            bestRecord={bestRecord}
+            isNewBestRecord={isNewBestRecord}
             isReplayingLastQuiz={isReplayingLastQuiz}
             onReplayLastQuiz={onReplayLastQuiz}
           />

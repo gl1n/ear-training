@@ -1,6 +1,7 @@
 import { getIntervalsByIds, type Quiz } from '../quiz/intervals'
 import type { TrainerState } from '../quiz/sequencer'
 import { getCorrectAnswerCount, type SessionStats } from '../quiz/stats'
+import { ArcadeFuseTimer } from './ArcadeFuseTimer'
 import { Card } from './ui/Card'
 import { LoadProgressBar } from './LoadProgressBar'
 
@@ -9,6 +10,8 @@ type ArcadePlayfieldProps = {
   state: TrainerState
   sessionStats: SessionStats
   lastQuiz: Quiz | null
+  arcadeDeadlineMs: number | null
+  arcadeTimedOut: boolean
   loadProgress: number | null
   loadIndeterminate: boolean
   loadError: string | null
@@ -30,7 +33,13 @@ function getPhase(state: TrainerState) {
   return 'idle' as const
 }
 
-function PhaseIndicator({ state }: { state: TrainerState }) {
+function PhaseIndicator({
+  state,
+  timedOut,
+}: {
+  state: TrainerState
+  timedOut: boolean
+}) {
   const phase = getPhase(state)
 
   if (phase === 'loading') {
@@ -77,7 +86,7 @@ function PhaseIndicator({ state }: { state: TrainerState }) {
   if (phase === 'wrong') {
     return (
       <span className="inline-flex items-center gap-2 text-sm font-medium text-red-300">
-        答错了
+        {timedOut ? '时间到' : '答错了'}
       </span>
     )
   }
@@ -97,6 +106,8 @@ export function ArcadePlayfield({
   state,
   sessionStats,
   lastQuiz,
+  arcadeDeadlineMs,
+  arcadeTimedOut,
   loadProgress,
   loadIndeterminate,
   loadError,
@@ -112,6 +123,10 @@ export function ArcadePlayfield({
 
   return (
     <Card variant="default" className="flex flex-1 flex-col gap-4 p-4 sm:p-5">
+      {arcadeDeadlineMs !== null && (
+        <ArcadeFuseTimer deadlineMs={arcadeDeadlineMs} />
+      )}
+
       <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
         <div className="flex items-center gap-3">
           <div className="flex flex-col">
@@ -125,7 +140,7 @@ export function ArcadePlayfield({
             )}
           </div>
         </div>
-        <PhaseIndicator state={state} />
+        <PhaseIndicator state={state} timedOut={arcadeTimedOut} />
       </div>
 
       {loadError && (

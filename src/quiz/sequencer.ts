@@ -96,14 +96,17 @@ export type SequencerCallbacks = {
   onAnswerRevealed: (quiz: Quiz) => void
 }
 
+export const ARCADE_SESSION_TIME_MS = 30_000
+
 export type ArcadeAnswer = {
   selectedIntervalId: string
   responseTimeMs: number
+  timedOut?: boolean
 }
 
 export type ArcadeCallbacks = {
   onStateChange: (state: TrainerState) => void
-  waitForAnswer: (signal: AbortSignal) => Promise<ArcadeAnswer>
+  waitForAnswer: (signal: AbortSignal, timeoutMs: number) => Promise<ArcadeAnswer>
   onAnswerSubmitted: (
     quiz: Quiz,
     answer: ArcadeAnswer,
@@ -194,8 +197,15 @@ export async function runArcadeLoop(
   settings: Settings,
   callbacks: ArcadeCallbacks,
   signal: AbortSignal,
+  sessionDeadlineMs: number,
 ): Promise<void> {
+  const getRemainingMs = () => Math.max(0, sessionDeadlineMs - performance.now())
+
   while (!signal.aborted) {
+    if (getRemainingMs() <= 0) {
+      return
+    }
+
     const quiz = randomQuiz(
       settings.enabledIntervalIds,
       settings.direction,
@@ -205,11 +215,23 @@ export async function runArcadeLoop(
 
     await playQuizAudio(piano, quiz, settings, callbacks, signal)
 
+    const remainingMs = getRemainingMs()
+    if (remainingMs <= 0) {
+      callbacks.onAnswerSubmitted(
+        quiz,
+        { selectedIntervalId: '', responseTimeMs: remainingMs, timedOut: true },
+        false,
+      )
+      callbacks.onStateChange('feedback_incorrect')
+      await delay(ARCADE_FEEDBACK_INCORRECT_MS, signal)
+      return
+    }
+
     callbacks.onStateChange('awaiting_answer')
     const answerStart = performance.now()
-    const answer = await callbacks.waitForAnswer(signal)
+    const answer = await callbacks.waitForAnswer(signal, remainingMs)
     const responseTimeMs = performance.now() - answerStart
-    const correct = answer.selectedIntervalId === quiz.interval.id
+    const correct = !answer.timedOut && answer.selectedIntervalId === quiz.interval.id
 
     callbacks.onAnswerSubmitted(
       quiz,

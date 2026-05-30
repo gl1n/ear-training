@@ -9,12 +9,25 @@ import {
   runArcadeLoop,
   runLoop,
   stopPlayback,
+  ARCADE_SESSION_TIME_MS,
   type AppMode,
   type Settings,
   type SpeedPreset,
   type TrainerState,
 } from '../quiz/sequencer'
-import { EMPTY_SESSION_STATS, recordResult, type SessionStats } from '../quiz/stats'
+import {
+  loadArcadeBestRecord,
+  tryUpdateArcadeBestRecord,
+  type ArcadeBestRecord,
+} from '../quiz/arcadeBestRecord'
+import {
+  EMPTY_SESSION_STATS,
+  getAverageResponseTimeMs,
+  getCorrectAnswerCount,
+  hasSessionAttempts,
+  recordResult,
+  type SessionStats,
+} from '../quiz/stats'
 import { PracticeView } from './PracticeView'
 import { SettingsDrawer } from './SettingsDrawer'
 
@@ -27,6 +40,10 @@ export function Trainer() {
   const [settings, setSettings] = useState<Settings>(initial.settings)
   const [lastQuiz, setLastQuiz] = useState<Quiz | null>(null)
   const [sessionStats, setSessionStats] = useState<SessionStats>(EMPTY_SESSION_STATS)
+  const [bestRecord, setBestRecord] = useState<ArcadeBestRecord | null>(() => loadArcadeBestRecord())
+  const [isNewBestRecord, setIsNewBestRecord] = useState(false)
+  const [arcadeDeadlineMs, setArcadeDeadlineMs] = useState<number | null>(null)
+  const [arcadeTimedOut, setArcadeTimedOut] = useState(false)
   const [loadProgress, setLoadProgress] = useState<number | null>(null)
   const [loadIndeterminate, setLoadIndeterminate] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -38,6 +55,7 @@ export function Trainer() {
   const answerResolverRef = useRef<((intervalId: string) => void) | null>(null)
   const answerCleanupRef = useRef<(() => void) | null>(null)
   const replayAbortRef = useRef<AbortController | null>(null)
+  const sessionStatsRef = useRef<SessionStats>(EMPTY_SESSION_STATS)
 
   const [isReplayingLastQuiz, setIsReplayingLastQuiz] = useState(false)
 
@@ -68,6 +86,7 @@ export function Trainer() {
     abortSession()
     setIsRunning(false)
     setState('idle')
+    setArcadeDeadlineMs(null)
     resetLoadingState()
   }, [abortSession, resetLoadingState])
 
@@ -78,9 +97,11 @@ export function Trainer() {
     }
   }, [abortSession])
 
-  const waitForAnswer = useCallback((signal: AbortSignal) => {
-    return new Promise<{ selectedIntervalId: string; responseTimeMs: number }>(
+  const waitForAnswer = useCallback((signal: AbortSignal, timeoutMs: number) => {
+    return new Promise<{ selectedIntervalId: string; responseTimeMs: number; timedOut?: boolean }>(
       (resolve, reject) => {
+        let timeoutId: ReturnType<typeof setTimeout> | null = null
+
         const onAbort = () => {
           cleanup()
           reject(new DOMException('Aborted', 'AbortError'))
@@ -88,6 +109,9 @@ export function Trainer() {
 
         const cleanup = () => {
           signal.removeEventListener('abort', onAbort)
+          if (timeoutId !== null) {
+            clearTimeout(timeoutId)
+          }
           answerResolverRef.current = null
           answerCleanupRef.current = null
         }
@@ -98,6 +122,17 @@ export function Trainer() {
         }
         answerCleanupRef.current = cleanup
         signal.addEventListener('abort', onAbort)
+
+        if (timeoutMs <= 0) {
+          cleanup()
+          resolve({ selectedIntervalId: '', responseTimeMs: 0, timedOut: true })
+          return
+        }
+
+        timeoutId = setTimeout(() => {
+          cleanup()
+          resolve({ selectedIntervalId: '', responseTimeMs: 0, timedOut: true })
+        }, timeoutMs)
       },
     )
   }, [])
@@ -160,9 +195,12 @@ export function Trainer() {
     setLoadIndeterminate(false)
     setLoadError(null)
     setSessionStats(EMPTY_SESSION_STATS)
+    sessionStatsRef.current = EMPTY_SESSION_STATS
     resetArcadeAnswerState()
     if (mode === 'arcade') {
       setLastQuiz(null)
+      setIsNewBestRecord(false)
+      setArcadeTimedOut(false)
     }
 
     try {
@@ -190,24 +228,36 @@ export function Trainer() {
 
       resetLoadingState()
 
+      const sessionDeadlineMs =
+        mode === 'arcade' ? performance.now() + ARCADE_SESSION_TIME_MS : null
+      if (sessionDeadlineMs !== null) {
+        setArcadeDeadlineMs(sessionDeadlineMs)
+      }
+
       if (mode === 'arcade') {
         await runArcadeLoop(
           pianoRef.current,
           settings,
           {
             onStateChange: setState,
-            waitForAnswer: (signal) => waitForAnswer(signal),
+            waitForAnswer: (signal, timeoutMs) => waitForAnswer(signal, timeoutMs),
             onAnswerSubmitted: (quiz, answer, correct) => {
+              if (answer.timedOut) {
+                setArcadeTimedOut(true)
+              }
               setLastQuiz(quiz)
-              setSessionStats((current) =>
-                recordResult(current, quiz.interval.id, {
+              setSessionStats((current) => {
+                const next = recordResult(current, quiz.interval.id, {
                   correct,
                   responseTimeMs: answer.responseTimeMs,
-                }),
-              )
+                })
+                sessionStatsRef.current = next
+                return next
+              })
             },
           },
           controller.signal,
+          sessionDeadlineMs!,
         )
       } else {
         await runLoop(
@@ -230,8 +280,24 @@ export function Trainer() {
       setState('idle')
     } finally {
       if (abortRef.current === controller) {
+        if (mode === 'arcade') {
+          const stats = sessionStatsRef.current
+          if (hasSessionAttempts(stats)) {
+            const avgResponseTimeMs = getAverageResponseTimeMs(stats)
+            if (avgResponseTimeMs !== null) {
+              const { record, isNew } = tryUpdateArcadeBestRecord({
+                correctCount: getCorrectAnswerCount(stats),
+                avgResponseTimeMs,
+              })
+              setBestRecord(record)
+              setIsNewBestRecord(isNew)
+            }
+          }
+        }
+
         setIsRunning(false)
         setState('idle')
+        setArcadeDeadlineMs(null)
         abortRef.current = null
         resetArcadeAnswerState()
       }
@@ -256,6 +322,7 @@ export function Trainer() {
     setMode(nextMode)
     setLastQuiz(null)
     setSessionStats(EMPTY_SESSION_STATS)
+    setArcadeTimedOut(false)
     resetArcadeAnswerState()
   }
 
@@ -310,6 +377,10 @@ export function Trainer() {
         direction={settings.direction}
         lastQuiz={lastQuiz}
         sessionStats={sessionStats}
+        bestRecord={bestRecord}
+        isNewBestRecord={isNewBestRecord}
+        arcadeDeadlineMs={arcadeDeadlineMs}
+        arcadeTimedOut={arcadeTimedOut}
         loadProgress={loadProgress}
         loadIndeterminate={loadIndeterminate}
         loadError={loadError}
