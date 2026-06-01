@@ -279,3 +279,11 @@ export function saveQuizPriorities(store: QuizPriorityStore): void {
     // Ignore quota / private mode errors.
   }
 }
+
+export function clearQuizPriorities(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // Ignore private mode errors.
+  }
+}

@@ -46,6 +46,7 @@ type PracticeViewProps = {
   replayingQuizKey: string | null
   isReplayBusy: boolean
   onPlayQuiz: (quiz: Quiz) => void
+  onResetStats: () => void
 }
 
 export function PracticeView({
@@ -76,6 +77,7 @@ export function PracticeView({
   replayingQuizKey,
   isReplayBusy,
   onPlayQuiz,
+  onResetStats,
 }: PracticeViewProps) {
   const { enabledIntervalIds } = settingsControls
   const canStart = enabledIntervalIds.length > 0
@@ -155,6 +157,7 @@ export function PracticeView({
             replayingQuizKey={replayingQuizKey}
             isReplayBusy={isReplayBusy}
             onPlayQuiz={onPlayQuiz}
+            onResetStats={onResetStats}
           />
         )
       ) : (

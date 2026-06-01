@@ -16,6 +16,7 @@ import {
   type TrainerState,
 } from '../quiz/sequencer'
 import {
+  clearArcadeBestRecord,
   loadArcadeBestRecord,
   tryUpdateArcadeBestRecord,
   type ArcadeBestRecord,
@@ -28,12 +29,14 @@ import {
   type SessionStats,
 } from '../quiz/stats'
 import {
+  clearMistakeStats,
   loadMistakeStats,
   recordMistake,
   saveMistakeStats,
   type MistakeStatsStore,
 } from '../quiz/mistakeStats'
 import {
+  clearQuizPriorities,
   getQuizPitchKey,
   listWeakPriorityItems,
   loadQuizPriorities,
@@ -459,6 +462,18 @@ export function Trainer() {
     setSettings((current) => ({ ...current, direction }))
   }
 
+  const handleResetStats = useCallback(() => {
+    mistakeStatsStoreRef.current = []
+    priorityStoreRef.current = {}
+    clearMistakeStats()
+    clearQuizPriorities()
+    clearArcadeBestRecord()
+    setBestRecord(null)
+    setIsNewBestRecord(false)
+    setMistakeVersion((version) => version + 1)
+    setPriorityVersion((version) => version + 1)
+  }, [])
+
   const settingsControls: SettingsPanelProps = {
     speedPreset,
     enabledIntervalIds: settings.enabledIntervalIds,
@@ -502,6 +517,7 @@ export function Trainer() {
         replayingQuizKey={replayingQuizKey}
         isReplayBusy={replayingQuizKey !== null}
         onPlayQuiz={handlePlayQuiz}
+        onResetStats={handleResetStats}
       />
 
       <SettingsDrawer

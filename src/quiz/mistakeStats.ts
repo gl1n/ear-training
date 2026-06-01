@@ -107,6 +107,14 @@ export function saveMistakeStats(store: MistakeStatsStore): void {
   }
 }
 
+export function clearMistakeStats(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // Ignore private mode errors.
+  }
+}
+
 export function buildHistogram(
   store: MistakeStatsStore,
   rootMin: number,

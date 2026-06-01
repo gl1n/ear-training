@@ -44,3 +44,11 @@ export function tryUpdateArcadeBestRecord(candidate: ArcadeBestRecord): {
   }
   return { record: existing, isNew: false }
 }
+
+export function clearArcadeBestRecord(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // Ignore private mode errors.
+  }
+}
