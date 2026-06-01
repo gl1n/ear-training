@@ -1,16 +1,39 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { getIntervalsByIds, type Quiz } from './intervals'
 import {
   LOG_PITCH_BIN_WIDTH,
   MAX_RECENT_MISTAKES,
   MISTAKE_FOCUSED_RATE,
+  MISTAKE_STATS_SCHEMA_VERSION,
   buildHistogram,
   buildKdeCurve,
+  getLastMistakeQuizForRoot,
+  loadMistakeStats,
   midiToLogPitch,
   recordMistake,
   silvermanBandwidth,
   weightedRandomQuizFromMistakes,
   type MistakeStatsStore,
 } from './mistakeStats'
+
+const MISTAKE_STATS_STORAGE_KEY = 'ear-trainer:mistake-stats'
+const MISTAKE_STATS_SCHEMA_KEY = 'ear-trainer:mistake-stats-schema'
+
+function makeQuiz(
+  root: number,
+  intervalId = 'M2',
+  direction: Quiz['direction'] = 'ascending',
+): Quiz {
+  const interval = getIntervalsByIds([intervalId])[0]!
+  const second =
+    direction === 'descending' ? root - interval.semitones : root + interval.semitones
+
+  return { root, second, interval, direction }
+}
+
+function rootRecord(root: number) {
+  return { root }
+}
 
 describe('midiToLogPitch', () => {
   it('maps A4 (MIDI 69) to log2(440)', () => {
@@ -24,36 +47,181 @@ describe('midiToLogPitch', () => {
 
 describe('buildHistogram', () => {
   it('bins root mistakes by semitone within range', () => {
-    const store: MistakeStatsStore = [60, 60, 62, 80, 80, 80, 80, 80]
+    const store: MistakeStatsStore = [
+      rootRecord(60),
+      rootRecord(60),
+      rootRecord(62),
+      rootRecord(80),
+      rootRecord(80),
+      rootRecord(80),
+      rootRecord(80),
+      rootRecord(80),
+    ]
     const { bins, totalInRange } = buildHistogram(store, 60, 63)
 
     expect(totalInRange).toBe(3)
     expect(bins).toHaveLength(4)
-    expect(bins[0]).toMatchObject({ midi: 60, count: 2 })
-    expect(bins[1]).toMatchObject({ midi: 61, count: 0 })
-    expect(bins[2]).toMatchObject({ midi: 62, count: 1 })
-    expect(bins[3]).toMatchObject({ midi: 63, count: 0 })
+    expect(bins[0]).toMatchObject({ midi: 60, count: 2, lastMistakeQuiz: null })
+    expect(bins[1]).toMatchObject({ midi: 61, count: 0, lastMistakeQuiz: null })
+    expect(bins[2]).toMatchObject({ midi: 62, count: 1, lastMistakeQuiz: null })
+    expect(bins[3]).toMatchObject({ midi: 63, count: 0, lastMistakeQuiz: null })
+  })
+
+  it('attaches the latest replayable quiz per root', () => {
+    const firstQuiz = makeQuiz(60, 'M2', 'ascending')
+    const latestQuiz = makeQuiz(60, 'P5', 'harmonic')
+    const store: MistakeStatsStore = []
+
+    recordMistake(store, firstQuiz)
+    recordMistake(store, latestQuiz)
+
+    const { bins } = buildHistogram(store, 60, 60)
+    expect(bins[0]?.lastMistakeQuiz).toEqual(latestQuiz)
+  })
+})
+
+describe('getLastMistakeQuizForRoot', () => {
+  it('returns the newest replayable quiz for a root', () => {
+    const olderQuiz = makeQuiz(60, 'M2', 'ascending')
+    const newerQuiz = makeQuiz(60, 'P5', 'harmonic')
+    const store: MistakeStatsStore = []
+
+    recordMistake(store, olderQuiz)
+    recordMistake(store, newerQuiz)
+
+    expect(getLastMistakeQuizForRoot(store, 60)).toEqual(newerQuiz)
+  })
+
+  it('skips root-only legacy records', () => {
+    const store: MistakeStatsStore = [rootRecord(60), rootRecord(60)]
+    expect(getLastMistakeQuizForRoot(store, 60)).toBeNull()
   })
 })
 
 describe('recordMistake', () => {
   it('appends each mistake', () => {
     const store: MistakeStatsStore = []
-    recordMistake(store, 60)
-    recordMistake(store, 60)
-    expect(store).toEqual([60, 60])
+    const quiz = makeQuiz(60)
+
+    recordMistake(store, quiz)
+    recordMistake(store, quiz)
+
+    expect(store).toEqual([
+      {
+        root: 60,
+        second: 62,
+        intervalId: 'M2',
+        direction: 'ascending',
+      },
+      {
+        root: 60,
+        second: 62,
+        intervalId: 'M2',
+        direction: 'ascending',
+      },
+    ])
   })
 
   it('keeps only the most recent mistakes', () => {
     const store: MistakeStatsStore = []
 
     for (let i = 0; i < MAX_RECENT_MISTAKES + 5; i++) {
-      recordMistake(store, 60 + (i % 12))
+      recordMistake(store, makeQuiz(60 + (i % 12)))
     }
 
     expect(store).toHaveLength(MAX_RECENT_MISTAKES)
-    expect(store[0]).toBe(60 + (5 % 12))
-    expect(store.at(-1)).toBe(60 + ((MAX_RECENT_MISTAKES + 4) % 12))
+    expect(store[0]?.root).toBe(60 + (5 % 12))
+    expect(store.at(-1)?.root).toBe(60 + ((MAX_RECENT_MISTAKES + 4) % 12))
+  })
+})
+
+describe('loadMistakeStats', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('discards legacy number arrays when schema guard is enabled', () => {
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn((key: string) => {
+        if (key === MISTAKE_STATS_SCHEMA_KEY) return String(MISTAKE_STATS_SCHEMA_VERSION)
+        if (key === MISTAKE_STATS_STORAGE_KEY) return JSON.stringify([60, 62])
+        return null
+      }),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    })
+
+    expect(loadMistakeStats()).toEqual([])
+  })
+
+  it('loads complete records when schema version matches', () => {
+    const record = {
+      root: 60,
+      second: 62,
+      intervalId: 'M2',
+      direction: 'ascending' as const,
+    }
+
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn((key: string) => {
+        if (key === MISTAKE_STATS_SCHEMA_KEY) return String(MISTAKE_STATS_SCHEMA_VERSION)
+        if (key === MISTAKE_STATS_STORAGE_KEY) return JSON.stringify([record])
+        return null
+      }),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    })
+
+    expect(loadMistakeStats()).toEqual([record])
+  })
+
+  it('clears stored stats when schema version changes', () => {
+    const removeItem = vi.fn()
+
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn((key: string) => {
+        if (key === MISTAKE_STATS_SCHEMA_KEY) return '1'
+        if (key === MISTAKE_STATS_STORAGE_KEY) {
+          return JSON.stringify([
+            {
+              root: 60,
+              second: 62,
+              intervalId: 'M2',
+              direction: 'ascending',
+            },
+          ])
+        }
+        return null
+      }),
+      setItem: vi.fn(),
+      removeItem,
+    })
+
+    expect(loadMistakeStats()).toEqual([])
+    expect(removeItem).toHaveBeenCalledWith(MISTAKE_STATS_STORAGE_KEY)
+  })
+
+  it('filters root-only records from current-format stores', () => {
+    const completeRecord = {
+      root: 62,
+      second: 64,
+      intervalId: 'M2',
+      direction: 'ascending' as const,
+    }
+
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn((key: string) => {
+        if (key === MISTAKE_STATS_SCHEMA_KEY) return String(MISTAKE_STATS_SCHEMA_VERSION)
+        if (key === MISTAKE_STATS_STORAGE_KEY) {
+          return JSON.stringify([{ root: 60 }, completeRecord])
+        }
+        return null
+      }),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    })
+
+    expect(loadMistakeStats()).toEqual([completeRecord])
   })
 })
 
@@ -74,7 +242,14 @@ describe('silvermanBandwidth', () => {
 
 describe('buildKdeCurve', () => {
   it('peaks near the densest mistake cluster', () => {
-    const store: MistakeStatsStore = [60, 60, 60, 60, 60, 72]
+    const store: MistakeStatsStore = [
+      rootRecord(60),
+      rootRecord(60),
+      rootRecord(60),
+      rootRecord(60),
+      rootRecord(60),
+      rootRecord(72),
+    ]
     const curve = buildKdeCurve(store, 60, 72)
     expect(curve.length).toBeGreaterThan(0)
 
@@ -86,7 +261,7 @@ describe('buildKdeCurve', () => {
   })
 
   it('returns empty curve when there are no in-range mistakes', () => {
-    expect(buildKdeCurve([40, 40, 40], 60, 72)).toEqual([])
+    expect(buildKdeCurve([rootRecord(40), rootRecord(40), rootRecord(40)], 60, 72)).toEqual([])
   })
 })
 
@@ -103,7 +278,12 @@ describe('weightedRandomQuizFromMistakes', () => {
   })
 
   it('picks weighted root when focused branch is taken', () => {
-    const store: MistakeStatsStore = [60, 60, 60, 72]
+    const store: MistakeStatsStore = [
+      rootRecord(60),
+      rootRecord(60),
+      rootRecord(60),
+      rootRecord(72),
+    ]
     let call = 0
     vi.spyOn(Math, 'random').mockImplementation(() => {
       call += 1
@@ -118,7 +298,7 @@ describe('weightedRandomQuizFromMistakes', () => {
   })
 
   it('uses randomQuiz when random roll skips focused branch', () => {
-    const store: MistakeStatsStore = [60, 60, 60]
+    const store: MistakeStatsStore = [rootRecord(60), rootRecord(60), rootRecord(60)]
     vi.spyOn(Math, 'random').mockReturnValue(0.99)
 
     const quiz = weightedRandomQuizFromMistakes(store, ['M2'], 'ascending', 60, 65)

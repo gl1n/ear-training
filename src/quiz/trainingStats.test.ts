@@ -9,7 +9,7 @@ describe('hasPersistedTrainingStats', () => {
   })
 
   it('is true when any store has data', () => {
-    const mistakes: MistakeStatsStore = [60]
+    const mistakes: MistakeStatsStore = [{ root: 60 }]
     const bestRecord = null as ArcadeBestRecord | null
 
     expect(hasPersistedTrainingStats(mistakes, bestRecord)).toBe(true)

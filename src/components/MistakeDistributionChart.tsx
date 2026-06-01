@@ -1,5 +1,5 @@
-import { useId, useMemo, useState } from 'react'
-import { midiToNoteName } from '../quiz/intervals'
+import { useId, useMemo, useState, type KeyboardEvent } from 'react'
+import { getQuizPitchKey, midiToNoteName, type Quiz } from '../quiz/intervals'
 import {
   buildHistogram,
   buildKdeCurve,
@@ -13,6 +13,9 @@ type MistakeDistributionChartProps = {
   store: MistakeStatsStore
   rootMin: number
   rootMax: number
+  onPlayQuiz?: (quiz: Quiz) => void
+  replayingQuizKey?: string | null
+  isReplayBusy?: boolean
 }
 
 const CHART_WIDTH = 320
@@ -46,10 +49,25 @@ function pickAxisLabels(rootMin: number, rootMax: number): number[] {
   return labels
 }
 
+function getBarClassName(isPlaying: boolean, isDisabled: boolean): string {
+  const classes = ['mistake-histogram-bar']
+
+  if (isPlaying) {
+    classes.push('mistake-histogram-bar--playing')
+  } else if (isDisabled) {
+    classes.push('mistake-histogram-bar--disabled')
+  }
+
+  return classes.join(' ')
+}
+
 function MistakeDistributionSvg({
   store,
   rootMin,
   rootMax,
+  onPlayQuiz,
+  replayingQuizKey = null,
+  isReplayBusy = false,
 }: MistakeDistributionChartProps) {
   const { bins } = useMemo(
     () => buildHistogram(store, rootMin, rootMax),
@@ -138,17 +156,61 @@ function MistakeDistributionSvg({
         const x = toX(bin.logPitch) - barWidth / 2
         const height = (bin.count / maxCount) * plotHeight
         const y = PADDING.top + plotHeight - height
+        const quiz = bin.lastMistakeQuiz
+        const isClickable = bin.count > 0 && quiz !== null && onPlayQuiz !== undefined
+        const isPlaying = quiz !== null && replayingQuizKey === getQuizPitchKey(quiz)
+        const isDisabled = isReplayBusy && !isPlaying
 
-        return (
+        const handlePlay = () => {
+          if (!isClickable || isDisabled || !quiz) return
+          onPlayQuiz(quiz)
+        }
+
+        const handleKeyDown = (event: KeyboardEvent<SVGGElement>) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return
+          event.preventDefault()
+          handlePlay()
+        }
+
+        const rect = (
           <rect
-            key={bin.midi}
             x={x}
             y={y}
             width={Math.max(barWidth, 1)}
             height={height}
             rx={1}
-            className="fill-orange-400/45"
+            className={getBarClassName(isPlaying, isDisabled)}
+            pointerEvents="none"
           />
+        )
+
+        if (!isClickable) {
+          return <g key={bin.midi}>{rect}</g>
+        }
+
+        return (
+          <g
+            key={bin.midi}
+            role="button"
+            tabIndex={isDisabled ? -1 : 0}
+            aria-label={`播放 ${midiToNoteName(bin.midi)} 最近失误音程`}
+            aria-disabled={isDisabled}
+            className={`mistake-histogram-bar-group outline-none ${
+              isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'
+            }`}
+            onClick={handlePlay}
+            onKeyDown={handleKeyDown}
+          >
+            <rect
+              x={x}
+              y={PADDING.top}
+              width={Math.max(barWidth, 1)}
+              height={plotHeight}
+              fill="transparent"
+              aria-hidden="true"
+            />
+            {rect}
+          </g>
         )
       })}
 
@@ -171,6 +233,7 @@ function MistakeDistributionSvg({
           strokeWidth={2}
           strokeLinejoin="round"
           strokeLinecap="round"
+          pointerEvents="none"
         />
       )}
 
@@ -193,6 +256,9 @@ export function MistakeDistributionChart({
   store,
   rootMin,
   rootMax,
+  onPlayQuiz,
+  replayingQuizKey,
+  isReplayBusy,
 }: MistakeDistributionChartProps) {
   const [expanded, setExpanded] = useState(false)
   const panelId = useId()
@@ -248,7 +314,14 @@ export function MistakeDistributionChart({
               {totalMistakes === 0 ? '还没有记录' : `${rangeLabel} 暂无记录`}
             </p>
           ) : (
-            <MistakeDistributionSvg store={store} rootMin={rootMin} rootMax={rootMax} />
+            <MistakeDistributionSvg
+              store={store}
+              rootMin={rootMin}
+              rootMax={rootMax}
+              onPlayQuiz={onPlayQuiz}
+              replayingQuizKey={replayingQuizKey}
+              isReplayBusy={isReplayBusy}
+            />
           )}
         </div>
       )}

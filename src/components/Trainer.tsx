@@ -66,7 +66,7 @@ export function Trainer() {
   const {
     mistakeStoreRef,
     viewModel: trainingStats,
-    recordRootMistake,
+    recordQuizMistake,
     clearNewBestRecord,
     finalizeArcadeSession,
   } = useTrainingStats({
@@ -289,7 +289,7 @@ export function Trainer() {
                 setArcadeTimedOut(true)
               }
               if (!correct && !answer.timedOut) {
-                recordRootMistake(quiz.root)
+                recordQuizMistake(quiz)
               }
               setLastQuiz(quiz)
               setSessionStats((current) => {
@@ -299,7 +299,7 @@ export function Trainer() {
               })
             },
             onIdleBoost: (quiz) => {
-              recordRootMistake(quiz.root)
+              recordQuizMistake(quiz)
               showIdleTip()
             },
           },
@@ -339,7 +339,7 @@ export function Trainer() {
         resetArcadeAnswerState()
       }
     }
-  }, [mode, resetArcadeAnswerState, resetLoadingState, settings, showIdleTip, waitForAnswer, recordRootMistake, finalizeArcadeSession, clearNewBestRecord])
+  }, [mode, resetArcadeAnswerState, resetLoadingState, settings, showIdleTip, waitForAnswer, recordQuizMistake, finalizeArcadeSession, clearNewBestRecord])
 
   const handleToggle = () => {
     if (isRunning) {

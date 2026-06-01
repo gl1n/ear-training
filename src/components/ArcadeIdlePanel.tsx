@@ -78,6 +78,9 @@ export function ArcadeIdlePanel({
           store={mistakeStats}
           rootMin={rootMin}
           rootMax={rootMax}
+          onPlayQuiz={onPlayQuiz}
+          replayingQuizKey={replayingQuizKey}
+          isReplayBusy={isReplayBusy}
         />
 
         {lastQuiz && (

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { IntervalDirection } from '../quiz/intervals'
+import type { IntervalDirection, Quiz } from '../quiz/intervals'
 import {
   loadArcadeBestRecord,
   tryUpdateArcadeBestRecord,
@@ -51,8 +51,8 @@ export function useTrainingStats({
     [mistakeVersion],
   )
 
-  const recordRootMistake = useCallback((root: number) => {
-    recordMistake(mistakeStoreRef.current, root)
+  const recordQuizMistake = useCallback((quiz: Quiz) => {
+    recordMistake(mistakeStoreRef.current, quiz)
     setMistakeVersion((version) => version + 1)
   }, [])
 
@@ -92,7 +92,7 @@ export function useTrainingStats({
   return {
     mistakeStoreRef,
     viewModel,
-    recordRootMistake,
+    recordQuizMistake,
     clearNewBestRecord,
     finalizeArcadeSession,
   }
