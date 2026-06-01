@@ -1,12 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   LOG_PITCH_BIN_WIDTH,
   MAX_RECENT_MISTAKES,
+  MISTAKE_FOCUSED_RATE,
   buildHistogram,
   buildKdeCurve,
   midiToLogPitch,
   recordMistake,
   silvermanBandwidth,
+  weightedRandomQuizFromMistakes,
   type MistakeStatsStore,
 } from './mistakeStats'
 
@@ -85,5 +87,42 @@ describe('buildKdeCurve', () => {
 
   it('returns empty curve when there are no in-range mistakes', () => {
     expect(buildKdeCurve([40, 40, 40], 60, 72)).toEqual([])
+  })
+})
+
+describe('weightedRandomQuizFromMistakes', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('uses randomQuiz when store is empty', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.99)
+    const quiz = weightedRandomQuizFromMistakes([], ['M2'], 'ascending', 60, 65)
+    expect(quiz.root).toBeGreaterThanOrEqual(60)
+    expect(quiz.root).toBeLessThanOrEqual(65)
+  })
+
+  it('picks weighted root when focused branch is taken', () => {
+    const store: MistakeStatsStore = [60, 60, 60, 72]
+    let call = 0
+    vi.spyOn(Math, 'random').mockImplementation(() => {
+      call += 1
+      if (call === 1) return 0
+      if (call === 2) return 0
+      return 0.5
+    })
+
+    const quiz = weightedRandomQuizFromMistakes(store, ['M2'], 'ascending', 60, 72)
+    expect(quiz.root).toBe(60)
+    expect(MISTAKE_FOCUSED_RATE).toBe(0.35)
+  })
+
+  it('uses randomQuiz when random roll skips focused branch', () => {
+    const store: MistakeStatsStore = [60, 60, 60]
+    vi.spyOn(Math, 'random').mockReturnValue(0.99)
+
+    const quiz = weightedRandomQuizFromMistakes(store, ['M2'], 'ascending', 60, 65)
+    expect(quiz.root).toBeGreaterThanOrEqual(60)
+    expect(quiz.root).toBeLessThanOrEqual(65)
   })
 })

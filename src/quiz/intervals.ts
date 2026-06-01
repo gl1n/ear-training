@@ -59,6 +59,70 @@ export function getIntervalsByIds(ids: string[]): Interval[] {
   return INTERVALS.filter((interval) => idSet.has(interval.id))
 }
 
+export function isRootValidForInterval(
+  root: number,
+  interval: Interval,
+  direction: IntervalDirection,
+  rootMin: number,
+  rootMax: number,
+): boolean {
+  if (direction === 'descending') {
+    const minRoot = rootMin + interval.semitones
+    const maxRoot = Math.min(rootMax, 127)
+    return root >= minRoot && root <= maxRoot
+  }
+
+  const maxRoot = Math.min(rootMax, 127 - interval.semitones)
+  return root >= rootMin && root <= maxRoot
+}
+
+export function getValidIntervalsAtRoot(
+  root: number,
+  enabledIds: string[],
+  direction: IntervalDirection,
+  rootMin: number,
+  rootMax: number,
+): Interval[] {
+  const pool = INTERVALS.filter((interval) => enabledIds.includes(interval.id))
+  return pool.filter((interval) =>
+    isRootValidForInterval(root, interval, direction, rootMin, rootMax),
+  )
+}
+
+export function randomQuizWithRoot(
+  root: number,
+  enabledIds: string[],
+  direction: IntervalDirection,
+  rootMin = 48,
+  rootMax = 72,
+): Quiz | null {
+  const valid = getValidIntervalsAtRoot(root, enabledIds, direction, rootMin, rootMax)
+  if (valid.length === 0) return null
+
+  const interval = valid[Math.floor(Math.random() * valid.length)]!
+
+  if (direction === 'descending') {
+    return { root, second: root - interval.semitones, interval, direction }
+  }
+
+  return { root, second: root + interval.semitones, interval, direction }
+}
+
+export function getQuizPitchKey(quiz: Quiz): string {
+  if (quiz.direction === 'harmonic') {
+    const lower = Math.min(quiz.root, quiz.second)
+    const higher = Math.max(quiz.root, quiz.second)
+    return `${lower},${higher}`
+  }
+
+  const [first, second] =
+    quiz.direction === 'ascending'
+      ? [Math.min(quiz.root, quiz.second), Math.max(quiz.root, quiz.second)]
+      : [Math.max(quiz.root, quiz.second), Math.min(quiz.root, quiz.second)]
+
+  return `${first},${second}`
+}
+
 export function randomQuiz(
   enabledIds: string[],
   direction: IntervalDirection,
@@ -70,7 +134,7 @@ export function randomQuiz(
     throw new Error('至少选择一个音程')
   }
 
-  const interval = pool[Math.floor(Math.random() * pool.length)]
+  const interval = pool[Math.floor(Math.random() * pool.length)]!
 
   if (direction === 'descending') {
     const minRoot = rootMin + interval.semitones

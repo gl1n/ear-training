@@ -1,5 +1,4 @@
 import type { Quiz } from '../quiz/intervals'
-import { MAX_LEVEL } from '../quiz/quizPriority'
 import { formatQuizDirection, formatQuizNotes } from '../lib/formatQuiz'
 
 type PlayableIntervalCardVariant = 'compact' | 'prominent'
@@ -7,10 +6,8 @@ type PlayableIntervalCardVariant = 'compact' | 'prominent'
 type PlayableIntervalCardProps = {
   quiz: Quiz
   variant?: PlayableIntervalCardVariant
-  level?: number
   isPlaying?: boolean
   disabled?: boolean
-  focusBadge?: boolean
   subtitle?: string
   onPlay: () => void
 }
@@ -20,29 +17,6 @@ function PlayIcon({ className = 'text-orange-300' }: { className?: string }) {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M9 18V6l10 6-10 6z" fill="currentColor" className={className} />
     </svg>
-  )
-}
-
-function LevelMeter({ level }: { level: number }) {
-  return (
-    <div
-      className="flex flex-col gap-0.5"
-      role="img"
-      aria-label={`练习权重 ${level} / ${MAX_LEVEL}`}
-    >
-      {Array.from({ length: MAX_LEVEL }, (_, index) => {
-        const slot = MAX_LEVEL - index
-        const active = slot <= level
-        return (
-          <span
-            key={slot}
-            className={`h-1.5 w-3 rounded-sm ${
-              active ? 'bg-orange-400/90' : 'bg-white/10'
-            }`}
-          />
-        )
-      })}
-    </div>
   )
 }
 
@@ -74,15 +48,12 @@ const variantStyles: Record<
 export function PlayableIntervalCard({
   quiz,
   variant = 'compact',
-  level,
   isPlaying = false,
   disabled = false,
-  focusBadge = false,
   subtitle,
   onPlay,
 }: PlayableIntervalCardProps) {
   const styles = variantStyles[variant]
-  const showLevel = level !== undefined && level > 0
   const playing = isPlaying
 
   return (
@@ -118,7 +89,6 @@ export function PlayableIntervalCard({
         </>
       ) : (
         <div className="flex gap-3">
-          {showLevel ? <LevelMeter level={level} /> : null}
           <span
             className={`flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-full transition ${
               playing ? 'animate-pulse-ring bg-orange-500/20' : `bg-orange-500/10 ${styles.playWrap}`
@@ -138,11 +108,6 @@ export function PlayableIntervalCard({
               {playing ? '播放中…' : '点击试听'}
             </p>
           </div>
-          {focusBadge && (
-            <span className="shrink-0 self-center rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-medium text-orange-200/90">
-              重点
-            </span>
-          )}
         </div>
       )}
     </button>

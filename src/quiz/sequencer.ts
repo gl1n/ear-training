@@ -3,15 +3,23 @@ import type { Piano } from '../audio/piano'
 import { delay, isAbortError } from '../utils/abort'
 import { ALL_INTERVAL_IDS, randomQuiz, type IntervalDirection, type Quiz } from './intervals'
 import {
-  bumpLevel,
-  cloneQuizPriorityStore,
-  decayLevel,
-  ensureIdleBoostIfEligible,
-  getQuizPitchKey,
-  IDLE_BOOST_MS,
-  weightedRandomQuiz,
-  type QuizPriorityStore,
-} from './quizPriority'
+  weightedRandomQuizFromMistakes,
+  type MistakeStatsStore,
+} from './mistakeStats'
+
+const IDLE_BOOST_MS = 1_000
+
+function isIdleBoostEligible(
+  answerWindowStartMs: number | null,
+  playerAnswered: boolean,
+  idleBoosted: boolean,
+): boolean {
+  if (playerAnswered || idleBoosted || answerWindowStartMs === null) {
+    return false
+  }
+
+  return performance.now() - answerWindowStartMs >= IDLE_BOOST_MS
+}
 
 export type TrainerState =
   | 'idle'
@@ -122,7 +130,6 @@ export type ArcadeCallbacks = {
     answer: ArcadeAnswer,
     correct: boolean,
   ) => void
-  onPriorityUpdated?: () => void
   onIdleBoost?: (quiz: Quiz) => void
 }
 
@@ -210,9 +217,8 @@ export async function runArcadeLoop(
   callbacks: ArcadeCallbacks,
   signal: AbortSignal,
   sessionDeadlineMs: number,
-  globalPriorityStore: QuizPriorityStore,
+  mistakeStore: MistakeStatsStore,
 ): Promise<void> {
-  const sessionPriorityStore = cloneQuizPriorityStore(globalPriorityStore)
   const getRemainingMs = () => Math.max(0, sessionDeadlineMs - performance.now())
 
   while (!signal.aborted) {
@@ -220,12 +226,12 @@ export async function runArcadeLoop(
       return
     }
 
-    const quiz = weightedRandomQuiz(
+    const quiz = weightedRandomQuizFromMistakes(
+      mistakeStore,
       settings.enabledIntervalIds,
       settings.direction,
       settings.rootMin,
       settings.rootMax,
-      sessionPriorityStore,
     )
 
     const remainingMs = getRemainingMs()
@@ -240,7 +246,6 @@ export async function runArcadeLoop(
       return
     }
 
-    const quizKey = getQuizPitchKey(quiz)
     const questionState = {
       playerAnswered: false,
       idleBoosted: false,
@@ -248,23 +253,7 @@ export async function runArcadeLoop(
       idleTimer: null as ReturnType<typeof setTimeout> | null,
     }
 
-    const notifyPriorityUpdated = () => {
-      callbacks.onPriorityUpdated?.()
-    }
-
-    const applyWrongBoost = () => {
-      bumpLevel(globalPriorityStore, quizKey)
-      notifyPriorityUpdated()
-    }
-
     const notifyIdleBoost = () => {
-      bumpLevel(globalPriorityStore, quizKey)
-      notifyPriorityUpdated()
-      callbacks.onIdleBoost?.(quiz)
-    }
-
-    const notifyIdleBoostRecorded = () => {
-      notifyPriorityUpdated()
       callbacks.onIdleBoost?.(quiz)
     }
 
@@ -333,23 +322,18 @@ export async function runArcadeLoop(
       }
     }
 
-    questionState.idleBoosted = ensureIdleBoostIfEligible(
-      globalPriorityStore,
-      quizKey,
-      questionState.answerWindowStartMs,
-      questionState.playerAnswered,
-      questionState.idleBoosted,
-      () => notifyIdleBoostRecorded(),
-    )
+    if (
+      isIdleBoostEligible(
+        questionState.answerWindowStartMs,
+        questionState.playerAnswered,
+        questionState.idleBoosted,
+      )
+    ) {
+      questionState.idleBoosted = true
+      notifyIdleBoost()
+    }
 
     const correct = !answer.timedOut && answer.selectedIntervalId === quiz.interval.id
-
-    if (correct) {
-      decayLevel(globalPriorityStore, quizKey)
-      notifyPriorityUpdated()
-    } else if (!answer.timedOut) {
-      applyWrongBoost()
-    }
 
     callbacks.onAnswerSubmitted(quiz, answer, correct)
 

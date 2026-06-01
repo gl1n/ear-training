@@ -21,7 +21,7 @@ import {
   recordResult,
   type SessionStats,
 } from '../quiz/stats'
-import { getQuizPitchKey } from '../quiz/quizPriority'
+import { getQuizPitchKey } from '../quiz/intervals'
 import { IDLE_TIP_MESSAGES } from './IdleTipToast'
 import { LISTENING_STATES } from '../quiz/sequencer'
 import { abortError, isAbortError } from '../utils/abort'
@@ -64,10 +64,9 @@ export function Trainer() {
   const [idleTip, setIdleTip] = useState<string | null>(null)
 
   const {
-    priorityStoreRef,
+    mistakeStoreRef,
     viewModel: trainingStats,
     recordRootMistake,
-    notifyPriorityUpdated,
     clearNewBestRecord,
     finalizeArcadeSession,
   } = useTrainingStats({
@@ -299,7 +298,6 @@ export function Trainer() {
                 return next
               })
             },
-            onPriorityUpdated: notifyPriorityUpdated,
             onIdleBoost: (quiz) => {
               recordRootMistake(quiz.root)
               showIdleTip()
@@ -307,7 +305,7 @@ export function Trainer() {
           },
           controller.signal,
           sessionDeadlineMs!,
-          priorityStoreRef.current,
+          mistakeStoreRef.current,
         )
       } else {
         await runLoop(
@@ -341,7 +339,7 @@ export function Trainer() {
         resetArcadeAnswerState()
       }
     }
-  }, [mode, resetArcadeAnswerState, resetLoadingState, settings, showIdleTip, waitForAnswer, recordRootMistake, notifyPriorityUpdated, finalizeArcadeSession, clearNewBestRecord])
+  }, [mode, resetArcadeAnswerState, resetLoadingState, settings, showIdleTip, waitForAnswer, recordRootMistake, finalizeArcadeSession, clearNewBestRecord])
 
   const handleToggle = () => {
     if (isRunning) {

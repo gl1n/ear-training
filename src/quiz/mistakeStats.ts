@@ -1,9 +1,20 @@
+import {
+  randomQuiz,
+  randomQuizWithRoot,
+  type IntervalDirection,
+  type Quiz,
+} from './intervals'
+
 /** Recent mistake root MIDI values, oldest first; capped at MAX_RECENT_MISTAKES. */
 export type MistakeStatsStore = number[]
 
 const STORAGE_KEY = 'ear-trainer:mistake-stats'
 
 export const MAX_RECENT_MISTAKES = 100
+
+/** When mistakes exist: 35% weighted by distribution, 65% fully random. */
+export const MISTAKE_FOCUSED_RATE = 0.35
+export const RANDOM_POOL_RATE = 1 - MISTAKE_FOCUSED_RATE
 
 /** One semitone in log₂(Hz) space. */
 export const LOG_PITCH_BIN_WIDTH = 1 / 12
@@ -216,4 +227,43 @@ export function buildKdeCurve(
   }
 
   return points
+}
+
+function pickWeightedRoot(histogram: MistakeHistogram): number | null {
+  const weighted = histogram.bins.filter((bin) => bin.count > 0)
+  if (weighted.length === 0) return null
+
+  const totalWeight = weighted.reduce((sum, bin) => sum + bin.count, 0)
+  let pick = Math.random() * totalWeight
+
+  for (const bin of weighted) {
+    pick -= bin.count
+    if (pick <= 0) {
+      return bin.midi
+    }
+  }
+
+  return weighted[weighted.length - 1]!.midi
+}
+
+export function weightedRandomQuizFromMistakes(
+  store: MistakeStatsStore,
+  enabledIds: string[],
+  direction: IntervalDirection,
+  rootMin: number,
+  rootMax: number,
+): Quiz {
+  const histogram = buildHistogram(store, rootMin, rootMax)
+
+  if (histogram.totalInRange === 0 || Math.random() >= MISTAKE_FOCUSED_RATE) {
+    return randomQuiz(enabledIds, direction, rootMin, rootMax)
+  }
+
+  const root = pickWeightedRoot(histogram)
+  if (root === null) {
+    return randomQuiz(enabledIds, direction, rootMin, rootMax)
+  }
+
+  const quiz = randomQuizWithRoot(root, enabledIds, direction, rootMin, rootMax)
+  return quiz ?? randomQuiz(enabledIds, direction, rootMin, rootMax)
 }

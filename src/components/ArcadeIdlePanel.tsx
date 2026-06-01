@@ -1,5 +1,5 @@
 import type { Quiz } from '../quiz/intervals'
-import { getQuizPitchKey } from '../quiz/quizPriority'
+import { getQuizPitchKey } from '../quiz/intervals'
 import {
   getCorrectAnswerCount,
   hasSessionAttempts,
@@ -10,8 +10,6 @@ import { MistakeDistributionChart } from './MistakeDistributionChart'
 import { PlayAreaCard } from './PlayAreaCard'
 import { PlayableIntervalCard } from './PlayableIntervalCard'
 import { ResetStatsButton } from './ResetStatsButton'
-import { WeakPrioritySection } from './WeakPrioritySection'
-
 type ArcadeIdlePanelProps = {
   lastQuiz: Quiz | null
   sessionStats: SessionStats
@@ -42,8 +40,7 @@ export function ArcadeIdlePanel({
   isReplayBusy,
   onPlayQuiz,
 }: ArcadeIdlePanelProps) {
-  const { mistakeStats, weakPriorityItems, bestRecord, isNewBestRecord, canReset, reset } =
-    trainingStats
+  const { mistakeStats, bestRecord, isNewBestRecord, canReset, reset } = trainingStats
   const gameEnded = lastQuiz !== null && hasSessionAttempts(sessionStats)
   const correctCount = getCorrectAnswerCount(sessionStats)
 
@@ -81,13 +78,6 @@ export function ArcadeIdlePanel({
           store={mistakeStats}
           rootMin={rootMin}
           rootMax={rootMax}
-        />
-
-        <WeakPrioritySection
-          items={weakPriorityItems}
-          replayingQuizKey={replayingQuizKey}
-          isReplayBusy={isReplayBusy}
-          onPlayQuiz={onPlayQuiz}
         />
 
         {lastQuiz && (
