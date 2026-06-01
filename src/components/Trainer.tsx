@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { createPiano, type Piano } from '../audio/piano'
 import { createAudioContext, unlockAudioContextSync } from '../audio/context'
 import { getInitialSettings, usePersistedSettings } from '../hooks/usePersistedSettings'
+import { useTrainingStats } from '../hooks/useTrainingStats'
 import { ALL_INTERVAL_IDS, type IntervalDirection, type Quiz } from '../quiz/intervals'
 import {
   createDefaultSettings,
@@ -16,33 +17,11 @@ import {
   type TrainerState,
 } from '../quiz/sequencer'
 import {
-  clearArcadeBestRecord,
-  loadArcadeBestRecord,
-  tryUpdateArcadeBestRecord,
-  type ArcadeBestRecord,
-} from '../quiz/arcadeBestRecord'
-import {
   EMPTY_SESSION_STATS,
-  getCorrectAnswerCount,
-  hasSessionAttempts,
   recordResult,
   type SessionStats,
 } from '../quiz/stats'
-import {
-  clearMistakeStats,
-  loadMistakeStats,
-  recordMistake,
-  saveMistakeStats,
-  type MistakeStatsStore,
-} from '../quiz/mistakeStats'
-import {
-  clearQuizPriorities,
-  getQuizPitchKey,
-  listWeakPriorityItems,
-  loadQuizPriorities,
-  saveQuizPriorities,
-  type QuizPriorityStore,
-} from '../quiz/quizPriority'
+import { getQuizPitchKey } from '../quiz/quizPriority'
 import { IDLE_TIP_MESSAGES } from './IdleTipToast'
 import { LISTENING_STATES } from '../quiz/sequencer'
 import { abortError, isAbortError } from '../utils/abort'
@@ -67,8 +46,6 @@ export function Trainer() {
   const [settings, setSettings] = useState<Settings>(initial.settings)
   const [lastQuiz, setLastQuiz] = useState<Quiz | null>(null)
   const [sessionStats, setSessionStats] = useState<SessionStats>(EMPTY_SESSION_STATS)
-  const [bestRecord, setBestRecord] = useState<ArcadeBestRecord | null>(() => loadArcadeBestRecord())
-  const [isNewBestRecord, setIsNewBestRecord] = useState(false)
   const [arcadeDeadlineMs, setArcadeDeadlineMs] = useState<number | null>(null)
   const [arcadeTimedOut, setArcadeTimedOut] = useState(false)
   const [loadProgress, setLoadProgress] = useState<number | null>(null)
@@ -83,51 +60,22 @@ export function Trainer() {
   const answerCleanupRef = useRef<(() => void) | null>(null)
   const replayAbortRef = useRef<AbortController | null>(null)
   const sessionStatsRef = useRef<SessionStats>(EMPTY_SESSION_STATS)
-  const priorityStoreRef = useRef<QuizPriorityStore>(loadQuizPriorities())
-  const mistakeStatsStoreRef = useRef<MistakeStatsStore>(loadMistakeStats())
   const idleTipIndexRef = useRef(0)
-  const [priorityVersion, setPriorityVersion] = useState(0)
-  const [mistakeVersion, setMistakeVersion] = useState(0)
   const [idleTip, setIdleTip] = useState<string | null>(null)
 
+  const {
+    priorityStoreRef,
+    viewModel: trainingStats,
+    recordRootMistake,
+    notifyPriorityUpdated,
+    clearNewBestRecord,
+    finalizeArcadeSession,
+  } = useTrainingStats({
+    direction: settings.direction,
+    enabledIntervalIds: settings.enabledIntervalIds,
+  })
+
   const [replayingQuizKey, setReplayingQuizKey] = useState<string | null>(null)
-
-  const weakPriorityItems = useMemo(
-    () =>
-      listWeakPriorityItems(
-        priorityStoreRef.current,
-        settings.direction,
-        settings.enabledIntervalIds,
-      ),
-    [priorityVersion, settings.direction, settings.enabledIntervalIds],
-  )
-
-  const mistakeStats = useMemo(
-    () => [...mistakeStatsStoreRef.current],
-    [mistakeVersion],
-  )
-
-  usePersistedSettings(speedPreset, settings.enabledIntervalIds, settings.direction, mode)
-
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      saveQuizPriorities(priorityStoreRef.current)
-    }, 300)
-
-    return () => {
-      clearTimeout(timeoutId)
-    }
-  }, [priorityVersion])
-
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      saveMistakeStats(mistakeStatsStoreRef.current)
-    }, 300)
-
-    return () => {
-      clearTimeout(timeoutId)
-    }
-  }, [mistakeVersion])
 
   useEffect(() => {
     if (LISTENING_STATES.includes(state)) {
@@ -148,6 +96,8 @@ export function Trainer() {
       clearTimeout(timeoutId)
     }
   }, [idleTip])
+
+  usePersistedSettings(speedPreset, settings.enabledIntervalIds, settings.direction, mode)
 
   const showIdleTip = useCallback(() => {
     const message = IDLE_TIP_MESSAGES[idleTipIndexRef.current % IDLE_TIP_MESSAGES.length]
@@ -293,7 +243,7 @@ export function Trainer() {
     resetArcadeAnswerState()
     if (mode === 'arcade') {
       setLastQuiz(null)
-      setIsNewBestRecord(false)
+      clearNewBestRecord()
       setArcadeTimedOut(false)
     }
 
@@ -340,8 +290,7 @@ export function Trainer() {
                 setArcadeTimedOut(true)
               }
               if (!correct && !answer.timedOut) {
-                recordMistake(mistakeStatsStoreRef.current, quiz.root)
-                setMistakeVersion((version) => version + 1)
+                recordRootMistake(quiz.root)
               }
               setLastQuiz(quiz)
               setSessionStats((current) => {
@@ -350,12 +299,9 @@ export function Trainer() {
                 return next
               })
             },
-            onPriorityUpdated: () => {
-              setPriorityVersion((version) => version + 1)
-            },
+            onPriorityUpdated: notifyPriorityUpdated,
             onIdleBoost: (quiz) => {
-              recordMistake(mistakeStatsStoreRef.current, quiz.root)
-              setMistakeVersion((version) => version + 1)
+              recordRootMistake(quiz.root)
               showIdleTip()
             },
           },
@@ -385,14 +331,7 @@ export function Trainer() {
     } finally {
       if (abortRef.current === controller) {
         if (mode === 'arcade') {
-          const stats = sessionStatsRef.current
-          if (hasSessionAttempts(stats)) {
-            const { record, isNew } = tryUpdateArcadeBestRecord({
-              correctCount: getCorrectAnswerCount(stats),
-            })
-            setBestRecord(record)
-            setIsNewBestRecord(isNew)
-          }
+          finalizeArcadeSession(sessionStatsRef.current)
         }
 
         setIsRunning(false)
@@ -402,7 +341,7 @@ export function Trainer() {
         resetArcadeAnswerState()
       }
     }
-  }, [mode, resetArcadeAnswerState, resetLoadingState, settings, showIdleTip, waitForAnswer])
+  }, [mode, resetArcadeAnswerState, resetLoadingState, settings, showIdleTip, waitForAnswer, recordRootMistake, notifyPriorityUpdated, finalizeArcadeSession, clearNewBestRecord])
 
   const handleToggle = () => {
     if (isRunning) {
@@ -462,18 +401,6 @@ export function Trainer() {
     setSettings((current) => ({ ...current, direction }))
   }
 
-  const handleResetStats = useCallback(() => {
-    mistakeStatsStoreRef.current = []
-    priorityStoreRef.current = {}
-    clearMistakeStats()
-    clearQuizPriorities()
-    clearArcadeBestRecord()
-    setBestRecord(null)
-    setIsNewBestRecord(false)
-    setMistakeVersion((version) => version + 1)
-    setPriorityVersion((version) => version + 1)
-  }, [])
-
   const settingsControls: SettingsPanelProps = {
     speedPreset,
     enabledIntervalIds: settings.enabledIntervalIds,
@@ -497,11 +424,9 @@ export function Trainer() {
         settingsControls={settingsControls}
         lastQuiz={lastQuiz}
         sessionStats={sessionStats}
-        bestRecord={bestRecord}
-        mistakeStats={mistakeStats}
+        trainingStats={trainingStats}
         rootMin={settings.rootMin}
         rootMax={settings.rootMax}
-        isNewBestRecord={isNewBestRecord}
         arcadeDeadlineMs={arcadeDeadlineMs}
         arcadeTimedOut={arcadeTimedOut}
         idleTip={idleTip}
@@ -513,11 +438,9 @@ export function Trainer() {
         onOpenSettings={() => setDrawerOpen(true)}
         onRetry={handleToggle}
         onAnswerSelect={handleAnswerSelect}
-        weakPriorityItems={weakPriorityItems}
         replayingQuizKey={replayingQuizKey}
         isReplayBusy={replayingQuizKey !== null}
         onPlayQuiz={handlePlayQuiz}
-        onResetStats={handleResetStats}
       />
 
       <SettingsDrawer

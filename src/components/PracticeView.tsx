@@ -1,5 +1,4 @@
 import type { AppMode, TrainerState } from '../quiz/sequencer'
-import type { ArcadeBestRecord } from '../quiz/arcadeBestRecord'
 import type { SessionStats } from '../quiz/stats'
 import { ArcadeIdlePanel } from './ArcadeIdlePanel'
 import { ArcadePlayfield } from './ArcadePlayfield'
@@ -10,8 +9,7 @@ import { StatusHero } from './StatusHero'
 import { Button } from './ui/Button'
 import { SegmentedControl } from './ui/SegmentedControl'
 import type { Quiz } from '../quiz/intervals'
-import type { MistakeStatsStore } from '../quiz/mistakeStats'
-import type { WeakPriorityItem } from '../quiz/quizPriority'
+import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
 
 const MODE_OPTIONS = [
   { value: 'practice' as const, label: '练习模式' },
@@ -26,11 +24,9 @@ type PracticeViewProps = {
   settingsControls: SettingsPanelProps
   lastQuiz: Quiz | null
   sessionStats: SessionStats
-  bestRecord: ArcadeBestRecord | null
-  mistakeStats: MistakeStatsStore
+  trainingStats: TrainingStatsViewModel
   rootMin: number
   rootMax: number
-  isNewBestRecord?: boolean
   arcadeDeadlineMs: number | null
   arcadeTimedOut: boolean
   idleTip: string | null
@@ -42,11 +38,9 @@ type PracticeViewProps = {
   onOpenSettings: () => void
   onRetry: () => void
   onAnswerSelect: (intervalId: string) => void
-  weakPriorityItems: WeakPriorityItem[]
   replayingQuizKey: string | null
   isReplayBusy: boolean
   onPlayQuiz: (quiz: Quiz) => void
-  onResetStats: () => void
 }
 
 export function PracticeView({
@@ -57,11 +51,9 @@ export function PracticeView({
   settingsControls,
   lastQuiz,
   sessionStats,
-  bestRecord,
-  mistakeStats,
+  trainingStats,
   rootMin,
   rootMax,
-  isNewBestRecord = false,
   arcadeDeadlineMs,
   arcadeTimedOut,
   idleTip,
@@ -73,11 +65,9 @@ export function PracticeView({
   onOpenSettings,
   onRetry,
   onAnswerSelect,
-  weakPriorityItems,
   replayingQuizKey,
   isReplayBusy,
   onPlayQuiz,
-  onResetStats,
 }: PracticeViewProps) {
   const { enabledIntervalIds } = settingsControls
   const canStart = enabledIntervalIds.length > 0
@@ -148,16 +138,12 @@ export function PracticeView({
           <ArcadeIdlePanel
             lastQuiz={lastQuiz}
             sessionStats={sessionStats}
-            bestRecord={bestRecord}
-            mistakeStats={mistakeStats}
+            trainingStats={trainingStats}
             rootMin={rootMin}
             rootMax={rootMax}
-            weakPriorityItems={weakPriorityItems}
-            isNewBestRecord={isNewBestRecord}
             replayingQuizKey={replayingQuizKey}
             isReplayBusy={isReplayBusy}
             onPlayQuiz={onPlayQuiz}
-            onResetStats={onResetStats}
           />
         )
       ) : (
