@@ -123,7 +123,7 @@ export type ArcadeCallbacks = {
     correct: boolean,
   ) => void
   onPriorityUpdated?: () => void
-  onIdleBoost?: () => void
+  onIdleBoost?: (quiz: Quiz) => void
 }
 
 async function playNote(
@@ -260,12 +260,12 @@ export async function runArcadeLoop(
     const notifyIdleBoost = () => {
       bumpLevel(globalPriorityStore, quizKey)
       notifyPriorityUpdated()
-      callbacks.onIdleBoost?.()
+      callbacks.onIdleBoost?.(quiz)
     }
 
     const notifyIdleBoostRecorded = () => {
       notifyPriorityUpdated()
-      callbacks.onIdleBoost?.()
+      callbacks.onIdleBoost?.(quiz)
     }
 
     const clearIdleTimer = () => {

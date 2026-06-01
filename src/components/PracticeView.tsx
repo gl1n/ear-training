@@ -10,6 +10,7 @@ import { StatusHero } from './StatusHero'
 import { Button } from './ui/Button'
 import { SegmentedControl } from './ui/SegmentedControl'
 import type { Quiz } from '../quiz/intervals'
+import type { MistakeStatsStore } from '../quiz/mistakeStats'
 import type { WeakPriorityItem } from '../quiz/quizPriority'
 
 const MODE_OPTIONS = [
@@ -26,6 +27,9 @@ type PracticeViewProps = {
   lastQuiz: Quiz | null
   sessionStats: SessionStats
   bestRecord: ArcadeBestRecord | null
+  mistakeStats: MistakeStatsStore
+  rootMin: number
+  rootMax: number
   isNewBestRecord?: boolean
   arcadeDeadlineMs: number | null
   arcadeTimedOut: boolean
@@ -53,6 +57,9 @@ export function PracticeView({
   lastQuiz,
   sessionStats,
   bestRecord,
+  mistakeStats,
+  rootMin,
+  rootMax,
   isNewBestRecord = false,
   arcadeDeadlineMs,
   arcadeTimedOut,
@@ -140,6 +147,9 @@ export function PracticeView({
             lastQuiz={lastQuiz}
             sessionStats={sessionStats}
             bestRecord={bestRecord}
+            mistakeStats={mistakeStats}
+            rootMin={rootMin}
+            rootMax={rootMax}
             weakPriorityItems={weakPriorityItems}
             isNewBestRecord={isNewBestRecord}
             replayingQuizKey={replayingQuizKey}

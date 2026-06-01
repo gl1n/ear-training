@@ -28,6 +28,12 @@ import {
   type SessionStats,
 } from '../quiz/stats'
 import {
+  loadMistakeStats,
+  recordMistake,
+  saveMistakeStats,
+  type MistakeStatsStore,
+} from '../quiz/mistakeStats'
+import {
   getQuizPitchKey,
   listWeakPriorityItems,
   loadQuizPriorities,
@@ -75,8 +81,10 @@ export function Trainer() {
   const replayAbortRef = useRef<AbortController | null>(null)
   const sessionStatsRef = useRef<SessionStats>(EMPTY_SESSION_STATS)
   const priorityStoreRef = useRef<QuizPriorityStore>(loadQuizPriorities())
+  const mistakeStatsStoreRef = useRef<MistakeStatsStore>(loadMistakeStats())
   const idleTipIndexRef = useRef(0)
   const [priorityVersion, setPriorityVersion] = useState(0)
+  const [mistakeVersion, setMistakeVersion] = useState(0)
   const [idleTip, setIdleTip] = useState<string | null>(null)
 
   const [replayingQuizKey, setReplayingQuizKey] = useState<string | null>(null)
@@ -91,6 +99,11 @@ export function Trainer() {
     [priorityVersion, settings.direction, settings.enabledIntervalIds],
   )
 
+  const mistakeStats = useMemo(
+    () => [...mistakeStatsStoreRef.current],
+    [mistakeVersion],
+  )
+
   usePersistedSettings(speedPreset, settings.enabledIntervalIds, settings.direction, mode)
 
   useEffect(() => {
@@ -102,6 +115,16 @@ export function Trainer() {
       clearTimeout(timeoutId)
     }
   }, [priorityVersion])
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      saveMistakeStats(mistakeStatsStoreRef.current)
+    }, 300)
+
+    return () => {
+      clearTimeout(timeoutId)
+    }
+  }, [mistakeVersion])
 
   useEffect(() => {
     if (LISTENING_STATES.includes(state)) {
@@ -313,6 +336,10 @@ export function Trainer() {
               if (answer.timedOut) {
                 setArcadeTimedOut(true)
               }
+              if (!correct && !answer.timedOut) {
+                recordMistake(mistakeStatsStoreRef.current, quiz.root)
+                setMistakeVersion((version) => version + 1)
+              }
               setLastQuiz(quiz)
               setSessionStats((current) => {
                 const next = recordResult(current, quiz.interval.id, { correct })
@@ -323,7 +350,11 @@ export function Trainer() {
             onPriorityUpdated: () => {
               setPriorityVersion((version) => version + 1)
             },
-            onIdleBoost: showIdleTip,
+            onIdleBoost: (quiz) => {
+              recordMistake(mistakeStatsStoreRef.current, quiz.root)
+              setMistakeVersion((version) => version + 1)
+              showIdleTip()
+            },
           },
           controller.signal,
           sessionDeadlineMs!,
@@ -452,6 +483,9 @@ export function Trainer() {
         lastQuiz={lastQuiz}
         sessionStats={sessionStats}
         bestRecord={bestRecord}
+        mistakeStats={mistakeStats}
+        rootMin={settings.rootMin}
+        rootMax={settings.rootMax}
         isNewBestRecord={isNewBestRecord}
         arcadeDeadlineMs={arcadeDeadlineMs}
         arcadeTimedOut={arcadeTimedOut}

@@ -6,6 +6,8 @@ import {
   hasSessionAttempts,
   type SessionStats,
 } from '../quiz/stats'
+import type { MistakeStatsStore } from '../quiz/mistakeStats'
+import { MistakeDistributionChart } from './MistakeDistributionChart'
 import { PlayAreaCard } from './PlayAreaCard'
 import { PlayableIntervalCard } from './PlayableIntervalCard'
 import { WeakPrioritySection } from './WeakPrioritySection'
@@ -14,6 +16,9 @@ type ArcadeIdlePanelProps = {
   lastQuiz: Quiz | null
   sessionStats: SessionStats
   bestRecord: ArcadeBestRecord | null
+  mistakeStats: MistakeStatsStore
+  rootMin: number
+  rootMax: number
   weakPriorityItems: WeakPriorityItem[]
   isNewBestRecord?: boolean
   replayingQuizKey: string | null
@@ -34,6 +39,9 @@ export function ArcadeIdlePanel({
   lastQuiz,
   sessionStats,
   bestRecord,
+  mistakeStats,
+  rootMin,
+  rootMax,
   weakPriorityItems,
   isNewBestRecord = false,
   replayingQuizKey,
@@ -72,6 +80,12 @@ export function ArcadeIdlePanel({
             <ScoreCard correctCount={bestRecord.correctCount} />
           </div>
         )}
+
+        <MistakeDistributionChart
+          store={mistakeStats}
+          rootMin={rootMin}
+          rootMax={rootMax}
+        />
 
         <WeakPrioritySection
           items={weakPriorityItems}
