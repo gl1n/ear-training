@@ -6,12 +6,23 @@ import {
   RANDOM_POOL_RATE,
   WEAK_POOL_RATE,
   bumpLevel,
+  cloneQuizPriorityStore,
   decayLevel,
   levelToWeight,
   listWeakPriorityItems,
   migrateLegacyPriority,
   type QuizPriorityStore,
 } from './quizPriority'
+
+describe('cloneQuizPriorityStore', () => {
+  it('copies scores without sharing mutations', () => {
+    const global: QuizPriorityStore = { '48,50': 3 }
+    const session = cloneQuizPriorityStore(global)
+    bumpLevel(global, '48,50')
+    expect(session['48,50']).toBe(3)
+    expect(global['48,50']).toBe(5)
+  })
+})
 
 describe('bumpLevel', () => {
   it('adds MISTAKE_SCORE_DELTA and caps at MAX_LEVEL', () => {

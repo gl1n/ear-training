@@ -240,6 +240,11 @@ function normalizeLoadedStore(parsed: Record<string, unknown>): QuizPriorityStor
   return store
 }
 
+/** Shallow copy for a fixed in-session weight snapshot (e.g. arcade round). */
+export function cloneQuizPriorityStore(store: QuizPriorityStore): QuizPriorityStore {
+  return { ...store }
+}
+
 export function loadQuizPriorities(): QuizPriorityStore {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
