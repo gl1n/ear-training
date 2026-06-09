@@ -1,17 +1,23 @@
 import type { NoteKeyQuiz } from '../quiz/keys'
+import type { NoteKeyMistakeStatsStore } from '../quiz/noteKeyMistakeStats'
 import {
   getCorrectAnswerCount,
   hasSessionAttempts,
   type SessionStats,
 } from '../quiz/stats'
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
+import { NoteKeyMistakeSummary } from './NoteKeyMistakeSummary'
 import { PlayAreaCard } from './PlayAreaCard'
 import { ResetStatsButton } from './ResetStatsButton'
 
 type NoteKeyArcadeIdlePanelProps = {
   lastQuiz: NoteKeyQuiz | null
   sessionStats: SessionStats
+  sessionMistakes: NoteKeyMistakeStatsStore
   trainingStats: TrainingStatsViewModel
+  noteKeyReviewEnabled: boolean
+  isRunning: boolean
+  onNoteKeyReviewChange: (enabled: boolean) => void
 }
 
 function ScoreCard({ correctCount }: { correctCount: number }) {
@@ -26,11 +32,17 @@ function ScoreCard({ correctCount }: { correctCount: number }) {
 export function NoteKeyArcadeIdlePanel({
   lastQuiz,
   sessionStats,
+  sessionMistakes,
   trainingStats,
+  noteKeyReviewEnabled,
+  isRunning,
+  onNoteKeyReviewChange,
 }: NoteKeyArcadeIdlePanelProps) {
-  const { noteKeyBestRecord, isNewNoteKeyBestRecord, canReset, reset } = trainingStats
+  const { noteKeyMistakeStats, noteKeyBestRecord, isNewNoteKeyBestRecord, canReset, reset } =
+    trainingStats
   const gameEnded = lastQuiz !== null && hasSessionAttempts(sessionStats)
   const correctCount = getCorrectAnswerCount(sessionStats)
+  const hasHistoricalMistakes = noteKeyMistakeStats.length > 0
 
   if (gameEnded) {
     return (
@@ -71,24 +83,46 @@ export function NoteKeyArcadeIdlePanel({
           </p>
         )}
 
+        <NoteKeyMistakeSummary store={sessionMistakes} title="本局错题统计" />
+
         {canReset && <ResetStatsButton onReset={reset} />}
       </PlayAreaCard>
     )
   }
 
   return (
-    <PlayAreaCard className={canReset ? 'gap-6' : undefined}>
+    <PlayAreaCard className="gap-6">
       <div className="text-center">
         <p className="text-sm font-medium">调内听音</p>
         <p className="mt-2 max-w-sm text-sm leading-relaxed text-[var(--text-secondary)]">
           每局随机大调 · 听音后选择音级 1–7 · 答错即结束
         </p>
       </div>
-      <p
-        className={`max-w-md text-base leading-relaxed text-[var(--text-secondary)] ${canReset ? '' : 'mt-8'}`}
-      >
+      <p className="max-w-md text-base leading-relaxed text-[var(--text-secondary)]">
         点击「开始挑战」播放一级大三和弦定调，再点「开始」进入答题；听调内单音并选出对应音级，尽可能连对更多题。
       </p>
+
+      <NoteKeyMistakeSummary store={noteKeyMistakeStats} title="历史错题统计" />
+
+      <label
+        className={`flex max-w-sm cursor-pointer items-start gap-3 rounded-xl border border-[var(--border-subtle)] bg-black/20 px-4 py-3 ${
+          !hasHistoricalMistakes || isRunning ? 'cursor-not-allowed opacity-60' : ''
+        }`}
+      >
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={noteKeyReviewEnabled}
+          disabled={!hasHistoricalMistakes || isRunning}
+          onChange={(event) => onNoteKeyReviewChange(event.target.checked)}
+        />
+        <span className="flex flex-col gap-1 text-left">
+          <span className="text-sm font-medium">复习模式（优先出历史错题）</span>
+          {!hasHistoricalMistakes && (
+            <span className="text-xs text-[var(--text-secondary)]">暂无错题可复习</span>
+          )}
+        </span>
+      </label>
 
       {canReset && <ResetStatsButton onReset={reset} />}
     </PlayAreaCard>

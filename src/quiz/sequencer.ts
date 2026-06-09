@@ -13,6 +13,10 @@ import {
   weightedRandomQuizFromMistakes,
   type MistakeStatsStore,
 } from './mistakeStats'
+import {
+  weightedRandomNoteKeyQuizFromMistakes,
+  type NoteKeyMistakeStatsStore,
+} from './noteKeyMistakeStats'
 
 const IDLE_BOOST_MS = 1_000
 
@@ -382,6 +386,8 @@ export async function runNoteKeyArcadeLoop(
   settings: Settings,
   callbacks: NoteKeyArcadeCallbacks,
   signal: AbortSignal,
+  mistakeStore: NoteKeyMistakeStatsStore = [],
+  reviewEnabled = false,
 ): Promise<void> {
   const session = createMajorKeySession(settings.rootMin, settings.rootMax)
   callbacks.onSessionStart(session)
@@ -401,12 +407,30 @@ export async function runNoteKeyArcadeLoop(
   let previousNoteMidi: number | null = null
 
   while (!signal.aborted) {
-    const quiz = randomNoteKeyQuiz(
-      session,
-      settings.rootMin,
-      settings.rootMax,
-      previousNoteMidi,
-    )
+    let quiz: NoteKeyQuiz
+    if (reviewEnabled && mistakeStore.length > 0) {
+      quiz =
+        weightedRandomNoteKeyQuizFromMistakes(
+          mistakeStore,
+          session,
+          settings.rootMin,
+          settings.rootMax,
+          previousNoteMidi,
+        ) ??
+        randomNoteKeyQuiz(
+          session,
+          settings.rootMin,
+          settings.rootMax,
+          previousNoteMidi,
+        )
+    } else {
+      quiz = randomNoteKeyQuiz(
+        session,
+        settings.rootMin,
+        settings.rootMax,
+        previousNoteMidi,
+      )
+    }
     previousNoteMidi = quiz.noteMidi
     const audioAbort = new AbortController()
 

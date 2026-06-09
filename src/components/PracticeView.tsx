@@ -13,12 +13,13 @@ import { Button } from './ui/Button'
 import { SegmentedControl } from './ui/SegmentedControl'
 import type { Quiz } from '../quiz/intervals'
 import type { NoteKeyQuiz } from '../quiz/keys'
+import type { NoteKeyMistakeStatsStore } from '../quiz/noteKeyMistakeStats'
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
 
 const MODE_OPTIONS = [
+  { value: 'noteKey' as const, label: '调内听音' },
   { value: 'practice' as const, label: '练习' },
   { value: 'arcade' as const, label: '音程街机' },
-  { value: 'noteKey' as const, label: '调内听音' },
 ]
 
 type PracticeViewProps = {
@@ -31,6 +32,9 @@ type PracticeViewProps = {
   lastNoteKeyQuiz: NoteKeyQuiz | null
   currentKeyLabel: string | null
   noteKeyGameStarted: boolean
+  sessionNoteKeyMistakes: NoteKeyMistakeStatsStore
+  noteKeyReviewEnabled: boolean
+  onNoteKeyReviewChange: (enabled: boolean) => void
   sessionStats: SessionStats
   trainingStats: TrainingStatsViewModel
   rootMin: number
@@ -61,6 +65,9 @@ export function PracticeView({
   lastNoteKeyQuiz,
   currentKeyLabel,
   noteKeyGameStarted,
+  sessionNoteKeyMistakes,
+  noteKeyReviewEnabled,
+  onNoteKeyReviewChange,
   sessionStats,
   trainingStats,
   rootMin,
@@ -198,7 +205,11 @@ export function PracticeView({
           <NoteKeyArcadeIdlePanel
             lastQuiz={lastNoteKeyQuiz}
             sessionStats={sessionStats}
+            sessionMistakes={sessionNoteKeyMistakes}
             trainingStats={trainingStats}
+            noteKeyReviewEnabled={noteKeyReviewEnabled}
+            isRunning={isRunning}
+            onNoteKeyReviewChange={onNoteKeyReviewChange}
           />
         )
       ) : (

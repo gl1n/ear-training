@@ -8,6 +8,7 @@ import {
   getTonicMajorTriadMidis,
   listDiatonicMidisInRange,
   midiToDegree,
+  noteKeyQuizFromMistake,
   randomNoteKeyQuiz,
   formatMajorKeyLabel,
 } from './keys'
@@ -142,5 +143,30 @@ describe('randomNoteKeyQuiz', () => {
     )
 
     expect(weightedAverageDistance).toBeGreaterThan(uniformAverageDistance * 1.25)
+  })
+})
+
+describe('noteKeyQuizFromMistake', () => {
+  it('generates a quiz with the requested degree in the current key', () => {
+    const session = { tonicMidi: 67, tonicPitchClass: 7, label: 'G 大调' }
+    const quiz = noteKeyQuizFromMistake(
+      session,
+      { correctDegree: 5 },
+      60,
+      72,
+      67,
+    )
+
+    expect(quiz).not.toBeNull()
+    expect(quiz!.degree).toBe(5)
+    expect(quiz!.previousNoteMidi).toBe(67)
+    expect(midiToDegree(session.tonicPitchClass, quiz!.noteMidi)).toBe(5)
+  })
+
+  it('returns null when the degree is unavailable in range', () => {
+    const session = { tonicMidi: 60, tonicPitchClass: 0, label: 'C 大调' }
+    const quiz = noteKeyQuizFromMistake(session, { correctDegree: 5 }, 60, 60, null)
+
+    expect(quiz).toBeNull()
   })
 })

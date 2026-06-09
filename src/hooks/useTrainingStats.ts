@@ -13,10 +13,18 @@ import {
   type MistakeStatsStore,
 } from '../quiz/mistakeStats'
 import { getCorrectAnswerCount, hasSessionAttempts, type SessionStats } from '../quiz/stats'
+import {
+  loadNoteKeyMistakeStats,
+  recordNoteKeyMistake,
+  saveNoteKeyMistakeStats,
+  type NoteKeyMistakeRecord,
+  type NoteKeyMistakeStatsStore,
+} from '../quiz/noteKeyMistakeStats'
 import { clearAllTrainingStats, hasPersistedTrainingStats } from '../quiz/trainingStats'
 
 export type TrainingStatsViewModel = {
   mistakeStats: MistakeStatsStore
+  noteKeyMistakeStats: NoteKeyMistakeStatsStore
   bestRecord: ArcadeBestRecord | null
   isNewBestRecord: boolean
   noteKeyBestRecord: ArcadeBestRecord | null
@@ -35,6 +43,7 @@ export function useTrainingStats({
   enabledIntervalIds: _enabledIntervalIds,
 }: UseTrainingStatsOptions) {
   const mistakeStoreRef = useRef<MistakeStatsStore>(loadMistakeStats())
+  const noteKeyMistakeStoreRef = useRef<NoteKeyMistakeStatsStore>(loadNoteKeyMistakeStats())
   const [bestRecord, setBestRecord] = useState<ArcadeBestRecord | null>(() =>
     loadArcadeBestRecord('interval'),
   )
@@ -44,6 +53,7 @@ export function useTrainingStats({
   const [isNewBestRecord, setIsNewBestRecord] = useState(false)
   const [isNewNoteKeyBestRecord, setIsNewNoteKeyBestRecord] = useState(false)
   const [mistakeVersion, setMistakeVersion] = useState(0)
+  const [noteKeyMistakeVersion, setNoteKeyMistakeVersion] = useState(0)
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -55,14 +65,34 @@ export function useTrainingStats({
     }
   }, [mistakeVersion])
 
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      saveNoteKeyMistakeStats(noteKeyMistakeStoreRef.current)
+    }, 300)
+
+    return () => {
+      clearTimeout(timeoutId)
+    }
+  }, [noteKeyMistakeVersion])
+
   const mistakeStats = useMemo(
     () => [...mistakeStoreRef.current],
     [mistakeVersion],
   )
 
+  const noteKeyMistakeStats = useMemo(
+    () => [...noteKeyMistakeStoreRef.current],
+    [noteKeyMistakeVersion],
+  )
+
   const recordQuizMistake = useCallback((quiz: Quiz) => {
     recordMistake(mistakeStoreRef.current, quiz)
     setMistakeVersion((version) => version + 1)
+  }, [])
+
+  const recordNoteKeyQuizMistake = useCallback((record: NoteKeyMistakeRecord) => {
+    recordNoteKeyMistake(noteKeyMistakeStoreRef.current, record)
+    setNoteKeyMistakeVersion((version) => version + 1)
   }, [])
 
   const clearNewBestRecord = useCallback((variant: ArcadeBestVariant = 'interval') => {
@@ -96,26 +126,35 @@ export function useTrainingStats({
 
   const reset = useCallback(() => {
     mistakeStoreRef.current = []
+    noteKeyMistakeStoreRef.current = []
     clearAllTrainingStats()
     setBestRecord(null)
     setNoteKeyBestRecord(null)
     setIsNewBestRecord(false)
     setIsNewNoteKeyBestRecord(false)
     setMistakeVersion((version) => version + 1)
+    setNoteKeyMistakeVersion((version) => version + 1)
   }, [])
 
   const viewModel = useMemo<TrainingStatsViewModel>(
     () => ({
       mistakeStats,
+      noteKeyMistakeStats,
       bestRecord,
       isNewBestRecord,
       noteKeyBestRecord,
       isNewNoteKeyBestRecord,
-      canReset: hasPersistedTrainingStats(mistakeStats, bestRecord, noteKeyBestRecord),
+      canReset: hasPersistedTrainingStats(
+        mistakeStats,
+        bestRecord,
+        noteKeyBestRecord,
+        noteKeyMistakeStats,
+      ),
       reset,
     }),
     [
       mistakeStats,
+      noteKeyMistakeStats,
       bestRecord,
       isNewBestRecord,
       noteKeyBestRecord,
@@ -126,8 +165,10 @@ export function useTrainingStats({
 
   return {
     mistakeStoreRef,
+    noteKeyMistakeStoreRef,
     viewModel,
     recordQuizMistake,
+    recordNoteKeyQuizMistake,
     clearNewBestRecord,
     finalizeArcadeSession,
   }

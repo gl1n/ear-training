@@ -5,6 +5,7 @@ import { getInitialSettings, usePersistedSettings } from '../hooks/usePersistedS
 import { useTrainingStats } from '../hooks/useTrainingStats'
 import { ALL_INTERVAL_IDS, type IntervalDirection, type Quiz } from '../quiz/intervals'
 import type { NoteKeyQuiz } from '../quiz/keys'
+import type { NoteKeyMistakeRecord, NoteKeyMistakeStatsStore } from '../quiz/noteKeyMistakeStats'
 import {
   createDefaultSettings,
   replayQuiz,
@@ -31,12 +32,18 @@ import type { SettingsPanelProps } from './SettingsPanel'
 import { PracticeView } from './PracticeView'
 import { SettingsDrawer } from './SettingsDrawer'
 
-function ensureAudioContext(ref: RefObject<AudioContext | null>): AudioContext {
-  if (!ref.current) {
-    ref.current = createAudioContext()
+function ensureAudioContext(
+  audioRef: RefObject<AudioContext | null>,
+  pianoRef?: RefObject<Piano | null>,
+): AudioContext {
+  if (!audioRef.current || audioRef.current.state === 'closed') {
+    audioRef.current = createAudioContext()
+    if (pianoRef) {
+      pianoRef.current = null
+    }
   }
-  unlockAudioContextSync(ref.current)
-  return ref.current
+  unlockAudioContextSync(audioRef.current)
+  return audioRef.current
 }
 
 export function Trainer() {
@@ -50,6 +57,10 @@ export function Trainer() {
   const [lastNoteKeyQuiz, setLastNoteKeyQuiz] = useState<NoteKeyQuiz | null>(null)
   const [currentKeyLabel, setCurrentKeyLabel] = useState<string | null>(null)
   const [noteKeyGameStarted, setNoteKeyGameStarted] = useState(false)
+  const [noteKeyReviewEnabled, setNoteKeyReviewEnabled] = useState(initial.noteKeyReviewEnabled)
+  const [sessionNoteKeyMistakes, setSessionNoteKeyMistakes] = useState<NoteKeyMistakeStatsStore>(
+    [],
+  )
   const [sessionStats, setSessionStats] = useState<SessionStats>(EMPTY_SESSION_STATS)
   const [arcadeDeadlineMs, setArcadeDeadlineMs] = useState<number | null>(null)
   const [arcadeTimedOut, setArcadeTimedOut] = useState(false)
@@ -72,8 +83,10 @@ export function Trainer() {
 
   const {
     mistakeStoreRef,
+    noteKeyMistakeStoreRef,
     viewModel: trainingStats,
     recordQuizMistake,
+    recordNoteKeyQuizMistake,
     clearNewBestRecord,
     finalizeArcadeSession,
   } = useTrainingStats({
@@ -103,7 +116,13 @@ export function Trainer() {
     }
   }, [idleTip])
 
-  usePersistedSettings(speedPreset, settings.enabledIntervalIds, settings.direction, mode)
+  usePersistedSettings(
+    speedPreset,
+    settings.enabledIntervalIds,
+    settings.direction,
+    mode,
+    noteKeyReviewEnabled,
+  )
 
   const showIdleTip = useCallback(() => {
     const message = IDLE_TIP_MESSAGES[idleTipIndexRef.current % IDLE_TIP_MESSAGES.length]
@@ -148,7 +167,9 @@ export function Trainer() {
   useEffect(() => {
     return () => {
       abortSession()
+      pianoRef.current = null
       void audioContextRef.current?.close()
+      audioContextRef.current = null
     }
   }, [abortSession])
 
@@ -245,7 +266,7 @@ export function Trainer() {
         return
       }
 
-      ensureAudioContext(audioContextRef)
+      ensureAudioContext(audioContextRef, pianoRef)
 
       replayAbortRef.current?.abort()
       stopPlayback(pianoRef.current)
@@ -305,14 +326,14 @@ export function Trainer() {
       setLastNoteKeyQuiz(null)
       setCurrentKeyLabel(null)
       setNoteKeyGameStarted(false)
+      setSessionNoteKeyMistakes([])
       clearNewBestRecord('noteKey')
     }
 
     try {
-      const ctx = audioContextRef.current
-      if (!ctx) {
-        throw new Error('音频未初始化，请重试')
-      }
+      ensureAudioContext(audioContextRef, pianoRef)
+
+      const ctx = audioContextRef.current!
 
       if (!pianoRef.current) {
         pianoRef.current = await createPiano(ctx, {
@@ -380,8 +401,22 @@ export function Trainer() {
             },
             waitForGameStart: (signal) => waitForGameStart(signal),
             waitForAnswer: (signal) => waitForNoteKeyAnswer(signal),
-            onAnswerSubmitted: (quiz, _answer, correct) => {
+            onAnswerSubmitted: (quiz, answer, correct) => {
               setLastNoteKeyQuiz(quiz)
+              if (
+                !correct &&
+                !answer.timedOut &&
+                answer.selectedDegree !== '' &&
+                answer.selectedDegree !== String(quiz.degree)
+              ) {
+                const record: NoteKeyMistakeRecord = {
+                  previousNoteMidi: quiz.previousNoteMidi,
+                  correctDegree: quiz.degree,
+                  wrongDegree: answer.selectedDegree,
+                }
+                recordNoteKeyQuizMistake(record)
+                setSessionNoteKeyMistakes((current) => [...current, record])
+              }
               setSessionStats((current) => {
                 const next = recordResult(current, String(quiz.degree), { correct })
                 sessionStatsRef.current = next
@@ -390,6 +425,8 @@ export function Trainer() {
             },
           },
           controller.signal,
+          noteKeyMistakeStoreRef.current,
+          noteKeyReviewEnabled,
         )
       } else {
         await runLoop(
@@ -427,11 +464,12 @@ export function Trainer() {
         resetArcadeAnswerState()
       }
     }
-  }, [mode, resetArcadeAnswerState, resetLoadingState, settings, showIdleTip, waitForAnswer, waitForGameStart, waitForNoteKeyAnswer, recordQuizMistake, finalizeArcadeSession, clearNewBestRecord])
+  }, [mode, noteKeyReviewEnabled, resetArcadeAnswerState, resetLoadingState, settings, showIdleTip, waitForAnswer, waitForGameStart, waitForNoteKeyAnswer, recordQuizMistake, recordNoteKeyQuizMistake, finalizeArcadeSession, clearNewBestRecord])
 
   const handleToggle = () => {
     if (isRunning && mode === 'noteKey' && !noteKeyGameStarted) {
       if (state === 'idle' && gameStartResolverRef.current) {
+        ensureAudioContext(audioContextRef, pianoRef)
         gameStartResolverRef.current()
         return
       }
@@ -445,7 +483,7 @@ export function Trainer() {
       return
     }
 
-    ensureAudioContext(audioContextRef)
+    ensureAudioContext(audioContextRef, pianoRef)
 
     void start()
   }
@@ -526,6 +564,9 @@ export function Trainer() {
         lastNoteKeyQuiz={lastNoteKeyQuiz}
         currentKeyLabel={currentKeyLabel}
         noteKeyGameStarted={noteKeyGameStarted}
+        sessionNoteKeyMistakes={sessionNoteKeyMistakes}
+        noteKeyReviewEnabled={noteKeyReviewEnabled}
+        onNoteKeyReviewChange={setNoteKeyReviewEnabled}
         sessionStats={sessionStats}
         trainingStats={trainingStats}
         rootMin={settings.rootMin}

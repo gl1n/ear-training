@@ -21,6 +21,7 @@ export type NoteKeyQuiz = {
   noteMidi: number
   degree: number
   keyLabel: string
+  previousNoteMidi: number | null
 }
 
 export function formatMajorKeyLabel(tonicMidi: number): string {
@@ -189,5 +190,33 @@ export function randomNoteKeyQuiz(
     noteMidi,
     degree,
     keyLabel: session.label,
+    previousNoteMidi: previousNoteMidi ?? null,
+  }
+}
+
+export function noteKeyQuizFromMistake(
+  session: MajorKeySession,
+  record: { correctDegree: number },
+  rootMin: number,
+  rootMax: number,
+  previousNoteMidi?: number | null,
+): NoteKeyQuiz | null {
+  const midis = listDiatonicMidisInRange(session.tonicPitchClass, rootMin, rootMax).filter(
+    (midi) => midiToDegree(session.tonicPitchClass, midi) === record.correctDegree,
+  )
+
+  if (midis.length === 0) return null
+
+  const noteMidi =
+    previousNoteMidi == null
+      ? midis[Math.floor(Math.random() * midis.length)]!
+      : pickWeightedByDistance(midis, previousNoteMidi)
+
+  return {
+    tonicMidi: session.tonicMidi,
+    noteMidi,
+    degree: record.correctDegree,
+    keyLabel: session.label,
+    previousNoteMidi: previousNoteMidi ?? null,
   }
 }

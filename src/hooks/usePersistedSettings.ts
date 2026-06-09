@@ -9,6 +9,7 @@ type PersistedSettings = {
   enabledIntervalIds: string[]
   direction: IntervalDirection
   mode?: AppMode
+  noteKeyReviewEnabled?: boolean
 }
 
 function isAppMode(value: unknown): value is AppMode {
@@ -62,9 +63,11 @@ function loadPersistedSettings(): PersistedSettings | null {
     }
 
     const direction = parseDirection(record) ?? 'ascending'
-    const mode = 'mode' in record && isAppMode(record.mode) ? record.mode : 'practice'
+    const mode = 'mode' in record && isAppMode(record.mode) ? record.mode : 'noteKey'
+    const noteKeyReviewEnabled =
+      'noteKeyReviewEnabled' in record && record.noteKeyReviewEnabled === true
 
-    return { speedPreset, enabledIntervalIds, direction, mode }
+    return { speedPreset, enabledIntervalIds, direction, mode, noteKeyReviewEnabled }
   } catch {
     return null
   }
@@ -73,17 +76,20 @@ function loadPersistedSettings(): PersistedSettings | null {
 export function getInitialSettings(): {
   speedPreset: SpeedPreset
   mode: AppMode
+  noteKeyReviewEnabled: boolean
   settings: ReturnType<typeof createDefaultSettings>
 } {
   const persisted = loadPersistedSettings()
   const speedPreset = persisted?.speedPreset ?? 'medium'
-  const mode = persisted?.mode ?? 'practice'
+  const mode = persisted?.mode ?? 'noteKey'
+  const noteKeyReviewEnabled = persisted?.noteKeyReviewEnabled ?? false
   const defaults = createDefaultSettings(speedPreset)
 
   if (persisted && persisted.enabledIntervalIds.length > 0) {
     return {
       speedPreset,
       mode,
+      noteKeyReviewEnabled,
       settings: {
         ...defaults,
         enabledIntervalIds: persisted.enabledIntervalIds,
@@ -92,7 +98,7 @@ export function getInitialSettings(): {
     }
   }
 
-  return { speedPreset, mode, settings: defaults }
+  return { speedPreset, mode, noteKeyReviewEnabled, settings: defaults }
 }
 
 export function usePersistedSettings(
@@ -100,6 +106,7 @@ export function usePersistedSettings(
   enabledIntervalIds: string[],
   direction: IntervalDirection,
   mode: AppMode,
+  noteKeyReviewEnabled: boolean,
 ) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -109,7 +116,13 @@ export function usePersistedSettings(
     }
 
     timeoutRef.current = setTimeout(() => {
-      const data: PersistedSettings = { speedPreset, enabledIntervalIds, direction, mode }
+      const data: PersistedSettings = {
+        speedPreset,
+        enabledIntervalIds,
+        direction,
+        mode,
+        noteKeyReviewEnabled,
+      }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     }, 300)
 
@@ -118,5 +131,5 @@ export function usePersistedSettings(
         clearTimeout(timeoutRef.current)
       }
     }
-  }, [speedPreset, enabledIntervalIds, direction, mode])
+  }, [speedPreset, enabledIntervalIds, direction, mode, noteKeyReviewEnabled])
 }
