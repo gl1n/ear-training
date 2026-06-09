@@ -149,23 +149,97 @@ export function getTonicMajorTriadMidis(tonicMidi: number): [number, number, num
   return [tonicMidi, tonicMidi + 4, tonicMidi + 7]
 }
 
-function pickWeightedByDistance(midis: number[], previousNoteMidi: number): number {
-  const weights = midis.map((midi) => Math.abs(midi - previousNoteMidi))
+export type SessionDegreeWeights = Readonly<Record<number, number>>
+
+function pickUniform<T>(items: T[]): T {
+  return items[Math.floor(Math.random() * items.length)]!
+}
+
+function pickWeighted<T>(items: T[], weights: number[]): T {
   const totalWeight = weights.reduce((sum, weight) => sum + weight, 0)
 
   if (totalWeight === 0) {
-    return midis[Math.floor(Math.random() * midis.length)]!
+    return pickUniform(items)
   }
 
   let pick = Math.random() * totalWeight
-  for (let i = 0; i < midis.length; i++) {
+  for (let i = 0; i < items.length; i++) {
     pick -= weights[i]!
     if (pick <= 0) {
-      return midis[i]!
+      return items[i]!
     }
   }
 
-  return midis[midis.length - 1]!
+  return items[items.length - 1]!
+}
+
+function listAvailableDegrees(midis: number[], tonicPitchClass: number): number[] {
+  const degrees = new Set<number>()
+
+  for (const midi of midis) {
+    const degree = midiToDegree(tonicPitchClass, midi)
+    if (degree !== null) {
+      degrees.add(degree)
+    }
+  }
+
+  return [...degrees]
+}
+
+function pickRandomDegree(
+  midis: number[],
+  tonicPitchClass: number,
+  sessionDegreeWeights?: SessionDegreeWeights,
+): number {
+  const availableDegrees = listAvailableDegrees(midis, tonicPitchClass)
+  if (availableDegrees.length === 0) {
+    throw new Error('音域内没有可用的调内音级数')
+  }
+
+  const weights = availableDegrees.map((degree) => sessionDegreeWeights?.[degree] ?? 1)
+  return pickWeighted(availableDegrees, weights)
+}
+
+/** 选定音级后，八度选择的理想跳距（半音）与高斯标准差。 */
+const REGISTER_GAUSSIAN_IDEAL_DISTANCE = 5
+const REGISTER_GAUSSIAN_SIGMA = 3
+
+function gaussianJumpWeight(distance: number): number {
+  const delta = Math.abs(distance) - REGISTER_GAUSSIAN_IDEAL_DISTANCE
+  return Math.exp(-(delta * delta) / (2 * REGISTER_GAUSSIAN_SIGMA * REGISTER_GAUSSIAN_SIGMA))
+}
+
+function pickRegisterAmongMidis(midis: number[], previousNoteMidi: number | null): number {
+  if (midis.length === 0) {
+    throw new Error('没有可用的调内音')
+  }
+
+  if (previousNoteMidi === null) {
+    return pickUniform(midis)
+  }
+
+  const withoutSameMidi = midis.filter((midi) => midi !== previousNoteMidi)
+  const pool = withoutSameMidi.length > 0 ? withoutSameMidi : midis
+  const weights = pool.map((midi) => gaussianJumpWeight(midi - previousNoteMidi))
+
+  return pickWeighted(pool, weights)
+}
+
+function pickRandomNoteMidi(
+  midis: number[],
+  tonicPitchClass: number,
+  previousNoteMidi: number | null,
+  sessionDegreeWeights?: SessionDegreeWeights,
+  fixedDegree?: number,
+): number {
+  const degree =
+    fixedDegree ?? pickRandomDegree(midis, tonicPitchClass, sessionDegreeWeights)
+  const degreeMidis = midis.filter((midi) => midiToDegree(tonicPitchClass, midi) === degree)
+
+  return pickRegisterAmongMidis(
+    degreeMidis.length > 0 ? degreeMidis : midis,
+    previousNoteMidi,
+  )
 }
 
 export function randomNoteKeyQuiz(
@@ -173,12 +247,15 @@ export function randomNoteKeyQuiz(
   rootMin: number,
   rootMax: number,
   previousNoteMidi?: number | null,
+  sessionDegreeWeights?: SessionDegreeWeights,
 ): NoteKeyQuiz {
   const midis = listDiatonicMidisInRange(session.tonicPitchClass, rootMin, rootMax)
-  const noteMidi =
-    previousNoteMidi == null
-      ? midis[Math.floor(Math.random() * midis.length)]!
-      : pickWeightedByDistance(midis, previousNoteMidi)
+  const noteMidi = pickRandomNoteMidi(
+    midis,
+    session.tonicPitchClass,
+    previousNoteMidi ?? null,
+    sessionDegreeWeights,
+  )
   const degree = midiToDegree(session.tonicPitchClass, noteMidi)
 
   if (degree === null) {
@@ -207,10 +284,13 @@ export function noteKeyQuizFromMistake(
 
   if (midis.length === 0) return null
 
-  const noteMidi =
-    previousNoteMidi == null
-      ? midis[Math.floor(Math.random() * midis.length)]!
-      : pickWeightedByDistance(midis, previousNoteMidi)
+  const noteMidi = pickRandomNoteMidi(
+    midis,
+    session.tonicPitchClass,
+    previousNoteMidi ?? null,
+    undefined,
+    record.correctDegree,
+  )
 
   return {
     tonicMidi: session.tonicMidi,

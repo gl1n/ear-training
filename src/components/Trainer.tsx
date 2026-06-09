@@ -423,6 +423,7 @@ export function Trainer() {
                 return next
               })
             },
+            getSessionStats: () => sessionStatsRef.current,
           },
           controller.signal,
           noteKeyMistakeStoreRef.current,

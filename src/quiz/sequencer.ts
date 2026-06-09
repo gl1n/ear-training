@@ -17,6 +17,7 @@ import {
   weightedRandomNoteKeyQuizFromMistakes,
   type NoteKeyMistakeStatsStore,
 } from './noteKeyMistakeStats'
+import { getSessionDegreeWeights, type SessionStats } from './stats'
 
 const IDLE_BOOST_MS = 1_000
 
@@ -167,6 +168,7 @@ export type NoteKeyArcadeCallbacks = {
     answer: NoteKeyArcadeAnswer,
     correct: boolean,
   ) => void
+  getSessionStats?: () => SessionStats
 }
 
 async function playNote(
@@ -424,11 +426,15 @@ export async function runNoteKeyArcadeLoop(
           previousNoteMidi,
         )
     } else {
+      const sessionDegreeWeights = callbacks.getSessionStats
+        ? getSessionDegreeWeights(callbacks.getSessionStats())
+        : undefined
       quiz = randomNoteKeyQuiz(
         session,
         settings.rootMin,
         settings.rootMax,
         previousNoteMidi,
+        sessionDegreeWeights,
       )
     }
     previousNoteMidi = quiz.noteMidi

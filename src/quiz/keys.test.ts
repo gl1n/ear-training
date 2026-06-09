@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  EMPTY_SESSION_STATS,
+  getSessionDegreeWeights,
+  recordResult,
+} from './stats'
+import {
   DEGREE_OPTION_IDS,
   NOTE_KEY_QUIZ_SPAN_SEMITONES,
   createMajorKeySession,
@@ -94,6 +99,38 @@ describe('listDiatonicMidisInRange', () => {
   })
 })
 
+function consecutiveSameDegreeRate(
+  session: Parameters<typeof randomNoteKeyQuiz>[0],
+  rootMin: number,
+  rootMax: number,
+  trials: number,
+): number {
+  let sameDegreeCount = 0
+  let stats = EMPTY_SESSION_STATS
+  let previousNoteMidi: number | null = null
+
+  for (let i = 0; i < trials; i++) {
+    const quiz = randomNoteKeyQuiz(
+      session,
+      rootMin,
+      rootMax,
+      previousNoteMidi,
+      getSessionDegreeWeights(stats),
+    )
+    if (
+      previousNoteMidi !== null &&
+      midiToDegree(session.tonicPitchClass, quiz.noteMidi) ===
+        midiToDegree(session.tonicPitchClass, previousNoteMidi)
+    ) {
+      sameDegreeCount++
+    }
+    stats = recordResult(stats, String(quiz.degree), { correct: true })
+    previousNoteMidi = quiz.noteMidi
+  }
+
+  return sameDegreeCount / (trials - 1)
+}
+
 function averageDistanceFromPrevious(
   session: Parameters<typeof randomNoteKeyQuiz>[0],
   rootMin: number,
@@ -125,7 +162,18 @@ describe('randomNoteKeyQuiz', () => {
     }
   })
 
-  it('favors larger jumps from the previous note', () => {
+  it('rarely repeats the same scale degree consecutively with session weighting', () => {
+    const session = { tonicMidi: 60, tonicPitchClass: 0, label: 'C 大调' }
+    const rootMin = 48
+    const rootMax = 85
+    const uniformSameDegreeRate = 1 / 7
+
+    expect(consecutiveSameDegreeRate(session, rootMin, rootMax, 400)).toBeLessThan(
+      uniformSameDegreeRate,
+    )
+  })
+
+  it('prefers moderate jumps from the previous note after picking a degree', () => {
     const session = { tonicMidi: 60, tonicPitchClass: 0, label: 'C 大调' }
     const rootMin = 48
     const rootMax = 85
@@ -134,7 +182,7 @@ describe('randomNoteKeyQuiz', () => {
     const uniformAverageDistance =
       midis.reduce((sum, midi) => sum + Math.abs(midi - previousNoteMidi), 0) / midis.length
 
-    const weightedAverageDistance = averageDistanceFromPrevious(
+    const gaussianAverageDistance = averageDistanceFromPrevious(
       session,
       rootMin,
       rootMax,
@@ -142,7 +190,9 @@ describe('randomNoteKeyQuiz', () => {
       400,
     )
 
-    expect(weightedAverageDistance).toBeGreaterThan(uniformAverageDistance * 1.25)
+    expect(gaussianAverageDistance).toBeLessThan(uniformAverageDistance)
+    expect(gaussianAverageDistance).toBeGreaterThan(2)
+    expect(gaussianAverageDistance).toBeLessThan(10)
   })
 })
 
