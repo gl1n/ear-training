@@ -1,10 +1,11 @@
 import { INTERVALS, type IntervalDirection } from '../quiz/intervals'
 import { getDirectionLabel, getSpeedLabel } from '../lib/labels'
-import type { SpeedPreset } from '../quiz/sequencer'
+import type { AppMode, SpeedPreset } from '../quiz/sequencer'
 import { cardClasses } from './ui/Card'
 import { Chip } from './ui/Chip'
 
 type SettingsSummaryProps = {
+  mode: AppMode
   speedPreset: SpeedPreset
   enabledIntervalIds: string[]
   direction: IntervalDirection
@@ -14,6 +15,7 @@ type SettingsSummaryProps = {
 }
 
 export function SettingsSummary({
+  mode,
   speedPreset,
   enabledIntervalIds,
   direction,
@@ -21,6 +23,7 @@ export function SettingsSummary({
   showHint,
   onOpenSettings,
 }: SettingsSummaryProps) {
+  const isNoteKeyMode = mode === 'noteKey'
   const selectedIntervals = INTERVALS.filter((interval) =>
     enabledIntervalIds.includes(interval.id),
   )
@@ -44,17 +47,27 @@ export function SettingsSummary({
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <span className="text-sm text-[var(--text-secondary)]">速度</span>
           <Chip active>{getSpeedLabel(speedPreset)}</Chip>
-          <span className="text-[var(--text-secondary)]">·</span>
-          <Chip active>{getDirectionLabel(direction)}</Chip>
-          <span className="text-[var(--text-secondary)]">·</span>
-          <span className="text-sm text-[var(--text-secondary)]">
-            {enabledIntervalIds.length} 个音程
-          </span>
+          {!isNoteKeyMode && (
+            <>
+              <span className="text-[var(--text-secondary)]">·</span>
+              <Chip active>{getDirectionLabel(direction)}</Chip>
+              <span className="text-[var(--text-secondary)]">·</span>
+              <span className="text-sm text-[var(--text-secondary)]">
+                {enabledIntervalIds.length} 个音程
+              </span>
+            </>
+          )}
+          {isNoteKeyMode && (
+            <>
+              <span className="text-[var(--text-secondary)]">·</span>
+              <span className="text-sm text-[var(--text-secondary)]">调内听音</span>
+            </>
+          )}
         </div>
         <span className="shrink-0 text-sm text-sky-400">设置 ›</span>
       </div>
 
-      {selectedIntervals.length > 0 && (
+      {!isNoteKeyMode && selectedIntervals.length > 0 && (
         <div className="flex flex-wrap gap-1.5 border-t border-[var(--border-subtle)] pt-3">
           {selectedIntervals.map((interval) => (
             <Chip key={interval.id} active>

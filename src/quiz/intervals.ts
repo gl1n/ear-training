@@ -94,7 +94,7 @@ export function randomQuizWithRoot(
   enabledIds: string[],
   direction: IntervalDirection,
   rootMin = 48,
-  rootMax = 72,
+  rootMax = 85,
 ): Quiz | null {
   const valid = getValidIntervalsAtRoot(root, enabledIds, direction, rootMin, rootMax)
   if (valid.length === 0) return null
@@ -127,7 +127,7 @@ export function randomQuiz(
   enabledIds: string[],
   direction: IntervalDirection,
   rootMin = 48,
-  rootMax = 72,
+  rootMax = 85,
 ): Quiz {
   const pool = INTERVALS.filter((interval) => enabledIds.includes(interval.id))
   if (pool.length === 0) {

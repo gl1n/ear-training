@@ -3,17 +3,22 @@ import type { SessionStats } from '../quiz/stats'
 import { ArcadeIdlePanel } from './ArcadeIdlePanel'
 import { ArcadePlayfield } from './ArcadePlayfield'
 import { AppShell } from './AppShell'
+import { NoteKeyArcadeIdlePanel } from './NoteKeyArcadeIdlePanel'
+import { NoteKeyArcadePlayfield } from './NoteKeyArcadePlayfield'
+import { NoteKeyArcadeReadyPanel } from './NoteKeyArcadeReadyPanel'
 import { SettingsPanel, type SettingsPanelProps } from './SettingsPanel'
 import { SettingsSummary } from './SettingsSummary'
 import { StatusHero } from './StatusHero'
 import { Button } from './ui/Button'
 import { SegmentedControl } from './ui/SegmentedControl'
 import type { Quiz } from '../quiz/intervals'
+import type { NoteKeyQuiz } from '../quiz/keys'
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
 
 const MODE_OPTIONS = [
-  { value: 'practice' as const, label: '练习模式' },
-  { value: 'arcade' as const, label: '街机模式' },
+  { value: 'practice' as const, label: '练习' },
+  { value: 'arcade' as const, label: '音程街机' },
+  { value: 'noteKey' as const, label: '调内听音' },
 ]
 
 type PracticeViewProps = {
@@ -23,6 +28,9 @@ type PracticeViewProps = {
   isLoading: boolean
   settingsControls: SettingsPanelProps
   lastQuiz: Quiz | null
+  lastNoteKeyQuiz: NoteKeyQuiz | null
+  currentKeyLabel: string | null
+  noteKeyGameStarted: boolean
   sessionStats: SessionStats
   trainingStats: TrainingStatsViewModel
   rootMin: number
@@ -37,7 +45,7 @@ type PracticeViewProps = {
   onToggle: () => void
   onOpenSettings: () => void
   onRetry: () => void
-  onAnswerSelect: (intervalId: string) => void
+  onAnswerSelect: (answerId: string) => void
   replayingQuizKey: string | null
   isReplayBusy: boolean
   onPlayQuiz: (quiz: Quiz) => void
@@ -50,6 +58,9 @@ export function PracticeView({
   isLoading,
   settingsControls,
   lastQuiz,
+  lastNoteKeyQuiz,
+  currentKeyLabel,
+  noteKeyGameStarted,
   sessionStats,
   trainingStats,
   rootMin,
@@ -70,9 +81,29 @@ export function PracticeView({
   onPlayQuiz,
 }: PracticeViewProps) {
   const { enabledIntervalIds } = settingsControls
-  const canStart = enabledIntervalIds.length > 0
-  const showSettingsHint = !canStart && !isRunning
-  const isArcade = mode === 'arcade'
+  const canStart =
+    mode === 'noteKey' ? true : enabledIntervalIds.length > 0
+  const showSettingsHint = !canStart && !isRunning && mode !== 'noteKey'
+  const isChallengeMode = mode === 'arcade' || mode === 'noteKey'
+  const noteKeyAwaitingStart = mode === 'noteKey' && isRunning && !noteKeyGameStarted
+
+  const noteKeyEstablishing =
+    noteKeyAwaitingStart && (state === 'loading' || state === 'playing_tonic_chord')
+
+  const footerButtonLabel = (() => {
+    if (isLoading && mode !== 'noteKey') return '加载钢琴音色…'
+    if (noteKeyEstablishing) {
+      return state === 'loading' ? '加载钢琴音色…' : '取消'
+    }
+    if (noteKeyAwaitingStart) return '开始'
+    if (isRunning) return '暂停'
+    if (isChallengeMode) return '开始挑战'
+    return '开始练习'
+  })()
+
+  const footerButtonDisabled =
+    (isLoading && mode !== 'noteKey') ||
+    (!isRunning && !canStart)
 
   return (
     <AppShell
@@ -87,6 +118,7 @@ export function PracticeView({
       }
       settingsSummary={
         <SettingsSummary
+          mode={mode}
           speedPreset={settingsControls.speedPreset}
           enabledIntervalIds={settingsControls.enabledIntervalIds}
           direction={settingsControls.direction}
@@ -100,16 +132,10 @@ export function PracticeView({
         <>
           <Button
             onClick={onToggle}
-            disabled={isLoading || (!isRunning && !canStart)}
+            disabled={footerButtonDisabled}
             className="min-w-[160px] px-8 py-3.5 text-lg"
           >
-            {isLoading
-              ? '加载钢琴音色…'
-              : isRunning
-                ? '暂停'
-                : isArcade
-                  ? '开始挑战'
-                  : '开始练习'}
+            {footerButtonLabel}
           </Button>
 
           {showSettingsHint && (
@@ -118,7 +144,7 @@ export function PracticeView({
         </>
       }
     >
-      {isArcade ? (
+      {mode === 'arcade' ? (
         isRunning && enabledIntervalIds.length > 0 ? (
           <ArcadePlayfield
             optionIds={enabledIntervalIds}
@@ -144,6 +170,35 @@ export function PracticeView({
             replayingQuizKey={replayingQuizKey}
             isReplayBusy={isReplayBusy}
             onPlayQuiz={onPlayQuiz}
+          />
+        )
+      ) : mode === 'noteKey' ? (
+        isRunning && noteKeyGameStarted ? (
+          <NoteKeyArcadePlayfield
+            state={state}
+            sessionStats={sessionStats}
+            lastQuiz={lastNoteKeyQuiz}
+            currentKeyLabel={currentKeyLabel}
+            loadProgress={loadProgress}
+            loadIndeterminate={loadIndeterminate}
+            loadError={loadError}
+            onSelect={onAnswerSelect}
+            onRetry={loadError ? onRetry : undefined}
+          />
+        ) : isRunning ? (
+          <NoteKeyArcadeReadyPanel
+            state={state}
+            currentKeyLabel={currentKeyLabel}
+            loadProgress={loadProgress}
+            loadIndeterminate={loadIndeterminate}
+            loadError={loadError}
+            onRetry={loadError ? onRetry : undefined}
+          />
+        ) : (
+          <NoteKeyArcadeIdlePanel
+            lastQuiz={lastNoteKeyQuiz}
+            sessionStats={sessionStats}
+            trainingStats={trainingStats}
           />
         )
       ) : (

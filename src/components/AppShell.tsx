@@ -18,15 +18,18 @@ export function AppShell({
   footer,
   children,
 }: AppShellProps) {
-  const isArcade = mode === 'arcade'
+  const subtitle =
+    mode === 'arcade'
+      ? '听音辨程 · 即时作答 · 统计成绩'
+      : mode === 'noteKey'
+        ? '随机大调 · 听音选级 · 连对挑战'
+        : '上行 · 下行 · 和弦 · 中文播报'
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col px-4 py-6 sm:px-6 sm:py-8">
       <header className="mb-5 flex flex-col items-center text-center">
         <h1 className="text-xl font-bold sm:text-2xl">音程练耳</h1>
-        <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
-          {isArcade ? '听音辨程 · 即时作答 · 统计成绩' : '上行 · 下行 · 和弦 · 中文播报'}
-        </p>
+        <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{subtitle}</p>
       </header>
 
       <div className="flex flex-1 flex-col gap-5 lg:grid lg:grid-cols-[1fr_300px] lg:items-start lg:gap-8">

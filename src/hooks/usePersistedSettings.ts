@@ -12,7 +12,7 @@ type PersistedSettings = {
 }
 
 function isAppMode(value: unknown): value is AppMode {
-  return value === 'practice' || value === 'arcade'
+  return value === 'practice' || value === 'arcade' || value === 'noteKey'
 }
 
 function isSpeedPreset(value: unknown): value is SpeedPreset {

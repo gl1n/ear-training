@@ -1,4 +1,11 @@
-const STORAGE_KEY = 'ear-trainer:arcade-best'
+const LEGACY_STORAGE_KEY = 'ear-trainer:arcade-best'
+
+const STORAGE_KEYS = {
+  interval: 'ear-trainer:arcade-best:interval',
+  noteKey: 'ear-trainer:arcade-best:noteKey',
+} as const
+
+export type ArcadeBestVariant = keyof typeof STORAGE_KEYS
 
 export type ArcadeBestRecord = {
   correctCount: number
@@ -17,37 +24,72 @@ function isBetterArcadeRecord(
   return candidate.correctCount > existing.correctCount
 }
 
-export function loadArcadeBestRecord(): ArcadeBestRecord | null {
+function migrateLegacyBestRecord(): ArcadeBestRecord | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(LEGACY_STORAGE_KEY)
     if (!raw) return null
 
     const parsed: unknown = JSON.parse(raw)
-    return isArcadeBestRecord(parsed) ? parsed : null
+    if (!isArcadeBestRecord(parsed)) return null
+
+    localStorage.setItem(STORAGE_KEYS.interval, JSON.stringify(parsed))
+    localStorage.removeItem(LEGACY_STORAGE_KEY)
+    return parsed
   } catch {
     return null
   }
 }
 
-function saveArcadeBestRecord(record: ArcadeBestRecord): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(record))
+export function loadArcadeBestRecord(variant: ArcadeBestVariant = 'interval'): ArcadeBestRecord | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS[variant])
+    if (raw) {
+      const parsed: unknown = JSON.parse(raw)
+      return isArcadeBestRecord(parsed) ? parsed : null
+    }
+
+    if (variant === 'interval') {
+      return migrateLegacyBestRecord()
+    }
+
+    return null
+  } catch {
+    return null
+  }
 }
 
-export function tryUpdateArcadeBestRecord(candidate: ArcadeBestRecord): {
+function saveArcadeBestRecord(record: ArcadeBestRecord, variant: ArcadeBestVariant): void {
+  localStorage.setItem(STORAGE_KEYS[variant], JSON.stringify(record))
+}
+
+export function tryUpdateArcadeBestRecord(
+  candidate: ArcadeBestRecord,
+  variant: ArcadeBestVariant = 'interval',
+): {
   record: ArcadeBestRecord
   isNew: boolean
 } {
-  const existing = loadArcadeBestRecord()
+  const existing = loadArcadeBestRecord(variant)
   if (!existing || isBetterArcadeRecord(candidate, existing)) {
-    saveArcadeBestRecord(candidate)
+    saveArcadeBestRecord(candidate, variant)
     return { record: candidate, isNew: true }
   }
   return { record: existing, isNew: false }
 }
 
-export function clearArcadeBestRecord(): void {
+export function clearArcadeBestRecord(variant?: ArcadeBestVariant): void {
   try {
-    localStorage.removeItem(STORAGE_KEY)
+    if (variant) {
+      localStorage.removeItem(STORAGE_KEYS[variant])
+      if (variant === 'interval') {
+        localStorage.removeItem(LEGACY_STORAGE_KEY)
+      }
+      return
+    }
+
+    localStorage.removeItem(STORAGE_KEYS.interval)
+    localStorage.removeItem(STORAGE_KEYS.noteKey)
+    localStorage.removeItem(LEGACY_STORAGE_KEY)
   } catch {
     // Ignore private mode errors.
   }

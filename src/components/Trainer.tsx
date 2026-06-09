@@ -4,11 +4,13 @@ import { createAudioContext, unlockAudioContextSync } from '../audio/context'
 import { getInitialSettings, usePersistedSettings } from '../hooks/usePersistedSettings'
 import { useTrainingStats } from '../hooks/useTrainingStats'
 import { ALL_INTERVAL_IDS, type IntervalDirection, type Quiz } from '../quiz/intervals'
+import type { NoteKeyQuiz } from '../quiz/keys'
 import {
   createDefaultSettings,
   replayQuiz,
   runArcadeLoop,
   runLoop,
+  runNoteKeyArcadeLoop,
   stopPlayback,
   ARCADE_SESSION_TIME_MS,
   type AppMode,
@@ -45,6 +47,9 @@ export function Trainer() {
   const [speedPreset, setSpeedPreset] = useState<SpeedPreset>(initial.speedPreset)
   const [settings, setSettings] = useState<Settings>(initial.settings)
   const [lastQuiz, setLastQuiz] = useState<Quiz | null>(null)
+  const [lastNoteKeyQuiz, setLastNoteKeyQuiz] = useState<NoteKeyQuiz | null>(null)
+  const [currentKeyLabel, setCurrentKeyLabel] = useState<string | null>(null)
+  const [noteKeyGameStarted, setNoteKeyGameStarted] = useState(false)
   const [sessionStats, setSessionStats] = useState<SessionStats>(EMPTY_SESSION_STATS)
   const [arcadeDeadlineMs, setArcadeDeadlineMs] = useState<number | null>(null)
   const [arcadeTimedOut, setArcadeTimedOut] = useState(false)
@@ -58,6 +63,8 @@ export function Trainer() {
   const abortRef = useRef<AbortController | null>(null)
   const answerResolverRef = useRef<((intervalId: string) => void) | null>(null)
   const answerCleanupRef = useRef<(() => void) | null>(null)
+  const gameStartResolverRef = useRef<(() => void) | null>(null)
+  const gameStartCleanupRef = useRef<(() => void) | null>(null)
   const replayAbortRef = useRef<AbortController | null>(null)
   const sessionStatsRef = useRef<SessionStats>(EMPTY_SESSION_STATS)
   const idleTipIndexRef = useRef(0)
@@ -108,6 +115,9 @@ export function Trainer() {
     answerResolverRef.current = null
     answerCleanupRef.current?.()
     answerCleanupRef.current = null
+    gameStartResolverRef.current = null
+    gameStartCleanupRef.current?.()
+    gameStartCleanupRef.current = null
   }, [])
 
   const resetLoadingState = useCallback(() => {
@@ -131,6 +141,7 @@ export function Trainer() {
     setState('idle')
     setArcadeDeadlineMs(null)
     setIdleTip(null)
+    setNoteKeyGameStarted(false)
     resetLoadingState()
   }, [abortSession, resetLoadingState])
 
@@ -140,6 +151,51 @@ export function Trainer() {
       void audioContextRef.current?.close()
     }
   }, [abortSession])
+
+  const waitForGameStart = useCallback((signal: AbortSignal) => {
+    return new Promise<void>((resolve, reject) => {
+      const onAbort = () => {
+        cleanup()
+        reject(abortError())
+      }
+
+      const cleanup = () => {
+        signal.removeEventListener('abort', onAbort)
+        gameStartResolverRef.current = null
+        gameStartCleanupRef.current = null
+      }
+
+      gameStartResolverRef.current = () => {
+        cleanup()
+        setNoteKeyGameStarted(true)
+        resolve()
+      }
+      gameStartCleanupRef.current = cleanup
+      signal.addEventListener('abort', onAbort)
+    })
+  }, [])
+
+  const waitForNoteKeyAnswer = useCallback((signal: AbortSignal) => {
+    return new Promise<{ selectedDegree: string; timedOut?: boolean }>((resolve, reject) => {
+      const onAbort = () => {
+        cleanup()
+        reject(abortError())
+      }
+
+      const cleanup = () => {
+        signal.removeEventListener('abort', onAbort)
+        answerResolverRef.current = null
+        answerCleanupRef.current = null
+      }
+
+      answerResolverRef.current = (degree: string) => {
+        cleanup()
+        resolve({ selectedDegree: degree })
+      }
+      answerCleanupRef.current = cleanup
+      signal.addEventListener('abort', onAbort)
+    })
+  }, [])
 
   const waitForAnswer = useCallback((signal: AbortSignal, timeoutMs: number) => {
     return new Promise<{ selectedIntervalId: string; timedOut?: boolean }>((resolve, reject) => {
@@ -226,7 +282,7 @@ export function Trainer() {
   )
 
   const start = useCallback(async () => {
-    if (settings.enabledIntervalIds.length === 0) {
+    if (mode !== 'noteKey' && settings.enabledIntervalIds.length === 0) {
       return
     }
 
@@ -242,8 +298,14 @@ export function Trainer() {
     resetArcadeAnswerState()
     if (mode === 'arcade') {
       setLastQuiz(null)
-      clearNewBestRecord()
+      clearNewBestRecord('interval')
       setArcadeTimedOut(false)
+    }
+    if (mode === 'noteKey') {
+      setLastNoteKeyQuiz(null)
+      setCurrentKeyLabel(null)
+      setNoteKeyGameStarted(false)
+      clearNewBestRecord('noteKey')
     }
 
     try {
@@ -307,6 +369,28 @@ export function Trainer() {
           sessionDeadlineMs!,
           mistakeStoreRef.current,
         )
+      } else if (mode === 'noteKey') {
+        await runNoteKeyArcadeLoop(
+          pianoRef.current,
+          settings,
+          {
+            onStateChange: setState,
+            onSessionStart: (session) => {
+              setCurrentKeyLabel(session.label)
+            },
+            waitForGameStart: (signal) => waitForGameStart(signal),
+            waitForAnswer: (signal) => waitForNoteKeyAnswer(signal),
+            onAnswerSubmitted: (quiz, _answer, correct) => {
+              setLastNoteKeyQuiz(quiz)
+              setSessionStats((current) => {
+                const next = recordResult(current, String(quiz.degree), { correct })
+                sessionStatsRef.current = next
+                return next
+              })
+            },
+          },
+          controller.signal,
+        )
       } else {
         await runLoop(
           pianoRef.current,
@@ -329,19 +413,33 @@ export function Trainer() {
     } finally {
       if (abortRef.current === controller) {
         if (mode === 'arcade') {
-          finalizeArcadeSession(sessionStatsRef.current)
+          finalizeArcadeSession(sessionStatsRef.current, 'interval')
+        }
+        if (mode === 'noteKey') {
+          finalizeArcadeSession(sessionStatsRef.current, 'noteKey')
         }
 
         setIsRunning(false)
         setState('idle')
         setArcadeDeadlineMs(null)
+        setNoteKeyGameStarted(false)
         abortRef.current = null
         resetArcadeAnswerState()
       }
     }
-  }, [mode, resetArcadeAnswerState, resetLoadingState, settings, showIdleTip, waitForAnswer, recordQuizMistake, finalizeArcadeSession, clearNewBestRecord])
+  }, [mode, resetArcadeAnswerState, resetLoadingState, settings, showIdleTip, waitForAnswer, waitForGameStart, waitForNoteKeyAnswer, recordQuizMistake, finalizeArcadeSession, clearNewBestRecord])
 
   const handleToggle = () => {
+    if (isRunning && mode === 'noteKey' && !noteKeyGameStarted) {
+      if (state === 'idle' && gameStartResolverRef.current) {
+        gameStartResolverRef.current()
+        return
+      }
+
+      stop()
+      return
+    }
+
     if (isRunning) {
       stop()
       return
@@ -355,6 +453,9 @@ export function Trainer() {
   const handleModeChange = (nextMode: AppMode) => {
     setMode(nextMode)
     setLastQuiz(null)
+    setLastNoteKeyQuiz(null)
+    setCurrentKeyLabel(null)
+    setNoteKeyGameStarted(false)
     setSessionStats(EMPTY_SESSION_STATS)
     setArcadeTimedOut(false)
     resetArcadeAnswerState()
@@ -400,6 +501,7 @@ export function Trainer() {
   }
 
   const settingsControls: SettingsPanelProps = {
+    mode,
     speedPreset,
     enabledIntervalIds: settings.enabledIntervalIds,
     direction: settings.direction,
@@ -421,6 +523,9 @@ export function Trainer() {
         isLoading={state === 'loading'}
         settingsControls={settingsControls}
         lastQuiz={lastQuiz}
+        lastNoteKeyQuiz={lastNoteKeyQuiz}
+        currentKeyLabel={currentKeyLabel}
+        noteKeyGameStarted={noteKeyGameStarted}
         sessionStats={sessionStats}
         trainingStats={trainingStats}
         rootMin={settings.rootMin}

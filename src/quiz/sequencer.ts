@@ -1,6 +1,13 @@
 import { cancelSpeech, speak } from '../audio/speech'
 import type { Piano } from '../audio/piano'
 import { delay, isAbortError } from '../utils/abort'
+import {
+  createMajorKeySession,
+  getTonicMajorTriadMidis,
+  randomNoteKeyQuiz,
+  type MajorKeySession,
+  type NoteKeyQuiz,
+} from './keys'
 import { ALL_INTERVAL_IDS, randomQuiz, type IntervalDirection, type Quiz } from './intervals'
 import {
   weightedRandomQuizFromMistakes,
@@ -27,6 +34,9 @@ export type TrainerState =
   | 'playing_root'
   | 'playing_second'
   | 'playing_harmonic'
+  | 'playing_tonic'
+  | 'playing_tonic_chord'
+  | 'playing_note'
   | 'pause'
   | 'speaking'
   | 'gap'
@@ -35,7 +45,7 @@ export type TrainerState =
 
 export type SpeedPreset = 'slow' | 'medium' | 'fast'
 
-export type AppMode = 'practice' | 'arcade'
+export type AppMode = 'practice' | 'arcade' | 'noteKey'
 
 export type Settings = {
   noteDurationMs: number
@@ -54,6 +64,9 @@ export const LISTENING_STATES: TrainerState[] = [
   'playing_root',
   'playing_second',
   'playing_harmonic',
+  'playing_tonic',
+  'playing_tonic_chord',
+  'playing_note',
 ]
 
 const SPEED_PRESETS: Record<
@@ -106,7 +119,7 @@ export function createDefaultSettings(preset: SpeedPreset = 'medium'): Settings 
     enabledIntervalIds: [...ALL_INTERVAL_IDS],
     direction: DEFAULT_DIRECTION,
     rootMin: 48,
-    rootMax: 72,
+    rootMax: 85,
   }
 }
 
@@ -131,6 +144,25 @@ export type ArcadeCallbacks = {
     correct: boolean,
   ) => void
   onIdleBoost?: (quiz: Quiz) => void
+}
+
+export type NoteKeyArcadeAnswer = {
+  selectedDegree: string
+  timedOut?: boolean
+}
+
+export const NOTE_KEY_TONIC_CHORD_DURATION_MS = 2_400
+
+export type NoteKeyArcadeCallbacks = {
+  onStateChange: (state: TrainerState) => void
+  onSessionStart: (session: MajorKeySession) => void
+  waitForGameStart: (signal: AbortSignal) => Promise<void>
+  waitForAnswer: (signal: AbortSignal) => Promise<NoteKeyArcadeAnswer>
+  onAnswerSubmitted: (
+    quiz: NoteKeyQuiz,
+    answer: NoteKeyArcadeAnswer,
+    correct: boolean,
+  ) => void
 }
 
 async function playNote(
@@ -334,6 +366,85 @@ export async function runArcadeLoop(
     }
 
     const correct = !answer.timedOut && answer.selectedIntervalId === quiz.interval.id
+
+    callbacks.onAnswerSubmitted(quiz, answer, correct)
+
+    if (!correct) {
+      callbacks.onStateChange('feedback_incorrect')
+      await delay(ARCADE_FEEDBACK_INCORRECT_MS, signal)
+      return
+    }
+  }
+}
+
+export async function runNoteKeyArcadeLoop(
+  piano: Piano,
+  settings: Settings,
+  callbacks: NoteKeyArcadeCallbacks,
+  signal: AbortSignal,
+): Promise<void> {
+  const session = createMajorKeySession(settings.rootMin, settings.rootMax)
+  callbacks.onSessionStart(session)
+
+  const [root, third, fifth] = getTonicMajorTriadMidis(session.tonicMidi)
+  callbacks.onStateChange('playing_tonic_chord')
+  await playHarmonic(
+    piano,
+    [root, third, fifth],
+    NOTE_KEY_TONIC_CHORD_DURATION_MS,
+    signal,
+  )
+
+  callbacks.onStateChange('idle')
+  await callbacks.waitForGameStart(signal)
+
+  let previousNoteMidi: number | null = null
+
+  while (!signal.aborted) {
+    const quiz = randomNoteKeyQuiz(
+      session,
+      settings.rootMin,
+      settings.rootMax,
+      previousNoteMidi,
+    )
+    previousNoteMidi = quiz.noteMidi
+    const audioAbort = new AbortController()
+
+    const onSessionAbort = () => audioAbort.abort()
+    signal.addEventListener('abort', onSessionAbort)
+
+    const answerPromise = callbacks.waitForAnswer(signal)
+
+    const audioPromise = (async () => {
+      callbacks.onStateChange('playing_note')
+      await playNote(piano, quiz.noteMidi, settings.noteDurationMs, audioAbort.signal)
+      if (!audioAbort.signal.aborted) {
+        callbacks.onStateChange('awaiting_answer')
+      }
+    })().catch((error) => {
+      if (!isAbortError(error)) {
+        throw error
+      }
+    })
+
+    let answer: NoteKeyArcadeAnswer
+    try {
+      answer = await answerPromise
+    } finally {
+      audioAbort.abort()
+      stopPlayback(piano)
+      signal.removeEventListener('abort', onSessionAbort)
+      try {
+        await audioPromise
+      } catch {
+        // Audio stopped early when the player answered.
+      }
+    }
+
+    const correct =
+      !answer.timedOut &&
+      answer.selectedDegree !== '' &&
+      answer.selectedDegree === String(quiz.degree)
 
     callbacks.onAnswerSubmitted(quiz, answer, correct)
 

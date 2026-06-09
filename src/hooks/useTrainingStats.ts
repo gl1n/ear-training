@@ -4,6 +4,7 @@ import {
   loadArcadeBestRecord,
   tryUpdateArcadeBestRecord,
   type ArcadeBestRecord,
+  type ArcadeBestVariant,
 } from '../quiz/arcadeBestRecord'
 import {
   loadMistakeStats,
@@ -18,6 +19,8 @@ export type TrainingStatsViewModel = {
   mistakeStats: MistakeStatsStore
   bestRecord: ArcadeBestRecord | null
   isNewBestRecord: boolean
+  noteKeyBestRecord: ArcadeBestRecord | null
+  isNewNoteKeyBestRecord: boolean
   canReset: boolean
   reset: () => void
 }
@@ -32,8 +35,14 @@ export function useTrainingStats({
   enabledIntervalIds: _enabledIntervalIds,
 }: UseTrainingStatsOptions) {
   const mistakeStoreRef = useRef<MistakeStatsStore>(loadMistakeStats())
-  const [bestRecord, setBestRecord] = useState<ArcadeBestRecord | null>(() => loadArcadeBestRecord())
+  const [bestRecord, setBestRecord] = useState<ArcadeBestRecord | null>(() =>
+    loadArcadeBestRecord('interval'),
+  )
+  const [noteKeyBestRecord, setNoteKeyBestRecord] = useState<ArcadeBestRecord | null>(() =>
+    loadArcadeBestRecord('noteKey'),
+  )
   const [isNewBestRecord, setIsNewBestRecord] = useState(false)
+  const [isNewNoteKeyBestRecord, setIsNewNoteKeyBestRecord] = useState(false)
   const [mistakeVersion, setMistakeVersion] = useState(0)
 
   useEffect(() => {
@@ -56,25 +65,42 @@ export function useTrainingStats({
     setMistakeVersion((version) => version + 1)
   }, [])
 
-  const clearNewBestRecord = useCallback(() => {
+  const clearNewBestRecord = useCallback((variant: ArcadeBestVariant = 'interval') => {
+    if (variant === 'noteKey') {
+      setIsNewNoteKeyBestRecord(false)
+      return
+    }
     setIsNewBestRecord(false)
   }, [])
 
-  const finalizeArcadeSession = useCallback((sessionStats: SessionStats) => {
-    if (!hasSessionAttempts(sessionStats)) return
+  const finalizeArcadeSession = useCallback(
+    (sessionStats: SessionStats, variant: ArcadeBestVariant = 'interval') => {
+      if (!hasSessionAttempts(sessionStats)) return
 
-    const { record, isNew } = tryUpdateArcadeBestRecord({
-      correctCount: getCorrectAnswerCount(sessionStats),
-    })
-    setBestRecord(record)
-    setIsNewBestRecord(isNew)
-  }, [])
+      const { record, isNew } = tryUpdateArcadeBestRecord(
+        { correctCount: getCorrectAnswerCount(sessionStats) },
+        variant,
+      )
+
+      if (variant === 'noteKey') {
+        setNoteKeyBestRecord(record)
+        setIsNewNoteKeyBestRecord(isNew)
+        return
+      }
+
+      setBestRecord(record)
+      setIsNewBestRecord(isNew)
+    },
+    [],
+  )
 
   const reset = useCallback(() => {
     mistakeStoreRef.current = []
     clearAllTrainingStats()
     setBestRecord(null)
+    setNoteKeyBestRecord(null)
     setIsNewBestRecord(false)
+    setIsNewNoteKeyBestRecord(false)
     setMistakeVersion((version) => version + 1)
   }, [])
 
@@ -83,10 +109,19 @@ export function useTrainingStats({
       mistakeStats,
       bestRecord,
       isNewBestRecord,
-      canReset: hasPersistedTrainingStats(mistakeStats, bestRecord),
+      noteKeyBestRecord,
+      isNewNoteKeyBestRecord,
+      canReset: hasPersistedTrainingStats(mistakeStats, bestRecord, noteKeyBestRecord),
       reset,
     }),
-    [mistakeStats, bestRecord, isNewBestRecord, reset],
+    [
+      mistakeStats,
+      bestRecord,
+      isNewBestRecord,
+      noteKeyBestRecord,
+      isNewNoteKeyBestRecord,
+      reset,
+    ],
   )
 
   return {

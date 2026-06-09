@@ -1,12 +1,13 @@
 import { formatGitCommitDate, gitCommit, gitCommitDate } from '../lib/buildInfo'
 import type { IntervalDirection } from '../quiz/intervals'
-import { SPEED_OPTIONS, type SpeedPreset } from '../quiz/sequencer'
+import { SPEED_OPTIONS, type AppMode, type SpeedPreset } from '../quiz/sequencer'
 import { DirectionSelector } from './DirectionSelector'
 import { IntervalSelector } from './IntervalSelector'
 import { Card } from './ui/Card'
 import { SegmentedControl } from './ui/SegmentedControl'
 
 export type SettingsPanelProps = {
+  mode: AppMode
   speedPreset: SpeedPreset
   enabledIntervalIds: string[]
   direction: IntervalDirection
@@ -20,6 +21,7 @@ export type SettingsPanelProps = {
 }
 
 export function SettingsPanel({
+  mode,
   speedPreset,
   enabledIntervalIds,
   direction,
@@ -46,19 +48,23 @@ export function SettingsPanel({
         )}
       </Card>
 
-      <DirectionSelector
-        direction={direction}
-        onDirectionChange={onDirectionChange}
-        disabled={isRunning}
-      />
+      {mode !== 'noteKey' && (
+        <>
+          <DirectionSelector
+            direction={direction}
+            onDirectionChange={onDirectionChange}
+            disabled={isRunning}
+          />
 
-      <IntervalSelector
-        enabledIntervalIds={enabledIntervalIds}
-        onIntervalToggle={onIntervalToggle}
-        onSelectAllIntervals={onSelectAllIntervals}
-        onClearIntervals={onClearIntervals}
-        onApplyPreset={onApplyPreset}
-      />
+          <IntervalSelector
+            enabledIntervalIds={enabledIntervalIds}
+            onIntervalToggle={onIntervalToggle}
+            onSelectAllIntervals={onSelectAllIntervals}
+            onClearIntervals={onClearIntervals}
+            onApplyPreset={onApplyPreset}
+          />
+        </>
+      )}
 
       <div className="text-center text-xs text-[var(--text-secondary)]">
         <p>版本 {gitCommit}</p>
