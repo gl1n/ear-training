@@ -4,6 +4,16 @@ export const MAJOR_SCALE_INTERVALS = [0, 2, 4, 5, 7, 9, 11] as const
 
 export const DEGREE_OPTION_IDS = ['1', '2', '3', '4', '5', '6', '7'] as const
 
+export const DEGREE_SOLFEGE_LABELS: Record<(typeof DEGREE_OPTION_IDS)[number], string> = {
+  '1': 'do',
+  '2': 're',
+  '3': 'mi',
+  '4': 'fa',
+  '5': 'sol',
+  '6': 'la',
+  '7': 'si',
+}
+
 const MIN_DIATONIC_NOTES_IN_RANGE = 3
 /** 答题音最低到最高须覆盖的半音跨度（3 个八度） */
 export const NOTE_KEY_QUIZ_SPAN_SEMITONES = 36

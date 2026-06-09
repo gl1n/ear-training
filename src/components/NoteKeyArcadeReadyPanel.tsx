@@ -11,6 +11,17 @@ type NoteKeyArcadeReadyPanelProps = {
   onRetry?: () => void
 }
 
+function KeyDisplay({ label }: { label: string }) {
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-sky-400/30 bg-gradient-to-br from-sky-500/20 via-sky-500/10 to-cyan-500/5 note-key-glow">
+        <span className="text-3xl font-bold text-sky-100">{label.replace(/ 大调$/, '')}</span>
+      </div>
+      <p className="text-lg font-semibold text-sky-100">{label}</p>
+    </div>
+  )
+}
+
 export function NoteKeyArcadeReadyPanel({
   state,
   currentKeyLabel,
@@ -24,7 +35,7 @@ export function NoteKeyArcadeReadyPanel({
   const isReady = !isEstablishing && !loadError && currentKeyLabel !== null
 
   return (
-    <PlayAreaCard className="gap-6">
+    <PlayAreaCard className="gap-8">
       {loadError || state === 'loading' ? (
         <SessionLoadStatus
           state={state}
@@ -35,24 +46,26 @@ export function NoteKeyArcadeReadyPanel({
         />
       ) : (
         <>
-          <div className="text-center">
+          <div className="flex flex-col items-center gap-4 text-center">
             {isEstablishing ? (
               <>
-                <p className="text-xs font-medium uppercase tracking-wider text-amber-300/90">
+                <span className="inline-flex items-center gap-2 rounded-full bg-sky-500/10 px-3 py-1 text-xs font-medium uppercase tracking-wider text-sky-200 ring-1 ring-sky-400/25">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />
                   定调中
-                </p>
-                <p className="mt-2 text-sm text-[var(--text-secondary)]">
-                  正在播放一级大三和弦…
+                </span>
+                <p className="max-w-xs text-sm leading-relaxed text-[var(--text-secondary)]">
+                  正在播放一级大三和弦，请仔细聆听并记住调性
                 </p>
               </>
-            ) : isReady ? (
+            ) : isReady && currentKeyLabel ? (
               <>
-                <p className="text-xs font-medium uppercase tracking-wider text-amber-300/90">
+                <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium uppercase tracking-wider text-emerald-200 ring-1 ring-emerald-400/25">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                   已定调
-                </p>
-                <p className="mt-2 text-2xl font-bold text-amber-100">{currentKeyLabel}</p>
-                <p className="mt-3 text-sm text-[var(--text-secondary)]">
-                  点击「开始」进入答题
+                </span>
+                <KeyDisplay label={currentKeyLabel} />
+                <p className="max-w-xs text-sm leading-relaxed text-[var(--text-secondary)]">
+                  调性已建立，点击「开始」进入答题
                 </p>
               </>
             ) : (
@@ -61,12 +74,12 @@ export function NoteKeyArcadeReadyPanel({
           </div>
 
           {isEstablishing && (
-            <div className="flex items-center justify-center gap-1" aria-hidden="true">
-              {[0, 1, 2, 3].map((i) => (
+            <div className="flex items-end justify-center gap-1.5" aria-hidden="true">
+              {[0, 1, 2, 3, 4].map((i) => (
                 <span
                   key={i}
-                  className="w-1.5 rounded-full bg-amber-400 animate-sound-bar"
-                  style={{ animationDelay: `${i * 0.12}s`, height: `${10 + i * 5}px` }}
+                  className="w-1.5 rounded-full bg-sky-400 animate-sound-bar"
+                  style={{ animationDelay: `${i * 0.1}s`, height: `${12 + (i % 3) * 6}px` }}
                 />
               ))}
             </div>

@@ -60,7 +60,9 @@ export function SettingsSummary({
           {isNoteKeyMode && (
             <>
               <span className="text-[var(--text-secondary)]">·</span>
-              <span className="text-sm text-[var(--text-secondary)]">调内听音</span>
+              <span className="rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-1.5 text-sm text-sky-200">
+                调内听音
+              </span>
             </>
           )}
         </div>

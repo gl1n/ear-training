@@ -7,6 +7,9 @@
   --border-subtle: rgba(255, 255, 255, 0.08);
   --accent: #38bdf8;
   --accent-muted: rgba(56, 189, 248, 0.15);
+  --accent-note-key: #38bdf8;
+  --accent-note-key-muted: rgba(56, 189, 248, 0.14);
+  --accent-note-key-glow: rgba(56, 189, 248, 0.22);
   --text-primary: #f0f2f5;
   --text-secondary: rgba(255, 255, 255, 0.55);
   --radius-card: 1rem;
@@ -89,6 +92,26 @@ body {
 
 .animate-ready-pulse {
   animation: ready-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes ready-pulse-note-key {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.08);
+  }
+}
+
+.animate-ready-pulse-note-key {
+  animation: ready-pulse-note-key 1.5s ease-in-out infinite;
+}
+
+.note-key-glow {
+  box-shadow:
+    0 0 0 1px rgba(56, 189, 248, 0.15),
+    0 8px 32px rgba(56, 189, 248, 0.08);
 }
 
 @keyframes priority-boost-in {

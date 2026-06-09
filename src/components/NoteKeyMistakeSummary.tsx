@@ -55,28 +55,38 @@ export function NoteKeyMistakeSummary({
           </span>
         </div>
       )}
-      <div className="flex flex-col gap-2 rounded-xl border border-[var(--border-subtle)] bg-black/20 px-4 py-4">
+      <div className="flex flex-col gap-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-4">
         {rows.map(({ degree, questionCount, mistakeCount }) => {
           const barCount = showQuestions ? questionCount : mistakeCount
           const barWidth = barCount > 0 ? `${(barCount / maxCount) * 100}%` : '0%'
           const hasMistake = mistakeCount > 0
+          const barColor =
+            showQuestions && !hasMistake
+              ? 'bg-sky-400/65'
+              : showQuestions && hasMistake
+                ? 'bg-gradient-to-r from-sky-400/65 to-red-400/70'
+                : 'bg-red-400/70'
 
           return (
             <div key={degree} className="flex items-center gap-3">
-              <span className="w-8 shrink-0 text-right text-sm tabular-nums text-[var(--text-secondary)]">
+              <span
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-semibold tabular-nums ${
+                  hasMistake
+                    ? 'bg-red-500/15 text-red-300 ring-1 ring-red-400/20'
+                    : 'bg-sky-500/10 text-sky-200/90 ring-1 ring-sky-400/15'
+                }`}
+              >
                 {degree}
               </span>
-              <div className="relative h-5 flex-1 overflow-hidden rounded bg-black/30">
+              <div className="relative h-5 flex-1 overflow-hidden rounded-md bg-black/25">
                 <div
-                  className={`absolute inset-y-0 left-0 rounded transition-all ${
-                    showQuestions && !hasMistake ? 'bg-sky-400/70' : 'bg-red-400/70'
-                  }`}
+                  className={`absolute inset-y-0 left-0 rounded-md transition-all ${barColor}`}
                   style={{ width: barWidth }}
                 />
               </div>
               <span
                 className={`w-6 shrink-0 text-right text-sm tabular-nums ${
-                  hasMistake ? 'text-red-400' : ''
+                  hasMistake ? 'font-medium text-red-400' : 'text-[var(--text-secondary)]'
                 }`}
               >
                 {showQuestions ? questionCount : mistakeCount}
