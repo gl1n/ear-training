@@ -83,7 +83,11 @@ export function NoteKeyArcadeIdlePanel({
           </p>
         )}
 
-        <NoteKeyMistakeSummary store={sessionMistakes} title="本局错题统计" />
+        <NoteKeyMistakeSummary
+          store={sessionMistakes}
+          sessionStats={sessionStats}
+          title="本局音级分布"
+        />
 
         {canReset && <ResetStatsButton onReset={reset} />}
       </PlayAreaCard>

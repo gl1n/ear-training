@@ -1,5 +1,12 @@
+import { DEGREE_OPTION_IDS } from './keys'
+
 export type QuizResult = {
   correct: boolean
+}
+
+export type DegreeCount = {
+  degree: number
+  count: number
 }
 
 export type IntervalStats = {
@@ -51,4 +58,11 @@ function getTotalAnswerCount(stats: SessionStats): number {
 
 export function hasSessionAttempts(stats: SessionStats): boolean {
   return getTotalAnswerCount(stats) > 0
+}
+
+export function aggregateSessionDegreeDistribution(stats: SessionStats): DegreeCount[] {
+  return DEGREE_OPTION_IDS.map((id) => ({
+    degree: Number(id),
+    count: stats.byInterval[id]?.totalCount ?? 0,
+  }))
 }
