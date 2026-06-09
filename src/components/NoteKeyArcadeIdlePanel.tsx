@@ -9,6 +9,7 @@ import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
 import { NoteKeyMistakeSummary } from './NoteKeyMistakeSummary'
 import { PlayAreaCard } from './PlayAreaCard'
 import { ResetStatsButton } from './ResetStatsButton'
+import { Button } from './ui/Button'
 
 type NoteKeyArcadeIdlePanelProps = {
   lastQuiz: NoteKeyQuiz | null
@@ -18,6 +19,7 @@ type NoteKeyArcadeIdlePanelProps = {
   noteKeyReviewEnabled: boolean
   isRunning: boolean
   onNoteKeyReviewChange: (enabled: boolean) => void
+  onHome: () => void
 }
 
 const HOW_TO_STEPS = [
@@ -84,6 +86,7 @@ export function NoteKeyArcadeIdlePanel({
   noteKeyReviewEnabled,
   isRunning,
   onNoteKeyReviewChange,
+  onHome,
 }: NoteKeyArcadeIdlePanelProps) {
   const { noteKeyMistakeStats, noteKeyBestRecord, isNewNoteKeyBestRecord, canReset, reset } =
     trainingStats
@@ -145,6 +148,10 @@ export function NoteKeyArcadeIdlePanel({
         />
 
         {canReset && <ResetStatsButton onReset={reset} />}
+
+        <Button onClick={onHome} variant="ghost" className="w-full max-w-sm py-3">
+          回到首页
+        </Button>
       </PlayAreaCard>
     )
   }

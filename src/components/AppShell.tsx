@@ -32,7 +32,13 @@ export function AppShell({
         <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{subtitle}</p>
       </header>
 
-      <div className="flex flex-1 flex-col gap-5 lg:grid lg:grid-cols-[1fr_300px] lg:items-start lg:gap-8">
+      <div
+        className={
+          mode === 'noteKey'
+            ? 'flex flex-1 flex-col gap-5'
+            : 'flex flex-1 flex-col gap-5 lg:grid lg:grid-cols-[1fr_300px] lg:items-start lg:gap-8'
+        }
+      >
         <div className="flex min-w-0 flex-1 flex-col gap-5">
           {modeSwitch}
           {settingsSummary}
@@ -42,12 +48,14 @@ export function AppShell({
           </footer>
         </div>
 
-        <aside className="hidden lg:block">
-          <div className="sticky top-6">
-            <h2 className="mb-4 text-sm font-medium text-[var(--text-secondary)]">练习设置</h2>
-            {settingsPanel}
-          </div>
-        </aside>
+        {mode !== 'noteKey' && (
+          <aside className="hidden lg:block">
+            <div className="sticky top-6">
+              <h2 className="mb-4 text-sm font-medium text-[var(--text-secondary)]">练习设置</h2>
+              {settingsPanel}
+            </div>
+          </aside>
+        )}
       </div>
     </div>
   )

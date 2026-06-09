@@ -17,8 +17,8 @@ import type { NoteKeyMistakeStatsStore } from '../quiz/noteKeyMistakeStats'
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
 
 const MODE_OPTIONS = [
-  { value: 'noteKey' as const, label: '调内听音' },
   { value: 'practice' as const, label: '练习' },
+  { value: 'noteKey' as const, label: '调内听音' },
   { value: 'arcade' as const, label: '音程街机' },
 ]
 
@@ -53,6 +53,7 @@ type PracticeViewProps = {
   replayingQuizKey: string | null
   isReplayBusy: boolean
   onPlayQuiz: (quiz: Quiz) => void
+  onNoteKeyHome: () => void
 }
 
 export function PracticeView({
@@ -86,23 +87,24 @@ export function PracticeView({
   replayingQuizKey,
   isReplayBusy,
   onPlayQuiz,
+  onNoteKeyHome,
 }: PracticeViewProps) {
   const { enabledIntervalIds } = settingsControls
   const canStart =
     mode === 'noteKey' ? true : enabledIntervalIds.length > 0
   const showSettingsHint = !canStart && !isRunning && mode !== 'noteKey'
   const isChallengeMode = mode === 'arcade' || mode === 'noteKey'
-  const noteKeyAwaitingStart = mode === 'noteKey' && isRunning && !noteKeyGameStarted
-
   const noteKeyEstablishing =
-    noteKeyAwaitingStart && (state === 'loading' || state === 'playing_tonic_chord')
+    mode === 'noteKey' &&
+    isRunning &&
+    !noteKeyGameStarted &&
+    (state === 'loading' || state === 'playing_tonic_chord')
 
   const footerButtonLabel = (() => {
     if (isLoading && mode !== 'noteKey') return '加载钢琴音色…'
     if (noteKeyEstablishing) {
       return state === 'loading' ? '加载钢琴音色…' : '取消'
     }
-    if (noteKeyAwaitingStart) return '开始'
     if (isRunning) return '暂停'
     if (isChallengeMode) return '开始挑战'
     return '开始练习'
@@ -124,15 +126,17 @@ export function PracticeView({
         />
       }
       settingsSummary={
-        <SettingsSummary
-          mode={mode}
-          speedPreset={settingsControls.speedPreset}
-          enabledIntervalIds={settingsControls.enabledIntervalIds}
-          direction={settingsControls.direction}
-          isRunning={settingsControls.isRunning}
-          showHint={showSettingsHint}
-          onOpenSettings={onOpenSettings}
-        />
+        mode !== 'noteKey' ? (
+          <SettingsSummary
+            mode={mode}
+            speedPreset={settingsControls.speedPreset}
+            enabledIntervalIds={settingsControls.enabledIntervalIds}
+            direction={settingsControls.direction}
+            isRunning={settingsControls.isRunning}
+            showHint={showSettingsHint}
+            onOpenSettings={onOpenSettings}
+          />
+        ) : null
       }
       settingsPanel={<SettingsPanel {...settingsControls} />}
       footer={
@@ -210,6 +214,7 @@ export function PracticeView({
             noteKeyReviewEnabled={noteKeyReviewEnabled}
             isRunning={isRunning}
             onNoteKeyReviewChange={onNoteKeyReviewChange}
+            onHome={onNoteKeyHome}
           />
         )
       ) : (

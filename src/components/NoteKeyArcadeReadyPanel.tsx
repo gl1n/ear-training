@@ -65,7 +65,7 @@ export function NoteKeyArcadeReadyPanel({
                 </span>
                 <KeyDisplay label={currentKeyLabel} />
                 <p className="max-w-xs text-sm leading-relaxed text-[var(--text-secondary)]">
-                  调性已建立，点击「开始」进入答题
+                  调性已建立，即将开始答题
                 </p>
               </>
             ) : (

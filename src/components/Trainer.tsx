@@ -103,6 +103,21 @@ export function Trainer() {
   }, [state])
 
   useEffect(() => {
+    if (
+      mode !== 'noteKey' ||
+      !isRunning ||
+      noteKeyGameStarted ||
+      state !== 'idle' ||
+      currentKeyLabel === null ||
+      !gameStartResolverRef.current
+    ) {
+      return
+    }
+
+    gameStartResolverRef.current()
+  }, [mode, isRunning, noteKeyGameStarted, state, currentKeyLabel])
+
+  useEffect(() => {
     if (!idleTip) {
       return
     }
@@ -469,12 +484,6 @@ export function Trainer() {
 
   const handleToggle = () => {
     if (isRunning && mode === 'noteKey' && !noteKeyGameStarted) {
-      if (state === 'idle' && gameStartResolverRef.current) {
-        ensureAudioContext(audioContextRef, pianoRef)
-        gameStartResolverRef.current()
-        return
-      }
-
       stop()
       return
     }
@@ -488,6 +497,13 @@ export function Trainer() {
 
     void start()
   }
+
+  const handleNoteKeyHome = useCallback(() => {
+    setLastNoteKeyQuiz(null)
+    setSessionStats(EMPTY_SESSION_STATS)
+    sessionStatsRef.current = EMPTY_SESSION_STATS
+    setSessionNoteKeyMistakes([])
+  }, [])
 
   const handleModeChange = (nextMode: AppMode) => {
     setMode(nextMode)
@@ -586,13 +602,16 @@ export function Trainer() {
         replayingQuizKey={replayingQuizKey}
         isReplayBusy={replayingQuizKey !== null}
         onPlayQuiz={handlePlayQuiz}
+        onNoteKeyHome={handleNoteKeyHome}
       />
 
-      <SettingsDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        {...settingsControls}
-      />
+      {mode !== 'noteKey' && (
+        <SettingsDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          {...settingsControls}
+        />
+      )}
     </>
   )
 }
