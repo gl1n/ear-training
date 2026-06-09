@@ -20,11 +20,17 @@ import {
   type NoteKeyMistakeRecord,
   type NoteKeyMistakeStatsStore,
 } from '../quiz/noteKeyMistakeStats'
+import {
+  appendNoteKeySessionRecord,
+  loadNoteKeySessionHistory,
+  type NoteKeySessionRecord,
+} from '../quiz/noteKeySessionHistory'
 import { clearAllTrainingStats, hasPersistedTrainingStats } from '../quiz/trainingStats'
 
 export type TrainingStatsViewModel = {
   mistakeStats: MistakeStatsStore
   noteKeyMistakeStats: NoteKeyMistakeStatsStore
+  noteKeySessionHistory: NoteKeySessionRecord[]
   bestRecord: ArcadeBestRecord | null
   isNewBestRecord: boolean
   noteKeyBestRecord: ArcadeBestRecord | null
@@ -52,6 +58,9 @@ export function useTrainingStats({
   )
   const [isNewBestRecord, setIsNewBestRecord] = useState(false)
   const [isNewNoteKeyBestRecord, setIsNewNoteKeyBestRecord] = useState(false)
+  const [noteKeySessionHistory, setNoteKeySessionHistory] = useState<NoteKeySessionRecord[]>(() =>
+    loadNoteKeySessionHistory(),
+  )
   const [mistakeVersion, setMistakeVersion] = useState(0)
   const [noteKeyMistakeVersion, setNoteKeyMistakeVersion] = useState(0)
 
@@ -115,6 +124,7 @@ export function useTrainingStats({
       if (variant === 'noteKey') {
         setNoteKeyBestRecord(record)
         setIsNewNoteKeyBestRecord(isNew)
+        setNoteKeySessionHistory(appendNoteKeySessionRecord(getCorrectAnswerCount(sessionStats)))
         return
       }
 
@@ -130,6 +140,7 @@ export function useTrainingStats({
     clearAllTrainingStats()
     setBestRecord(null)
     setNoteKeyBestRecord(null)
+    setNoteKeySessionHistory([])
     setIsNewBestRecord(false)
     setIsNewNoteKeyBestRecord(false)
     setMistakeVersion((version) => version + 1)
@@ -140,6 +151,7 @@ export function useTrainingStats({
     () => ({
       mistakeStats,
       noteKeyMistakeStats,
+      noteKeySessionHistory,
       bestRecord,
       isNewBestRecord,
       noteKeyBestRecord,
@@ -149,12 +161,14 @@ export function useTrainingStats({
         bestRecord,
         noteKeyBestRecord,
         noteKeyMistakeStats,
+        noteKeySessionHistory,
       ),
       reset,
     }),
     [
       mistakeStats,
       noteKeyMistakeStats,
+      noteKeySessionHistory,
       bestRecord,
       isNewBestRecord,
       noteKeyBestRecord,

@@ -6,6 +6,7 @@ import {
   type SessionStats,
 } from '../quiz/stats'
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
+import { NoteKeyCorrectCountChart } from './NoteKeyCorrectCountChart'
 import { NoteKeyMistakeSummary } from './NoteKeyMistakeSummary'
 import { PlayAreaCard } from './PlayAreaCard'
 import { ResetStatsButton } from './ResetStatsButton'
@@ -88,8 +89,14 @@ export function NoteKeyArcadeIdlePanel({
   onNoteKeyReviewChange,
   onHome,
 }: NoteKeyArcadeIdlePanelProps) {
-  const { noteKeyMistakeStats, noteKeyBestRecord, isNewNoteKeyBestRecord, canReset, reset } =
-    trainingStats
+  const {
+    noteKeyMistakeStats,
+    noteKeySessionHistory,
+    noteKeyBestRecord,
+    isNewNoteKeyBestRecord,
+    canReset,
+    reset,
+  } = trainingStats
   const gameEnded = lastQuiz !== null && hasSessionAttempts(sessionStats)
   const correctCount = getCorrectAnswerCount(sessionStats)
   const hasHistoricalMistakes = noteKeyMistakeStats.length > 0
@@ -112,6 +119,14 @@ export function NoteKeyArcadeIdlePanel({
           </p>
           <ScoreCard correctCount={correctCount} highlight />
         </div>
+
+        {noteKeySessionHistory.length >= 2 && (
+          <NoteKeyCorrectCountChart
+            records={noteKeySessionHistory}
+            highlightLast
+            bestCount={noteKeyBestRecord?.correctCount ?? null}
+          />
+        )}
 
         {noteKeyBestRecord && (
           <div className="flex w-full max-w-sm flex-col gap-3">
@@ -171,6 +186,13 @@ export function NoteKeyArcadeIdlePanel({
       </div>
 
       <HowToPlay />
+
+      {noteKeySessionHistory.length >= 2 && (
+        <NoteKeyCorrectCountChart
+          records={noteKeySessionHistory}
+          bestCount={noteKeyBestRecord?.correctCount ?? null}
+        />
+      )}
 
       <NoteKeyMistakeSummary store={noteKeyMistakeStats} title="历史错题统计" />
 
