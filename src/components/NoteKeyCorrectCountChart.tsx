@@ -4,7 +4,12 @@ import type { NoteKeySessionRecord } from '../quiz/noteKeySessionHistory'
 type NoteKeyCorrectCountChartProps = {
   records: NoteKeySessionRecord[]
   highlightLast?: boolean
-  bestCount?: number | null
+}
+
+function getAverageCount(counts: number[]): number | null {
+  if (counts.length === 0) return null
+  const total = counts.reduce((sum, count) => sum + count, 0)
+  return total / counts.length
 }
 
 const CHART_WIDTH = 320
@@ -37,13 +42,13 @@ function getAxisLabelIndexes(length: number): number[] {
 function NoteKeyCorrectCountSvg({
   records,
   highlightLast = false,
-  bestCount = null,
 }: NoteKeyCorrectCountChartProps) {
   const plotWidth = CHART_WIDTH - PADDING.left - PADDING.right
   const plotHeight = CHART_HEIGHT - PADDING.top - PADDING.bottom
 
   const counts = records.map((record) => record.correctCount)
-  const maxCount = Math.max(...counts, bestCount ?? 0, 1)
+  const averageCount = getAverageCount(counts)
+  const maxCount = Math.max(...counts, averageCount ?? 0, 1)
   const yTicks = useMemo(() => {
     if (maxCount <= 4) {
       return Array.from({ length: maxCount + 1 }, (_, index) => index)
@@ -78,7 +83,7 @@ function NoteKeyCorrectCountSvg({
 
   const curvePath = buildCurvePath(points)
   const axisLabelIndexes = getAxisLabelIndexes(records.length)
-  const bestY = bestCount !== null && bestCount > 0 ? toY(bestCount) : null
+  const averageY = averageCount !== null && averageCount > 0 ? toY(averageCount) : null
 
   return (
     <svg
@@ -108,12 +113,12 @@ function NoteKeyCorrectCountSvg({
         </g>
       ))}
 
-      {bestY !== null && (
+      {averageY !== null && (
         <line
           x1={PADDING.left}
-          y1={bestY}
+          y1={averageY}
           x2={CHART_WIDTH - PADDING.right}
-          y2={bestY}
+          y2={averageY}
           stroke="rgba(56, 189, 248, 0.35)"
           strokeWidth={1}
           strokeDasharray="4 4"
@@ -172,16 +177,20 @@ function NoteKeyCorrectCountSvg({
   )
 }
 
+function formatAverageCount(average: number): string {
+  return Number.isInteger(average) ? String(average) : average.toFixed(1)
+}
+
 export function NoteKeyCorrectCountChart({
   records,
   highlightLast = false,
-  bestCount = null,
 }: NoteKeyCorrectCountChartProps) {
   const descriptionId = useId()
   const latestCount = records.at(-1)?.correctCount ?? 0
   const previousCount = records.at(-2)?.correctCount
   const delta =
     previousCount !== undefined && records.length > 1 ? latestCount - previousCount : null
+  const averageCount = getAverageCount(records.map((record) => record.correctCount))
 
   if (records.length === 0) {
     return null
@@ -208,14 +217,10 @@ export function NoteKeyCorrectCountChart({
       </div>
 
       <div className="rounded-xl border border-sky-400/15 bg-[var(--bg-elevated)] px-3 py-3">
-        <NoteKeyCorrectCountSvg
-          records={records}
-          highlightLast={highlightLast}
-          bestCount={bestCount}
-        />
-        {bestCount !== null && bestCount > 0 && (
+        <NoteKeyCorrectCountSvg records={records} highlightLast={highlightLast} />
+        {averageCount !== null && averageCount > 0 && (
           <p className="mt-2 text-center text-[10px] text-[var(--text-secondary)]">
-            虚线为最佳记录 {bestCount} 题
+            虚线为近期平均分
           </p>
         )}
       </div>

@@ -121,11 +121,7 @@ export function NoteKeyArcadeIdlePanel({
         </div>
 
         {noteKeySessionHistory.length >= 2 && (
-          <NoteKeyCorrectCountChart
-            records={noteKeySessionHistory}
-            highlightLast
-            bestCount={noteKeyBestRecord?.correctCount ?? null}
-          />
+          <NoteKeyCorrectCountChart records={noteKeySessionHistory} highlightLast />
         )}
 
         {noteKeyBestRecord && (
@@ -188,10 +184,7 @@ export function NoteKeyArcadeIdlePanel({
       <HowToPlay />
 
       {noteKeySessionHistory.length >= 2 && (
-        <NoteKeyCorrectCountChart
-          records={noteKeySessionHistory}
-          bestCount={noteKeyBestRecord?.correctCount ?? null}
-        />
+        <NoteKeyCorrectCountChart records={noteKeySessionHistory} />
       )}
 
       <NoteKeyMistakeSummary store={noteKeyMistakeStats} title="历史错题统计" />
