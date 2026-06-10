@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getScoreForReactionMs } from './noteKeyScoring'
+import { getEncouragementForReactionMs, getScoreForReactionMs } from './noteKeyScoring'
 
 describe('getScoreForReactionMs', () => {
   it('awards top tier below 600ms', () => {
@@ -30,5 +30,26 @@ describe('getScoreForReactionMs', () => {
   it('returns zero for invalid input', () => {
     expect(getScoreForReactionMs(Number.NaN)).toBe(0)
     expect(getScoreForReactionMs(-1)).toBe(0)
+  })
+})
+
+describe('getEncouragementForReactionMs', () => {
+  it('returns top tier encouragement below 600ms', () => {
+    expect(getEncouragementForReactionMs(0)).toBe('Excellent!')
+    expect(getEncouragementForReactionMs(599)).toBe('Excellent!')
+  })
+
+  it('returns quick tier encouragement from 600ms to 999ms', () => {
+    expect(getEncouragementForReactionMs(600)).toBe('Great!')
+    expect(getEncouragementForReactionMs(999)).toBe('Great!')
+  })
+
+  it('returns null when score is 1 or below', () => {
+    expect(getEncouragementForReactionMs(1_000)).toBeNull()
+    expect(getEncouragementForReactionMs(1_499)).toBeNull()
+    expect(getEncouragementForReactionMs(1_500)).toBeNull()
+    expect(getEncouragementForReactionMs(5_000)).toBeNull()
+    expect(getEncouragementForReactionMs(Number.NaN)).toBeNull()
+    expect(getEncouragementForReactionMs(-1)).toBeNull()
   })
 })

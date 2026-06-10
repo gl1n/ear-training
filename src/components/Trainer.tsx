@@ -27,6 +27,8 @@ import {
 } from '../quiz/stats'
 import { getQuizPitchKey } from '../quiz/intervals'
 import { IDLE_TIP_MESSAGES } from './IdleTipToast'
+import type { NoteKeyEncouragement } from './NoteKeyEncouragementToast'
+import { getEncouragementForReactionMs } from '../quiz/noteKeyScoring'
 import { LISTENING_STATES } from '../quiz/sequencer'
 import { abortError, isAbortError } from '../utils/abort'
 import type { SettingsPanelProps } from './SettingsPanel'
@@ -81,6 +83,10 @@ export function Trainer() {
   const sessionStatsRef = useRef<SessionStats>(EMPTY_SESSION_STATS)
   const idleTipIndexRef = useRef(0)
   const [idleTip, setIdleTip] = useState<string | null>(null)
+  const noteKeyEncouragementKeyRef = useRef(0)
+  const [noteKeyEncouragement, setNoteKeyEncouragement] = useState<NoteKeyEncouragement | null>(
+    null,
+  )
 
   const {
     mistakeStoreRef,
@@ -132,6 +138,20 @@ export function Trainer() {
     }
   }, [idleTip])
 
+  useEffect(() => {
+    if (!noteKeyEncouragement) {
+      return
+    }
+
+    const timeoutId = setTimeout(() => {
+      setNoteKeyEncouragement(null)
+    }, 1800)
+
+    return () => {
+      clearTimeout(timeoutId)
+    }
+  }, [noteKeyEncouragement?.key])
+
   usePersistedSettings(
     speedPreset,
     settings.enabledIntervalIds,
@@ -176,6 +196,7 @@ export function Trainer() {
     setState('idle')
     setArcadeDeadlineMs(null)
     setIdleTip(null)
+    setNoteKeyEncouragement(null)
     setNoteKeyGameStarted(false)
     resetLoadingState()
   }, [abortSession, resetLoadingState])
@@ -433,6 +454,16 @@ export function Trainer() {
                 recordNoteKeyQuizMistake(record)
                 setSessionNoteKeyMistakes((current) => [...current, record])
               }
+              if (correct && answer.reactionMs !== undefined) {
+                const message = getEncouragementForReactionMs(answer.reactionMs)
+                if (message) {
+                  noteKeyEncouragementKeyRef.current += 1
+                  setNoteKeyEncouragement({
+                    message,
+                    key: noteKeyEncouragementKeyRef.current,
+                  })
+                }
+              }
               setSessionStats((current) => {
                 const next = recordNoteKeyResult(current, String(quiz.degree), {
                   correct,
@@ -595,6 +626,7 @@ export function Trainer() {
         arcadeDeadlineMs={arcadeDeadlineMs}
         arcadeTimedOut={arcadeTimedOut}
         idleTip={idleTip}
+        noteKeyEncouragement={noteKeyEncouragement}
         loadProgress={loadProgress}
         loadIndeterminate={loadIndeterminate}
         loadError={loadError}

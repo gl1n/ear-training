@@ -15,6 +15,7 @@ import type { Quiz } from '../quiz/intervals'
 import type { NoteKeyQuiz } from '../quiz/keys'
 import type { NoteKeyMistakeStatsStore } from '../quiz/noteKeyMistakeStats'
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
+import type { NoteKeyEncouragement } from './NoteKeyEncouragementToast'
 
 const MODE_OPTIONS = [
   { value: 'practice' as const, label: '练习' },
@@ -42,6 +43,7 @@ type PracticeViewProps = {
   arcadeDeadlineMs: number | null
   arcadeTimedOut: boolean
   idleTip: string | null
+  noteKeyEncouragement: NoteKeyEncouragement | null
   loadProgress: number | null
   loadIndeterminate: boolean
   loadError: string | null
@@ -76,6 +78,7 @@ export function PracticeView({
   arcadeDeadlineMs,
   arcadeTimedOut,
   idleTip,
+  noteKeyEncouragement,
   loadProgress,
   loadIndeterminate,
   loadError,
@@ -190,6 +193,7 @@ export function PracticeView({
             sessionStats={sessionStats}
             lastQuiz={lastNoteKeyQuiz}
             currentKeyLabel={currentKeyLabel}
+            encouragement={noteKeyEncouragement}
             loadProgress={loadProgress}
             loadIndeterminate={loadIndeterminate}
             loadError={loadError}

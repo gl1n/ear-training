@@ -1,15 +1,24 @@
 import { DEGREE_OPTION_IDS, DEGREE_SOLFEGE_LABELS } from '../quiz/keys'
 import type { NoteKeyQuiz } from '../quiz/keys'
 import { LISTENING_STATES, type TrainerState } from '../quiz/sequencer'
-import { getCorrectAnswerCount, type SessionStats } from '../quiz/stats'
+import { getCorrectAnswerCount, getTotalScore, type SessionStats } from '../quiz/stats'
 import { Card } from './ui/Card'
+import {
+  NoteKeyEncouragementToast,
+  type NoteKeyEncouragement,
+} from './NoteKeyEncouragementToast'
 import { SessionLoadStatus } from './SessionLoadStatus'
+
+function formatTotalScore(score: number): string {
+  return Number.isInteger(score) ? String(score) : score.toFixed(1)
+}
 
 type NoteKeyArcadePlayfieldProps = {
   state: TrainerState
   sessionStats: SessionStats
   lastQuiz: NoteKeyQuiz | null
   currentKeyLabel: string | null
+  encouragement: NoteKeyEncouragement | null
   loadProgress: number | null
   loadIndeterminate: boolean
   loadError: string | null
@@ -137,6 +146,7 @@ export function NoteKeyArcadePlayfield({
   sessionStats,
   lastQuiz,
   currentKeyLabel,
+  encouragement,
   loadProgress,
   loadIndeterminate,
   loadError,
@@ -148,6 +158,7 @@ export function NoteKeyArcadePlayfield({
     state === 'awaiting_answer' || LISTENING_STATES.includes(state)
   const isWrong = state === 'feedback_incorrect'
   const correctCount = getCorrectAnswerCount(sessionStats)
+  const totalScore = getTotalScore(sessionStats)
   const currentQuestion = correctCount + (canAnswer || LISTENING_STATES.includes(state) ? 1 : 0)
   const isListening = phase === 'listening'
 
@@ -184,6 +195,11 @@ export function NoteKeyArcadePlayfield({
                 连对 {correctCount}
               </span>
             )}
+            {totalScore > 0 && (
+              <span className="inline-flex items-center rounded-md bg-amber-500/10 px-2 py-0.5 text-xs tabular-nums text-amber-200/90 ring-1 ring-amber-400/20">
+                得分 {formatTotalScore(totalScore)}
+              </span>
+            )}
           </div>
         </div>
         <PhaseIndicator state={state} />
@@ -198,6 +214,15 @@ export function NoteKeyArcadePlayfield({
           onRetry={onRetry}
           variant="compact"
         />
+      ) : null}
+
+      {encouragement ? (
+        <div className="pointer-events-none absolute inset-x-0 top-14 z-10 flex justify-center px-4">
+          <NoteKeyEncouragementToast
+            key={encouragement.key}
+            message={encouragement.message}
+          />
+        </div>
       ) : null}
 
       <div

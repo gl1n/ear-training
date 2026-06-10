@@ -11,3 +11,11 @@ export function getScoreForReactionMs(ms: number): number {
   if (ms < SLOW_MS) return 0.5
   return 0
 }
+
+export function getEncouragementForReactionMs(ms: number): string | null {
+  const score = getScoreForReactionMs(ms)
+  if (score <= 1) return null
+  if (ms < FAST_MS) return 'Excellent!'
+  if (ms < QUICK_MS) return 'Great!'
+  return null
+}
