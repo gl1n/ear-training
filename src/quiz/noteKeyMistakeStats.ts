@@ -18,6 +18,13 @@ export type NoteKeyMistakeAggregate = {
   count: number
 }
 
+export type NoteKeyMistakePairAggregate = {
+  correctDegree: number
+  wrongDegree: number
+  count: number
+  ratio: number
+}
+
 const STORAGE_KEY = 'ear-trainer:note-key-mistake-stats'
 
 export const MAX_RECENT_MISTAKES = 100
@@ -79,6 +86,33 @@ export function aggregateByCorrectDegree(
     degree: Number(id),
     count: counts.get(Number(id)) ?? 0,
   }))
+}
+
+export function aggregateByDegreePair(
+  store: NoteKeyMistakeStatsStore,
+): NoteKeyMistakePairAggregate[] {
+  if (store.length === 0) return []
+
+  const counts = new Map<string, number>()
+
+  for (const record of store) {
+    const key = `${record.correctDegree}-${record.wrongDegree}`
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+
+  const total = store.length
+
+  return Array.from(counts.entries())
+    .map(([key, count]) => {
+      const [correctDegree, wrongDegree] = key.split('-').map(Number)
+      return { correctDegree, wrongDegree, count, ratio: count / total }
+    })
+    .sort(
+      (a, b) =>
+        b.count - a.count ||
+        a.correctDegree - b.correctDegree ||
+        a.wrongDegree - b.wrongDegree,
+    )
 }
 
 export function getTotalNoteKeyMistakeCount(store: NoteKeyMistakeStatsStore): number {

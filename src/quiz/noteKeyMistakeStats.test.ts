@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   aggregateByCorrectDegree,
+  aggregateByDegreePair,
   MAX_RECENT_MISTAKES,
   recordNoteKeyMistake,
   weightedRandomNoteKeyQuizFromMistakes,
@@ -24,6 +25,27 @@ describe('aggregateByCorrectDegree', () => {
       { degree: 6, count: 0 },
       { degree: 7, count: 0 },
     ])
+  })
+})
+
+describe('aggregateByDegreePair', () => {
+  it('groups mistakes by correct and wrong degree with ratios', () => {
+    const store: NoteKeyMistakeStatsStore = [
+      { previousNoteMidi: 60, correctDegree: 2, wrongDegree: '6' },
+      { previousNoteMidi: 62, correctDegree: 2, wrongDegree: '6' },
+      { previousNoteMidi: null, correctDegree: 2, wrongDegree: '1' },
+      { previousNoteMidi: 64, correctDegree: 5, wrongDegree: '4' },
+    ]
+
+    expect(aggregateByDegreePair(store)).toEqual([
+      { correctDegree: 2, wrongDegree: 6, count: 2, ratio: 0.5 },
+      { correctDegree: 2, wrongDegree: 1, count: 1, ratio: 0.25 },
+      { correctDegree: 5, wrongDegree: 4, count: 1, ratio: 0.25 },
+    ])
+  })
+
+  it('returns an empty list when there are no mistakes', () => {
+    expect(aggregateByDegreePair([])).toEqual([])
   })
 })
 
