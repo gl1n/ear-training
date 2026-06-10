@@ -1,33 +1,33 @@
 import {
-  clearArcadeBestRecord,
-  type ArcadeBestRecord,
-  type ArcadeBestVariant,
-} from './arcadeBestRecord'
+  clearChallengeBestRecord,
+  type ChallengeBestRecord,
+  type ChallengeBestVariant,
+} from './challengeBestRecord'
 import { clearMistakeStats, type MistakeStatsStore } from './mistakeStats'
-import { clearNoteKeyMistakeStats, type NoteKeyMistakeStatsStore } from './noteKeyMistakeStats'
-import { clearNoteKeySessionHistory, type NoteKeySessionRecord } from './noteKeySessionHistory'
+import { clearScaleDegreeMistakeStats, type ScaleDegreeMistakeStatsStore } from './scaleDegreeMistakeStats'
+import { clearScaleDegreeSessionHistory, type ScaleDegreeSessionRecord } from './scaleDegreeSessionHistory'
 
 export function hasPersistedTrainingStats(
   mistakeStats: MistakeStatsStore,
-  bestRecord: ArcadeBestRecord | null,
-  noteKeyBestRecord: ArcadeBestRecord | null = null,
-  noteKeyMistakeStats: NoteKeyMistakeStatsStore = [],
-  noteKeySessionHistory: NoteKeySessionRecord[] = [],
+  intervalSpeedBestRecord: ChallengeBestRecord | null,
+  scaleDegreeBestRecord: ChallengeBestRecord | null = null,
+  scaleDegreeMistakeStats: ScaleDegreeMistakeStatsStore = [],
+  scaleDegreeSessionHistory: ScaleDegreeSessionRecord[] = [],
 ): boolean {
   return (
     mistakeStats.length > 0 ||
-    noteKeyMistakeStats.length > 0 ||
-    noteKeySessionHistory.length > 0 ||
-    bestRecord !== null ||
-    noteKeyBestRecord !== null
+    scaleDegreeMistakeStats.length > 0 ||
+    scaleDegreeSessionHistory.length > 0 ||
+    intervalSpeedBestRecord !== null ||
+    scaleDegreeBestRecord !== null
   )
 }
 
 export function clearAllTrainingStats(): void {
   clearMistakeStats()
-  clearNoteKeyMistakeStats()
-  clearNoteKeySessionHistory()
-  clearArcadeBestRecord()
+  clearScaleDegreeMistakeStats()
+  clearScaleDegreeSessionHistory()
+  clearChallengeBestRecord()
 }
 
-export type { ArcadeBestVariant }
+export type { ChallengeBestVariant }

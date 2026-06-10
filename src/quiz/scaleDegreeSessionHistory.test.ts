@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  appendNoteKeySessionRecord,
-  clearNoteKeySessionHistory,
-  loadNoteKeySessionHistory,
-} from './noteKeySessionHistory'
+  appendScaleDegreeSessionRecord,
+  clearScaleDegreeSessionHistory,
+  loadScaleDegreeSessionHistory,
+} from './scaleDegreeSessionHistory'
 
 const STORAGE_KEY = 'ear-trainer:note-key-session-history'
 
@@ -21,23 +21,23 @@ function createLocalStorageMock() {
   }
 }
 
-describe('noteKeySessionHistory', () => {
+describe('scaleDegreeSessionHistory', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })
 
   it('starts empty', () => {
     vi.stubGlobal('localStorage', createLocalStorageMock())
-    expect(loadNoteKeySessionHistory()).toEqual([])
+    expect(loadScaleDegreeSessionHistory()).toEqual([])
   })
 
   it('appends session records', () => {
     vi.stubGlobal('localStorage', createLocalStorageMock())
 
-    appendNoteKeySessionRecord(3, 2.5)
-    appendNoteKeySessionRecord(7, 6)
+    appendScaleDegreeSessionRecord(3, 2.5)
+    appendScaleDegreeSessionRecord(7, 6)
 
-    expect(loadNoteKeySessionHistory()).toEqual([
+    expect(loadScaleDegreeSessionHistory()).toEqual([
       { correctCount: 3, totalScore: 2.5, at: expect.any(Number) },
       { correctCount: 7, totalScore: 6, at: expect.any(Number) },
     ])
@@ -47,10 +47,10 @@ describe('noteKeySessionHistory', () => {
     const localStorage = createLocalStorageMock()
     vi.stubGlobal('localStorage', localStorage)
 
-    appendNoteKeySessionRecord(5)
-    clearNoteKeySessionHistory()
+    appendScaleDegreeSessionRecord(5)
+    clearScaleDegreeSessionHistory()
 
     expect(localStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
-    expect(loadNoteKeySessionHistory()).toEqual([])
+    expect(loadScaleDegreeSessionHistory()).toEqual([])
   })
 })

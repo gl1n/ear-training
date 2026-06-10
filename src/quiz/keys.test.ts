@@ -13,8 +13,8 @@ import {
   getTonicMajorTriadMidis,
   listDiatonicMidisInRange,
   midiToDegree,
-  noteKeyQuizFromMistake,
-  randomNoteKeyQuiz,
+  scaleDegreeQuizFromMistake,
+  randomScaleDegreeQuiz,
   formatMajorKeyLabel,
 } from './keys'
 
@@ -100,7 +100,7 @@ describe('listDiatonicMidisInRange', () => {
 })
 
 function consecutiveSameDegreeRate(
-  session: Parameters<typeof randomNoteKeyQuiz>[0],
+  session: Parameters<typeof randomScaleDegreeQuiz>[0],
   rootMin: number,
   rootMax: number,
   trials: number,
@@ -110,7 +110,7 @@ function consecutiveSameDegreeRate(
   let previousNoteMidi: number | null = null
 
   for (let i = 0; i < trials; i++) {
-    const quiz = randomNoteKeyQuiz(
+    const quiz = randomScaleDegreeQuiz(
       session,
       rootMin,
       rootMax,
@@ -132,7 +132,7 @@ function consecutiveSameDegreeRate(
 }
 
 function averageDistanceFromPrevious(
-  session: Parameters<typeof randomNoteKeyQuiz>[0],
+  session: Parameters<typeof randomScaleDegreeQuiz>[0],
   rootMin: number,
   rootMax: number,
   previousNoteMidi: number,
@@ -141,19 +141,19 @@ function averageDistanceFromPrevious(
   let totalDistance = 0
 
   for (let i = 0; i < trials; i++) {
-    const quiz = randomNoteKeyQuiz(session, rootMin, rootMax, previousNoteMidi)
+    const quiz = randomScaleDegreeQuiz(session, rootMin, rootMax, previousNoteMidi)
     totalDistance += Math.abs(quiz.noteMidi - previousNoteMidi)
   }
 
   return totalDistance / trials
 }
 
-describe('randomNoteKeyQuiz', () => {
+describe('randomScaleDegreeQuiz', () => {
   it('produces a valid degree for each quiz', () => {
     const session = { tonicMidi: 67, tonicPitchClass: 7, label: 'G 大调' }
 
     for (let i = 0; i < 20; i++) {
-      const quiz = randomNoteKeyQuiz(session, 60, 72)
+      const quiz = randomScaleDegreeQuiz(session, 60, 72)
       expect(quiz.degree).toBeGreaterThanOrEqual(1)
       expect(quiz.degree).toBeLessThanOrEqual(7)
       expect(DEGREE_OPTION_IDS).toContain(String(quiz.degree))
@@ -196,10 +196,10 @@ describe('randomNoteKeyQuiz', () => {
   })
 })
 
-describe('noteKeyQuizFromMistake', () => {
+describe('scaleDegreeQuizFromMistake', () => {
   it('generates a quiz with the requested degree in the current key', () => {
     const session = { tonicMidi: 67, tonicPitchClass: 7, label: 'G 大调' }
-    const quiz = noteKeyQuizFromMistake(
+    const quiz = scaleDegreeQuizFromMistake(
       session,
       { correctDegree: 5 },
       60,
@@ -215,7 +215,7 @@ describe('noteKeyQuizFromMistake', () => {
 
   it('returns null when the degree is unavailable in range', () => {
     const session = { tonicMidi: 60, tonicPitchClass: 0, label: 'C 大调' }
-    const quiz = noteKeyQuizFromMistake(session, { correctDegree: 5 }, 60, 60, null)
+    const quiz = scaleDegreeQuizFromMistake(session, { correctDegree: 5 }, 60, 60, null)
 
     expect(quiz).toBeNull()
   })

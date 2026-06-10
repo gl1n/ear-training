@@ -4,9 +4,9 @@ import { delay, isAbortError } from '../utils/abort'
 import {
   createMajorKeySession,
   getTonicMajorTriadMidis,
-  randomNoteKeyQuiz,
+  randomScaleDegreeQuiz,
   type MajorKeySession,
-  type NoteKeyQuiz,
+  type ScaleDegreeQuiz,
 } from './keys'
 import { ALL_INTERVAL_IDS, randomQuiz, type IntervalDirection, type Quiz } from './intervals'
 import {
@@ -14,9 +14,9 @@ import {
   type MistakeStatsStore,
 } from './mistakeStats'
 import {
-  weightedRandomNoteKeyQuizFromMistakes,
-  type NoteKeyMistakeStatsStore,
-} from './noteKeyMistakeStats'
+  weightedRandomScaleDegreeQuizFromMistakes,
+  type ScaleDegreeMistakeStatsStore,
+} from './scaleDegreeMistakeStats'
 import { getSessionDegreeWeights, type SessionStats } from './stats'
 
 const IDLE_BOOST_MS = 1_000
@@ -50,7 +50,26 @@ export type TrainerState =
 
 export type SpeedPreset = 'slow' | 'medium' | 'fast'
 
-export type AppMode = 'practice' | 'arcade' | 'noteKey'
+/** 音程跟听 · 音程竞速 · 音级辨识 */
+export type AppMode = 'intervalFollow' | 'intervalSpeed' | 'scaleDegree'
+
+const LEGACY_APP_MODES: Record<string, AppMode> = {
+  practice: 'intervalFollow',
+  arcade: 'intervalSpeed',
+  noteKey: 'scaleDegree',
+}
+
+export function normalizeAppMode(value: unknown): AppMode | null {
+  if (value === 'intervalFollow' || value === 'intervalSpeed' || value === 'scaleDegree') {
+    return value
+  }
+
+  if (typeof value === 'string' && value in LEGACY_APP_MODES) {
+    return LEGACY_APP_MODES[value]
+  }
+
+  return null
+}
 
 export type Settings = {
   noteDurationMs: number
@@ -133,40 +152,41 @@ export type SequencerCallbacks = {
   onAnswerRevealed: (quiz: Quiz) => void
 }
 
-export const ARCADE_SESSION_TIME_MS = 30_000
+/** 音程竞速模式单局总时长 */
+export const INTERVAL_SPEED_TIME_MS = 30_000
 
-export type ArcadeAnswer = {
+export type IntervalSpeedAnswer = {
   selectedIntervalId: string
   timedOut?: boolean
 }
 
-export type ArcadeCallbacks = {
+export type IntervalSpeedCallbacks = {
   onStateChange: (state: TrainerState) => void
-  waitForAnswer: (signal: AbortSignal, timeoutMs: number) => Promise<ArcadeAnswer>
+  waitForAnswer: (signal: AbortSignal, timeoutMs: number) => Promise<IntervalSpeedAnswer>
   onAnswerSubmitted: (
     quiz: Quiz,
-    answer: ArcadeAnswer,
+    answer: IntervalSpeedAnswer,
     correct: boolean,
   ) => void
   onIdleBoost?: (quiz: Quiz) => void
 }
 
-export type NoteKeyArcadeAnswer = {
+export type ScaleDegreeAnswer = {
   selectedDegree: string
   timedOut?: boolean
   reactionMs?: number
 }
 
-export const NOTE_KEY_TONIC_CHORD_DURATION_MS = 2_400
+export const SCALE_DEGREE_TONIC_CHORD_DURATION_MS = 2_400
 
-export type NoteKeyArcadeCallbacks = {
+export type ScaleDegreeCallbacks = {
   onStateChange: (state: TrainerState) => void
   onSessionStart: (session: MajorKeySession) => void
   waitForGameStart: (signal: AbortSignal) => Promise<void>
-  waitForAnswer: (signal: AbortSignal) => Promise<NoteKeyArcadeAnswer>
+  waitForAnswer: (signal: AbortSignal) => Promise<ScaleDegreeAnswer>
   onAnswerSubmitted: (
-    quiz: NoteKeyQuiz,
-    answer: NoteKeyArcadeAnswer,
+    quiz: ScaleDegreeQuiz,
+    answer: ScaleDegreeAnswer,
     correct: boolean,
   ) => void
   getSessionStats?: () => SessionStats
@@ -220,7 +240,8 @@ async function playQuizAudio(
   await playNote(piano, second, settings.noteDurationMs, signal)
 }
 
-export async function runLoop(
+/** 音程跟听：循环播放音程并语音播报答案 */
+export async function runIntervalFollowLoop(
   piano: Piano,
   settings: Settings,
   callbacks: SequencerCallbacks,
@@ -248,12 +269,13 @@ export async function runLoop(
   }
 }
 
-const ARCADE_FEEDBACK_INCORRECT_MS = 1200
+const INTERVAL_SPEED_FEEDBACK_INCORRECT_MS = 1200
 
-export async function runArcadeLoop(
+/** 音程竞速：限时听辨音程并即时作答 */
+export async function runIntervalSpeedLoop(
   piano: Piano,
   settings: Settings,
-  callbacks: ArcadeCallbacks,
+  callbacks: IntervalSpeedCallbacks,
   signal: AbortSignal,
   sessionDeadlineMs: number,
   mistakeStore: MistakeStatsStore,
@@ -281,7 +303,7 @@ export async function runArcadeLoop(
         false,
       )
       callbacks.onStateChange('feedback_incorrect')
-      await delay(ARCADE_FEEDBACK_INCORRECT_MS, signal)
+      await delay(INTERVAL_SPEED_FEEDBACK_INCORRECT_MS, signal)
       return
     }
 
@@ -345,7 +367,7 @@ export async function runArcadeLoop(
         }
       })
 
-    let answer: ArcadeAnswer
+    let answer: IntervalSpeedAnswer
     try {
       answer = await answerPromise
       questionState.playerAnswered = !answer.timedOut && answer.selectedIntervalId !== ''
@@ -378,18 +400,19 @@ export async function runArcadeLoop(
 
     if (!correct) {
       callbacks.onStateChange('feedback_incorrect')
-      await delay(ARCADE_FEEDBACK_INCORRECT_MS, signal)
+      await delay(INTERVAL_SPEED_FEEDBACK_INCORRECT_MS, signal)
       return
     }
   }
 }
 
-export async function runNoteKeyArcadeLoop(
+/** 音级辨识：定调后听辨调内单音并选择音级 */
+export async function runScaleDegreeLoop(
   piano: Piano,
   settings: Settings,
-  callbacks: NoteKeyArcadeCallbacks,
+  callbacks: ScaleDegreeCallbacks,
   signal: AbortSignal,
-  mistakeStore: NoteKeyMistakeStatsStore = [],
+  mistakeStore: ScaleDegreeMistakeStatsStore = [],
   reviewEnabled = false,
 ): Promise<void> {
   const session = createMajorKeySession(settings.rootMin, settings.rootMax)
@@ -400,7 +423,7 @@ export async function runNoteKeyArcadeLoop(
   await playHarmonic(
     piano,
     [root, third, fifth],
-    NOTE_KEY_TONIC_CHORD_DURATION_MS,
+    SCALE_DEGREE_TONIC_CHORD_DURATION_MS,
     signal,
   )
 
@@ -410,17 +433,17 @@ export async function runNoteKeyArcadeLoop(
   let previousNoteMidi: number | null = null
 
   while (!signal.aborted) {
-    let quiz: NoteKeyQuiz
+    let quiz: ScaleDegreeQuiz
     if (reviewEnabled && mistakeStore.length > 0) {
       quiz =
-        weightedRandomNoteKeyQuizFromMistakes(
+        weightedRandomScaleDegreeQuizFromMistakes(
           mistakeStore,
           session,
           settings.rootMin,
           settings.rootMax,
           previousNoteMidi,
         ) ??
-        randomNoteKeyQuiz(
+        randomScaleDegreeQuiz(
           session,
           settings.rootMin,
           settings.rootMax,
@@ -430,7 +453,7 @@ export async function runNoteKeyArcadeLoop(
       const sessionDegreeWeights = callbacks.getSessionStats
         ? getSessionDegreeWeights(callbacks.getSessionStats())
         : undefined
-      quiz = randomNoteKeyQuiz(
+      quiz = randomScaleDegreeQuiz(
         session,
         settings.rootMin,
         settings.rootMax,
@@ -460,7 +483,7 @@ export async function runNoteKeyArcadeLoop(
       }
     })
 
-    let answer: NoteKeyArcadeAnswer
+    let answer: ScaleDegreeAnswer
     try {
       answer = await answerPromise
       if (notePlayStartMs !== null) {
@@ -486,7 +509,7 @@ export async function runNoteKeyArcadeLoop(
 
     if (!correct) {
       callbacks.onStateChange('feedback_incorrect')
-      await delay(ARCADE_FEEDBACK_INCORRECT_MS, signal)
+      await delay(INTERVAL_SPEED_FEEDBACK_INCORRECT_MS, signal)
       return
     }
   }

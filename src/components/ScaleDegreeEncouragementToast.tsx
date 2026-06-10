@@ -1,13 +1,13 @@
-export type NoteKeyEncouragement = {
+export type ScaleDegreeEncouragement = {
   message: string
   key: number
 }
 
-type NoteKeyEncouragementToastProps = {
+type ScaleDegreeEncouragementToastProps = {
   message: string
 }
 
-export function NoteKeyEncouragementToast({ message }: NoteKeyEncouragementToastProps) {
+export function ScaleDegreeEncouragementToast({ message }: ScaleDegreeEncouragementToastProps) {
   return (
     <div
       role="status"

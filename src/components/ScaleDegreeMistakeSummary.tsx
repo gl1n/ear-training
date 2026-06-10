@@ -1,7 +1,7 @@
 import {
   aggregateByDegreePair,
-  type NoteKeyMistakeStatsStore,
-} from '../quiz/noteKeyMistakeStats'
+  type ScaleDegreeMistakeStatsStore,
+} from '../quiz/scaleDegreeMistakeStats'
 import { DEGREE_OPTION_IDS, DEGREE_SOLFEGE_LABELS } from '../quiz/keys'
 import {
   aggregateSessionDegreeDistribution,
@@ -9,8 +9,8 @@ import {
   type SessionStats,
 } from '../quiz/stats'
 
-type NoteKeyMistakeSummaryProps = {
-  store: NoteKeyMistakeStatsStore
+type ScaleDegreeMistakeSummaryProps = {
+  store: ScaleDegreeMistakeStatsStore
   title: string
   sessionStats?: SessionStats
 }
@@ -55,7 +55,7 @@ function QuestionDistribution({ sessionStats }: { sessionStats: SessionStats }) 
   )
 }
 
-function ConfusionPairs({ store }: { store: NoteKeyMistakeStatsStore }) {
+function ConfusionPairs({ store }: { store: ScaleDegreeMistakeStatsStore }) {
   const pairs = aggregateByDegreePair(store)
   if (pairs.length === 0) return null
 
@@ -91,11 +91,11 @@ function ConfusionPairs({ store }: { store: NoteKeyMistakeStatsStore }) {
   )
 }
 
-export function NoteKeyMistakeSummary({
+export function ScaleDegreeMistakeSummary({
   store,
   title,
   sessionStats,
-}: NoteKeyMistakeSummaryProps) {
+}: ScaleDegreeMistakeSummaryProps) {
   const showQuestions = sessionStats !== undefined && hasSessionAttempts(sessionStats)
   const showPairs = store.length > 0
 

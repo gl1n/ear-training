@@ -44,11 +44,11 @@ export function SettingsPanel({
           disabled={isRunning}
         />
         {isRunning && (
-          <p className="mt-2 text-xs text-[var(--text-secondary)]">练习中无法修改速度</p>
+          <p className="mt-2 text-xs text-[var(--text-secondary)]">训练中无法修改速度</p>
         )}
       </Card>
 
-      {mode !== 'noteKey' && (
+      {mode !== 'scaleDegree' && (
         <>
           <DirectionSelector
             direction={direction}

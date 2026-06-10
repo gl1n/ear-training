@@ -200,7 +200,7 @@ export function StatusHero({
         </div>
       ) : (
         <p className="mt-8 max-w-md text-base leading-relaxed text-[var(--text-secondary)]">
-          点击「开始练习」，系统将循环播放音程，停顿后用人声播报答案。
+          点击「开始跟听」，系统将循环播放音程，停顿后用人声播报答案。
         </p>
       )}
     </PlayAreaCard>

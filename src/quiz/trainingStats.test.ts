@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ArcadeBestRecord } from './arcadeBestRecord'
+import type { ChallengeBestRecord } from './challengeBestRecord'
 import { clearAllTrainingStats, hasPersistedTrainingStats } from './trainingStats'
 import type { MistakeStatsStore } from './mistakeStats'
 
@@ -10,7 +10,7 @@ describe('hasPersistedTrainingStats', () => {
 
   it('is true when any store has data', () => {
     const mistakes: MistakeStatsStore = [{ root: 60 }]
-    const bestRecord = null as ArcadeBestRecord | null
+    const bestRecord = null as ChallengeBestRecord | null
 
     expect(hasPersistedTrainingStats(mistakes, bestRecord)).toBe(true)
     expect(hasPersistedTrainingStats([], { correctCount: 3 })).toBe(true)

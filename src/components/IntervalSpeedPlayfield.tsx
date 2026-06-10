@@ -1,18 +1,18 @@
 import { getIntervalsByIds, type Quiz } from '../quiz/intervals'
 import { LISTENING_STATES, type TrainerState } from '../quiz/sequencer'
 import { getCorrectAnswerCount, type SessionStats } from '../quiz/stats'
-import { ArcadeFuseTimer } from './ArcadeFuseTimer'
+import { IntervalSpeedFuseTimer } from './IntervalSpeedFuseTimer'
 import { IdleTipToast } from './IdleTipToast'
 import { Card } from './ui/Card'
 import { SessionLoadStatus } from './SessionLoadStatus'
 
-type ArcadePlayfieldProps = {
+type IntervalSpeedPlayfieldProps = {
   optionIds: string[]
   state: TrainerState
   sessionStats: SessionStats
   lastQuiz: Quiz | null
-  arcadeDeadlineMs: number | null
-  arcadeTimedOut: boolean
+  intervalSpeedDeadlineMs: number | null
+  intervalSpeedTimedOut: boolean
   idleTip: string | null
   loadProgress: number | null
   loadIndeterminate: boolean
@@ -97,20 +97,20 @@ function gridColumns(count: number): string {
   return 'grid-cols-4'
 }
 
-export function ArcadePlayfield({
+export function IntervalSpeedPlayfield({
   optionIds,
   state,
   sessionStats,
   lastQuiz,
-  arcadeDeadlineMs,
-  arcadeTimedOut,
+  intervalSpeedDeadlineMs,
+  intervalSpeedTimedOut,
   idleTip,
   loadProgress,
   loadIndeterminate,
   loadError,
   onSelect,
   onRetry,
-}: ArcadePlayfieldProps) {
+}: IntervalSpeedPlayfieldProps) {
   const options = getIntervalsByIds(optionIds)
   const phase = getPhase(state)
   const canAnswer =
@@ -121,8 +121,8 @@ export function ArcadePlayfield({
 
   return (
     <Card variant="default" className="relative flex flex-1 flex-col gap-4 p-4 sm:p-5">
-      {arcadeDeadlineMs !== null && (
-        <ArcadeFuseTimer deadlineMs={arcadeDeadlineMs} />
+      {intervalSpeedDeadlineMs !== null && (
+        <IntervalSpeedFuseTimer deadlineMs={intervalSpeedDeadlineMs} />
       )}
 
       <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
@@ -138,7 +138,7 @@ export function ArcadePlayfield({
             )}
           </div>
         </div>
-        <PhaseIndicator state={state} timedOut={arcadeTimedOut} />
+        <PhaseIndicator state={state} timedOut={intervalSpeedTimedOut} />
       </div>
 
       {loadError || state === 'loading' ? (

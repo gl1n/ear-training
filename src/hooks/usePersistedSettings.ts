@@ -1,6 +1,11 @@
 import { useEffect, useRef } from 'react'
 import type { IntervalDirection } from '../quiz/intervals'
-import { createDefaultSettings, type AppMode, type SpeedPreset } from '../quiz/sequencer'
+import {
+  createDefaultSettings,
+  normalizeAppMode,
+  type AppMode,
+  type SpeedPreset,
+} from '../quiz/sequencer'
 
 const STORAGE_KEY = 'ear-trainer:settings'
 
@@ -9,11 +14,7 @@ type PersistedSettings = {
   enabledIntervalIds: string[]
   direction: IntervalDirection
   mode?: AppMode
-  noteKeyReviewEnabled?: boolean
-}
-
-function isAppMode(value: unknown): value is AppMode {
-  return value === 'practice' || value === 'arcade' || value === 'noteKey'
+  scaleDegreeReviewEnabled?: boolean
 }
 
 function isSpeedPreset(value: unknown): value is SpeedPreset {
@@ -35,6 +36,18 @@ function parseDirection(parsed: Record<string, unknown>): IntervalDirection | nu
   }
 
   return null
+}
+
+function parseScaleDegreeReviewEnabled(record: Record<string, unknown>): boolean {
+  if ('scaleDegreeReviewEnabled' in record && record.scaleDegreeReviewEnabled === true) {
+    return true
+  }
+
+  if ('noteKeyReviewEnabled' in record && record.noteKeyReviewEnabled === true) {
+    return true
+  }
+
+  return false
 }
 
 function loadPersistedSettings(): PersistedSettings | null {
@@ -63,11 +76,11 @@ function loadPersistedSettings(): PersistedSettings | null {
     }
 
     const direction = parseDirection(record) ?? 'ascending'
-    const mode = 'mode' in record && isAppMode(record.mode) ? record.mode : 'noteKey'
-    const noteKeyReviewEnabled =
-      'noteKeyReviewEnabled' in record && record.noteKeyReviewEnabled === true
+    const mode =
+      'mode' in record ? normalizeAppMode(record.mode) ?? 'scaleDegree' : 'scaleDegree'
+    const scaleDegreeReviewEnabled = parseScaleDegreeReviewEnabled(record)
 
-    return { speedPreset, enabledIntervalIds, direction, mode, noteKeyReviewEnabled }
+    return { speedPreset, enabledIntervalIds, direction, mode, scaleDegreeReviewEnabled }
   } catch {
     return null
   }
@@ -76,20 +89,20 @@ function loadPersistedSettings(): PersistedSettings | null {
 export function getInitialSettings(): {
   speedPreset: SpeedPreset
   mode: AppMode
-  noteKeyReviewEnabled: boolean
+  scaleDegreeReviewEnabled: boolean
   settings: ReturnType<typeof createDefaultSettings>
 } {
   const persisted = loadPersistedSettings()
   const speedPreset = persisted?.speedPreset ?? 'medium'
-  const mode = persisted?.mode ?? 'noteKey'
-  const noteKeyReviewEnabled = persisted?.noteKeyReviewEnabled ?? false
+  const mode = persisted?.mode ?? 'scaleDegree'
+  const scaleDegreeReviewEnabled = persisted?.scaleDegreeReviewEnabled ?? false
   const defaults = createDefaultSettings(speedPreset)
 
   if (persisted && persisted.enabledIntervalIds.length > 0) {
     return {
       speedPreset,
       mode,
-      noteKeyReviewEnabled,
+      scaleDegreeReviewEnabled,
       settings: {
         ...defaults,
         enabledIntervalIds: persisted.enabledIntervalIds,
@@ -98,7 +111,7 @@ export function getInitialSettings(): {
     }
   }
 
-  return { speedPreset, mode, noteKeyReviewEnabled, settings: defaults }
+  return { speedPreset, mode, scaleDegreeReviewEnabled, settings: defaults }
 }
 
 export function usePersistedSettings(
@@ -106,7 +119,7 @@ export function usePersistedSettings(
   enabledIntervalIds: string[],
   direction: IntervalDirection,
   mode: AppMode,
-  noteKeyReviewEnabled: boolean,
+  scaleDegreeReviewEnabled: boolean,
 ) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -121,7 +134,7 @@ export function usePersistedSettings(
         enabledIntervalIds,
         direction,
         mode,
-        noteKeyReviewEnabled,
+        scaleDegreeReviewEnabled,
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     }, 300)
@@ -131,5 +144,5 @@ export function usePersistedSettings(
         clearTimeout(timeoutRef.current)
       }
     }
-  }, [speedPreset, enabledIntervalIds, direction, mode, noteKeyReviewEnabled])
+  }, [speedPreset, enabledIntervalIds, direction, mode, scaleDegreeReviewEnabled])
 }

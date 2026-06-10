@@ -1,5 +1,5 @@
-import type { NoteKeyQuiz } from '../quiz/keys'
-import type { NoteKeyMistakeStatsStore } from '../quiz/noteKeyMistakeStats'
+import type { ScaleDegreeQuiz } from '../quiz/keys'
+import type { ScaleDegreeMistakeStatsStore } from '../quiz/scaleDegreeMistakeStats'
 import {
   getCorrectAnswerCount,
   getTotalScore,
@@ -7,20 +7,20 @@ import {
   type SessionStats,
 } from '../quiz/stats'
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
-import { NoteKeyCorrectCountChart } from './NoteKeyCorrectCountChart'
-import { NoteKeyMistakeSummary } from './NoteKeyMistakeSummary'
+import { ScaleDegreeCorrectCountChart } from './ScaleDegreeCorrectCountChart'
+import { ScaleDegreeMistakeSummary } from './ScaleDegreeMistakeSummary'
 import { PlayAreaCard } from './PlayAreaCard'
 import { ResetStatsButton } from './ResetStatsButton'
 import { Button } from './ui/Button'
 
-type NoteKeyArcadeIdlePanelProps = {
-  lastQuiz: NoteKeyQuiz | null
+type ScaleDegreeIdlePanelProps = {
+  lastQuiz: ScaleDegreeQuiz | null
   sessionStats: SessionStats
-  sessionMistakes: NoteKeyMistakeStatsStore
+  sessionMistakes: ScaleDegreeMistakeStatsStore
   trainingStats: TrainingStatsViewModel
-  noteKeyReviewEnabled: boolean
+  scaleDegreeReviewEnabled: boolean
   isRunning: boolean
-  onNoteKeyReviewChange: (enabled: boolean) => void
+  onScaleDegreeReviewChange: (enabled: boolean) => void
   onHome: () => void
 }
 
@@ -99,28 +99,28 @@ function HowToPlay() {
   )
 }
 
-export function NoteKeyArcadeIdlePanel({
+export function ScaleDegreeIdlePanel({
   lastQuiz,
   sessionStats,
   sessionMistakes,
   trainingStats,
-  noteKeyReviewEnabled,
+  scaleDegreeReviewEnabled,
   isRunning,
-  onNoteKeyReviewChange,
+  onScaleDegreeReviewChange,
   onHome,
-}: NoteKeyArcadeIdlePanelProps) {
+}: ScaleDegreeIdlePanelProps) {
   const {
-    noteKeyMistakeStats,
-    noteKeySessionHistory,
-    noteKeyBestRecord,
-    isNewNoteKeyBestRecord,
+    scaleDegreeMistakeStats,
+    scaleDegreeSessionHistory,
+    scaleDegreeBestRecord,
+    isNewScaleDegreeBestRecord,
     canReset,
     reset,
   } = trainingStats
   const gameEnded = lastQuiz !== null && hasSessionAttempts(sessionStats)
   const correctCount = getCorrectAnswerCount(sessionStats)
   const totalScore = getTotalScore(sessionStats)
-  const hasHistoricalMistakes = noteKeyMistakeStats.length > 0
+  const hasHistoricalMistakes = scaleDegreeMistakeStats.length > 0
 
   if (gameEnded) {
     return (
@@ -147,23 +147,23 @@ export function NoteKeyArcadeIdlePanel({
           />
         </div>
 
-        {noteKeySessionHistory.length >= 2 && (
-          <NoteKeyCorrectCountChart records={noteKeySessionHistory} highlightLast />
+        {scaleDegreeSessionHistory.length >= 2 && (
+          <ScaleDegreeCorrectCountChart records={scaleDegreeSessionHistory} highlightLast />
         )}
 
-        {noteKeyBestRecord && (
+        {scaleDegreeBestRecord && (
           <div className="flex w-full max-w-sm flex-col gap-3">
             <div className="flex items-center justify-center gap-2">
               <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
                 最佳记录
               </p>
-              {isNewNoteKeyBestRecord && (
+              {isNewScaleDegreeBestRecord && (
                 <span className="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-[10px] font-semibold text-sky-200 ring-1 ring-sky-400/25">
                   新纪录
                 </span>
               )}
             </div>
-            <ScoreCard value={noteKeyBestRecord.correctCount} label="连对题数" />
+            <ScoreCard value={scaleDegreeBestRecord.correctCount} label="连对题数" />
           </div>
         )}
 
@@ -179,7 +179,7 @@ export function NoteKeyArcadeIdlePanel({
           </div>
         )}
 
-        <NoteKeyMistakeSummary
+        <ScaleDegreeMistakeSummary
           store={sessionMistakes}
           sessionStats={sessionStats}
           title="本局音级分布"
@@ -198,7 +198,7 @@ export function NoteKeyArcadeIdlePanel({
     <PlayAreaCard className="gap-7">
       <div className="flex flex-col items-center gap-3 text-center">
         <span className="inline-flex items-center gap-2 rounded-full border border-sky-400/25 bg-sky-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-sky-200">
-          调内听音
+          音级辨识
         </span>
         <p className="max-w-sm text-base font-medium leading-relaxed text-[var(--text-primary)]">
           随机大调 · 听音选级 · 连对挑战
@@ -210,16 +210,16 @@ export function NoteKeyArcadeIdlePanel({
 
       <HowToPlay />
 
-      {noteKeySessionHistory.length >= 2 && (
-        <NoteKeyCorrectCountChart records={noteKeySessionHistory} />
+      {scaleDegreeSessionHistory.length >= 2 && (
+        <ScaleDegreeCorrectCountChart records={scaleDegreeSessionHistory} />
       )}
 
-      <NoteKeyMistakeSummary store={noteKeyMistakeStats} title="历史错题统计" />
+      <ScaleDegreeMistakeSummary store={scaleDegreeMistakeStats} title="历史错题统计" />
 
       <label
         className={[
           'flex w-full max-w-sm cursor-pointer items-start gap-3 rounded-xl border px-4 py-3.5 transition-colors',
-          noteKeyReviewEnabled
+          scaleDegreeReviewEnabled
             ? 'border-sky-400/35 bg-sky-500/10'
             : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] hover:border-sky-400/20',
           !hasHistoricalMistakes || isRunning ? 'cursor-not-allowed opacity-60' : '',
@@ -228,9 +228,9 @@ export function NoteKeyArcadeIdlePanel({
         <input
           type="checkbox"
           className="mt-0.5 accent-sky-500"
-          checked={noteKeyReviewEnabled}
+          checked={scaleDegreeReviewEnabled}
           disabled={!hasHistoricalMistakes || isRunning}
-          onChange={(event) => onNoteKeyReviewChange(event.target.checked)}
+          onChange={(event) => onScaleDegreeReviewChange(event.target.checked)}
         />
         <span className="flex flex-col gap-1 text-left">
           <span className="text-sm font-medium">复习模式</span>

@@ -1,26 +1,26 @@
 import type { AppMode, TrainerState } from '../quiz/sequencer'
 import type { SessionStats } from '../quiz/stats'
-import { ArcadeIdlePanel } from './ArcadeIdlePanel'
-import { ArcadePlayfield } from './ArcadePlayfield'
+import { IntervalSpeedIdlePanel } from './IntervalSpeedIdlePanel'
+import { IntervalSpeedPlayfield } from './IntervalSpeedPlayfield'
 import { AppShell } from './AppShell'
-import { NoteKeyArcadeIdlePanel } from './NoteKeyArcadeIdlePanel'
-import { NoteKeyArcadePlayfield } from './NoteKeyArcadePlayfield'
-import { NoteKeyArcadeReadyPanel } from './NoteKeyArcadeReadyPanel'
+import { ScaleDegreeIdlePanel } from './ScaleDegreeIdlePanel'
+import { ScaleDegreePlayfield } from './ScaleDegreePlayfield'
+import { ScaleDegreeReadyPanel } from './ScaleDegreeReadyPanel'
 import { SettingsPanel, type SettingsPanelProps } from './SettingsPanel'
 import { SettingsSummary } from './SettingsSummary'
 import { StatusHero } from './StatusHero'
 import { Button } from './ui/Button'
 import { SegmentedControl } from './ui/SegmentedControl'
 import type { Quiz } from '../quiz/intervals'
-import type { NoteKeyQuiz } from '../quiz/keys'
-import type { NoteKeyMistakeStatsStore } from '../quiz/noteKeyMistakeStats'
+import type { ScaleDegreeQuiz } from '../quiz/keys'
+import type { ScaleDegreeMistakeStatsStore } from '../quiz/scaleDegreeMistakeStats'
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
-import type { NoteKeyEncouragement } from './NoteKeyEncouragementToast'
+import type { ScaleDegreeEncouragement } from './ScaleDegreeEncouragementToast'
 
 const MODE_OPTIONS = [
-  { value: 'practice' as const, label: '练习' },
-  { value: 'noteKey' as const, label: '调内听音' },
-  { value: 'arcade' as const, label: '音程街机' },
+  { value: 'intervalFollow' as const, label: '音程跟听' },
+  { value: 'scaleDegree' as const, label: '音级辨识' },
+  { value: 'intervalSpeed' as const, label: '音程竞速' },
 ]
 
 type PracticeViewProps = {
@@ -30,20 +30,20 @@ type PracticeViewProps = {
   isLoading: boolean
   settingsControls: SettingsPanelProps
   lastQuiz: Quiz | null
-  lastNoteKeyQuiz: NoteKeyQuiz | null
+  lastScaleDegreeQuiz: ScaleDegreeQuiz | null
   currentKeyLabel: string | null
-  noteKeyGameStarted: boolean
-  sessionNoteKeyMistakes: NoteKeyMistakeStatsStore
-  noteKeyReviewEnabled: boolean
-  onNoteKeyReviewChange: (enabled: boolean) => void
+  scaleDegreeGameStarted: boolean
+  sessionScaleDegreeMistakes: ScaleDegreeMistakeStatsStore
+  scaleDegreeReviewEnabled: boolean
+  onScaleDegreeReviewChange: (enabled: boolean) => void
   sessionStats: SessionStats
   trainingStats: TrainingStatsViewModel
   rootMin: number
   rootMax: number
-  arcadeDeadlineMs: number | null
-  arcadeTimedOut: boolean
+  intervalSpeedDeadlineMs: number | null
+  intervalSpeedTimedOut: boolean
   idleTip: string | null
-  noteKeyEncouragement: NoteKeyEncouragement | null
+  scaleDegreeEncouragement: ScaleDegreeEncouragement | null
   loadProgress: number | null
   loadIndeterminate: boolean
   loadError: string | null
@@ -55,7 +55,7 @@ type PracticeViewProps = {
   replayingQuizKey: string | null
   isReplayBusy: boolean
   onPlayQuiz: (quiz: Quiz) => void
-  onNoteKeyHome: () => void
+  onScaleDegreeHome: () => void
 }
 
 export function PracticeView({
@@ -65,20 +65,20 @@ export function PracticeView({
   isLoading,
   settingsControls,
   lastQuiz,
-  lastNoteKeyQuiz,
+  lastScaleDegreeQuiz,
   currentKeyLabel,
-  noteKeyGameStarted,
-  sessionNoteKeyMistakes,
-  noteKeyReviewEnabled,
-  onNoteKeyReviewChange,
+  scaleDegreeGameStarted,
+  sessionScaleDegreeMistakes,
+  scaleDegreeReviewEnabled,
+  onScaleDegreeReviewChange,
   sessionStats,
   trainingStats,
   rootMin,
   rootMax,
-  arcadeDeadlineMs,
-  arcadeTimedOut,
+  intervalSpeedDeadlineMs,
+  intervalSpeedTimedOut,
   idleTip,
-  noteKeyEncouragement,
+  scaleDegreeEncouragement,
   loadProgress,
   loadIndeterminate,
   loadError,
@@ -90,31 +90,31 @@ export function PracticeView({
   replayingQuizKey,
   isReplayBusy,
   onPlayQuiz,
-  onNoteKeyHome,
+  onScaleDegreeHome,
 }: PracticeViewProps) {
   const { enabledIntervalIds } = settingsControls
   const canStart =
-    mode === 'noteKey' ? true : enabledIntervalIds.length > 0
-  const showSettingsHint = !canStart && !isRunning && mode !== 'noteKey'
-  const isChallengeMode = mode === 'arcade' || mode === 'noteKey'
-  const noteKeyEstablishing =
-    mode === 'noteKey' &&
+    mode === 'scaleDegree' ? true : enabledIntervalIds.length > 0
+  const showSettingsHint = !canStart && !isRunning && mode !== 'scaleDegree'
+  const isChallengeMode = mode === 'intervalSpeed' || mode === 'scaleDegree'
+  const scaleDegreeEstablishing =
+    mode === 'scaleDegree' &&
     isRunning &&
-    !noteKeyGameStarted &&
+    !scaleDegreeGameStarted &&
     (state === 'loading' || state === 'playing_tonic_chord')
 
   const footerButtonLabel = (() => {
-    if (isLoading && mode !== 'noteKey') return '加载钢琴音色…'
-    if (noteKeyEstablishing) {
+    if (isLoading && mode !== 'scaleDegree') return '加载钢琴音色…'
+    if (scaleDegreeEstablishing) {
       return state === 'loading' ? '加载钢琴音色…' : '取消'
     }
     if (isRunning) return '暂停'
     if (isChallengeMode) return '开始挑战'
-    return '开始练习'
+    return '开始跟听'
   })()
 
   const footerButtonDisabled =
-    (isLoading && mode !== 'noteKey') ||
+    (isLoading && mode !== 'scaleDegree') ||
     (!isRunning && !canStart)
 
   return (
@@ -129,7 +129,7 @@ export function PracticeView({
         />
       }
       settingsSummary={
-        mode !== 'noteKey' ? (
+        mode !== 'scaleDegree' ? (
           <SettingsSummary
             mode={mode}
             speedPreset={settingsControls.speedPreset}
@@ -158,15 +158,15 @@ export function PracticeView({
         </>
       }
     >
-      {mode === 'arcade' ? (
+      {mode === 'intervalSpeed' ? (
         isRunning && enabledIntervalIds.length > 0 ? (
-          <ArcadePlayfield
+          <IntervalSpeedPlayfield
             optionIds={enabledIntervalIds}
             state={state}
             sessionStats={sessionStats}
             lastQuiz={lastQuiz}
-            arcadeDeadlineMs={arcadeDeadlineMs}
-            arcadeTimedOut={arcadeTimedOut}
+            intervalSpeedDeadlineMs={intervalSpeedDeadlineMs}
+            intervalSpeedTimedOut={intervalSpeedTimedOut}
             idleTip={idleTip}
             loadProgress={loadProgress}
             loadIndeterminate={loadIndeterminate}
@@ -175,7 +175,7 @@ export function PracticeView({
             onRetry={loadError ? onRetry : undefined}
           />
         ) : (
-          <ArcadeIdlePanel
+          <IntervalSpeedIdlePanel
             lastQuiz={lastQuiz}
             sessionStats={sessionStats}
             trainingStats={trainingStats}
@@ -186,14 +186,14 @@ export function PracticeView({
             onPlayQuiz={onPlayQuiz}
           />
         )
-      ) : mode === 'noteKey' ? (
-        isRunning && noteKeyGameStarted ? (
-          <NoteKeyArcadePlayfield
+      ) : mode === 'scaleDegree' ? (
+        isRunning && scaleDegreeGameStarted ? (
+          <ScaleDegreePlayfield
             state={state}
             sessionStats={sessionStats}
-            lastQuiz={lastNoteKeyQuiz}
+            lastQuiz={lastScaleDegreeQuiz}
             currentKeyLabel={currentKeyLabel}
-            encouragement={noteKeyEncouragement}
+            encouragement={scaleDegreeEncouragement}
             loadProgress={loadProgress}
             loadIndeterminate={loadIndeterminate}
             loadError={loadError}
@@ -201,7 +201,7 @@ export function PracticeView({
             onRetry={loadError ? onRetry : undefined}
           />
         ) : isRunning ? (
-          <NoteKeyArcadeReadyPanel
+          <ScaleDegreeReadyPanel
             state={state}
             currentKeyLabel={currentKeyLabel}
             loadProgress={loadProgress}
@@ -210,15 +210,15 @@ export function PracticeView({
             onRetry={loadError ? onRetry : undefined}
           />
         ) : (
-          <NoteKeyArcadeIdlePanel
-            lastQuiz={lastNoteKeyQuiz}
+          <ScaleDegreeIdlePanel
+            lastQuiz={lastScaleDegreeQuiz}
             sessionStats={sessionStats}
-            sessionMistakes={sessionNoteKeyMistakes}
+            sessionMistakes={sessionScaleDegreeMistakes}
             trainingStats={trainingStats}
-            noteKeyReviewEnabled={noteKeyReviewEnabled}
+            scaleDegreeReviewEnabled={scaleDegreeReviewEnabled}
             isRunning={isRunning}
-            onNoteKeyReviewChange={onNoteKeyReviewChange}
-            onHome={onNoteKeyHome}
+            onScaleDegreeReviewChange={onScaleDegreeReviewChange}
+            onHome={onScaleDegreeHome}
           />
         )
       ) : (

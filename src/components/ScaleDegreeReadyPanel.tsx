@@ -2,7 +2,7 @@ import { LISTENING_STATES, type TrainerState } from '../quiz/sequencer'
 import { PlayAreaCard } from './PlayAreaCard'
 import { SessionLoadStatus } from './SessionLoadStatus'
 
-type NoteKeyArcadeReadyPanelProps = {
+type ScaleDegreeReadyPanelProps = {
   state: TrainerState
   currentKeyLabel: string | null
   loadProgress: number | null
@@ -22,14 +22,14 @@ function KeyDisplay({ label }: { label: string }) {
   )
 }
 
-export function NoteKeyArcadeReadyPanel({
+export function ScaleDegreeReadyPanel({
   state,
   currentKeyLabel,
   loadProgress,
   loadIndeterminate,
   loadError,
   onRetry,
-}: NoteKeyArcadeReadyPanelProps) {
+}: ScaleDegreeReadyPanelProps) {
   const isEstablishing =
     state === 'loading' || state === 'playing_tonic_chord' || LISTENING_STATES.includes(state)
   const isReady = !isEstablishing && !loadError && currentKeyLabel !== null

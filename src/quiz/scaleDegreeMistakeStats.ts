@@ -1,24 +1,24 @@
 import {
-  noteKeyQuizFromMistake,
+  scaleDegreeQuizFromMistake,
   DEGREE_OPTION_IDS,
   type MajorKeySession,
-  type NoteKeyQuiz,
+  type ScaleDegreeQuiz,
 } from './keys'
 
-export type NoteKeyMistakeRecord = {
+export type ScaleDegreeMistakeRecord = {
   previousNoteMidi: number | null
   correctDegree: number
   wrongDegree: string
 }
 
-export type NoteKeyMistakeStatsStore = NoteKeyMistakeRecord[]
+export type ScaleDegreeMistakeStatsStore = ScaleDegreeMistakeRecord[]
 
-export type NoteKeyMistakeAggregate = {
+export type ScaleDegreeMistakeAggregate = {
   degree: number
   count: number
 }
 
-export type NoteKeyMistakePairAggregate = {
+export type ScaleDegreeMistakePairAggregate = {
   correctDegree: number
   wrongDegree: number
   count: number
@@ -29,10 +29,10 @@ const STORAGE_KEY = 'ear-trainer:note-key-mistake-stats'
 
 export const MAX_RECENT_MISTAKES = 100
 
-function isNoteKeyMistakeRecord(value: unknown): value is NoteKeyMistakeRecord {
+function isScaleDegreeMistakeRecord(value: unknown): value is ScaleDegreeMistakeRecord {
   if (typeof value !== 'object' || value === null) return false
 
-  const record = value as NoteKeyMistakeRecord
+  const record = value as ScaleDegreeMistakeRecord
   if (
     record.previousNoteMidi !== null &&
     !Number.isInteger(record.previousNoteMidi)
@@ -56,15 +56,15 @@ function isNoteKeyMistakeRecord(value: unknown): value is NoteKeyMistakeRecord {
   return true
 }
 
-function isNoteKeyMistakeStatsStore(value: unknown): value is NoteKeyMistakeStatsStore {
-  return Array.isArray(value) && value.every(isNoteKeyMistakeRecord)
+function isScaleDegreeMistakeStatsStore(value: unknown): value is ScaleDegreeMistakeStatsStore {
+  return Array.isArray(value) && value.every(isScaleDegreeMistakeRecord)
 }
 
-export function recordNoteKeyMistake(
-  store: NoteKeyMistakeStatsStore,
-  record: NoteKeyMistakeRecord,
+export function recordScaleDegreeMistake(
+  store: ScaleDegreeMistakeStatsStore,
+  record: ScaleDegreeMistakeRecord,
 ): void {
-  if (!isNoteKeyMistakeRecord(record)) return
+  if (!isScaleDegreeMistakeRecord(record)) return
 
   store.push(record)
 
@@ -74,8 +74,8 @@ export function recordNoteKeyMistake(
 }
 
 export function aggregateByCorrectDegree(
-  store: NoteKeyMistakeStatsStore,
-): NoteKeyMistakeAggregate[] {
+  store: ScaleDegreeMistakeStatsStore,
+): ScaleDegreeMistakeAggregate[] {
   const counts = new Map<number, number>()
 
   for (const record of store) {
@@ -89,8 +89,8 @@ export function aggregateByCorrectDegree(
 }
 
 export function aggregateByDegreePair(
-  store: NoteKeyMistakeStatsStore,
-): NoteKeyMistakePairAggregate[] {
+  store: ScaleDegreeMistakeStatsStore,
+): ScaleDegreeMistakePairAggregate[] {
   if (store.length === 0) return []
 
   const counts = new Map<string, number>()
@@ -115,17 +115,17 @@ export function aggregateByDegreePair(
     )
 }
 
-export function getTotalNoteKeyMistakeCount(store: NoteKeyMistakeStatsStore): number {
+export function getTotalScaleDegreeMistakeCount(store: ScaleDegreeMistakeStatsStore): number {
   return store.length
 }
 
-export function loadNoteKeyMistakeStats(): NoteKeyMistakeStatsStore {
+export function loadScaleDegreeMistakeStats(): ScaleDegreeMistakeStatsStore {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return []
 
     const parsed: unknown = JSON.parse(raw)
-    if (isNoteKeyMistakeStatsStore(parsed)) {
+    if (isScaleDegreeMistakeStatsStore(parsed)) {
       return parsed.slice(-MAX_RECENT_MISTAKES)
     }
 
@@ -135,9 +135,9 @@ export function loadNoteKeyMistakeStats(): NoteKeyMistakeStatsStore {
   }
 }
 
-export function saveNoteKeyMistakeStats(store: NoteKeyMistakeStatsStore): void {
+export function saveScaleDegreeMistakeStats(store: ScaleDegreeMistakeStatsStore): void {
   const normalized = store
-    .filter(isNoteKeyMistakeRecord)
+    .filter(isScaleDegreeMistakeRecord)
     .slice(-MAX_RECENT_MISTAKES)
 
   try {
@@ -147,7 +147,7 @@ export function saveNoteKeyMistakeStats(store: NoteKeyMistakeStatsStore): void {
   }
 }
 
-export function clearNoteKeyMistakeStats(): void {
+export function clearScaleDegreeMistakeStats(): void {
   try {
     localStorage.removeItem(STORAGE_KEY)
   } catch {
@@ -156,8 +156,8 @@ export function clearNoteKeyMistakeStats(): void {
 }
 
 function pickWeightedMistakeRecord(
-  store: NoteKeyMistakeStatsStore,
-): NoteKeyMistakeRecord | null {
+  store: ScaleDegreeMistakeStatsStore,
+): ScaleDegreeMistakeRecord | null {
   if (store.length === 0) return null
 
   const aggregates = aggregateByCorrectDegree(store)
@@ -180,20 +180,20 @@ function pickWeightedMistakeRecord(
   return candidates[Math.floor(Math.random() * candidates.length)] ?? null
 }
 
-export function weightedRandomNoteKeyQuizFromMistakes(
-  store: NoteKeyMistakeStatsStore,
+export function weightedRandomScaleDegreeQuizFromMistakes(
+  store: ScaleDegreeMistakeStatsStore,
   session: MajorKeySession,
   rootMin: number,
   rootMax: number,
   previousNoteMidi?: number | null,
-): NoteKeyQuiz | null {
+): ScaleDegreeQuiz | null {
   const maxAttempts = Math.min(store.length, 8)
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const record = pickWeightedMistakeRecord(store)
     if (!record) return null
 
-    const quiz = noteKeyQuizFromMistake(
+    const quiz = scaleDegreeQuizFromMistake(
       session,
       record,
       rootMin,

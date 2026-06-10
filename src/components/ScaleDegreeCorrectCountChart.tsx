@@ -1,8 +1,8 @@
 import { useId, useMemo } from 'react'
-import type { NoteKeySessionRecord } from '../quiz/noteKeySessionHistory'
+import type { ScaleDegreeSessionRecord } from '../quiz/scaleDegreeSessionHistory'
 
-type NoteKeyCorrectCountChartProps = {
-  records: NoteKeySessionRecord[]
+type ScaleDegreeCorrectCountChartProps = {
+  records: ScaleDegreeSessionRecord[]
   highlightLast?: boolean
 }
 
@@ -88,14 +88,14 @@ function getScoreTicks(maxScore: number): number[] {
   return [...ticks].sort((a, b) => a - b)
 }
 
-function hasScoreSeries(records: NoteKeySessionRecord[]): boolean {
+function hasScoreSeries(records: ScaleDegreeSessionRecord[]): boolean {
   return records.some((record) => record.totalScore !== undefined)
 }
 
-function NoteKeyCorrectCountSvg({
+function ScaleDegreeCorrectCountSvg({
   records,
   highlightLast = false,
-}: NoteKeyCorrectCountChartProps) {
+}: ScaleDegreeCorrectCountChartProps) {
   const plotWidth = CHART_WIDTH - PADDING.left - PADDING.right
   const plotHeight = CHART_HEIGHT - PADDING.top - PADDING.bottom
   const showScoreSeries = hasScoreSeries(records)
@@ -157,7 +157,7 @@ function NoteKeyCorrectCountSvg({
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
       className="mx-auto h-auto w-full max-w-[360px]"
       role="img"
-      aria-label="调内听音局成绩变化折线图"
+      aria-label="音级辨识局成绩变化折线图"
     >
       <g transform={`translate(0, 10)`}>
         <line x1={PADDING.left} y1={0} x2={PADDING.left + 14} y2={0} stroke={COUNT_COLOR} strokeWidth={2} />
@@ -329,10 +329,10 @@ function NoteKeyCorrectCountSvg({
   )
 }
 
-export function NoteKeyCorrectCountChart({
+export function ScaleDegreeCorrectCountChart({
   records,
   highlightLast = false,
-}: NoteKeyCorrectCountChartProps) {
+}: ScaleDegreeCorrectCountChartProps) {
   const descriptionId = useId()
   const latestCount = records.at(-1)?.correctCount ?? 0
   const previousCount = records.at(-2)?.correctCount
@@ -370,7 +370,7 @@ export function NoteKeyCorrectCountChart({
       </div>
 
       <div className="rounded-xl border border-sky-400/15 bg-[var(--bg-elevated)] px-3 py-3">
-        <NoteKeyCorrectCountSvg records={records} highlightLast={highlightLast} />
+        <ScaleDegreeCorrectCountSvg records={records} highlightLast={highlightLast} />
         <p className="mt-2 text-center text-[10px] text-[var(--text-secondary)]">
           {showScoreSeries ? '虚线为各自近期均值' : '虚线为近期平均分'}
         </p>

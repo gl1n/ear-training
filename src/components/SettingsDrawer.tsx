@@ -12,7 +12,7 @@ export function SettingsDrawer({ open, onClose, ...settings }: SettingsDrawerPro
     <Drawer
       open={open}
       onClose={onClose}
-      title="练习设置"
+      title="训练设置"
       footer={
         <Button onClick={onClose} className="w-full">
           完成

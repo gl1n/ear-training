@@ -1,24 +1,24 @@
 import { DEGREE_OPTION_IDS, DEGREE_SOLFEGE_LABELS } from '../quiz/keys'
-import type { NoteKeyQuiz } from '../quiz/keys'
+import type { ScaleDegreeQuiz } from '../quiz/keys'
 import { LISTENING_STATES, type TrainerState } from '../quiz/sequencer'
 import { getCorrectAnswerCount, getTotalScore, type SessionStats } from '../quiz/stats'
 import { Card } from './ui/Card'
 import {
-  NoteKeyEncouragementToast,
-  type NoteKeyEncouragement,
-} from './NoteKeyEncouragementToast'
+  ScaleDegreeEncouragementToast,
+  type ScaleDegreeEncouragement,
+} from './ScaleDegreeEncouragementToast'
 import { SessionLoadStatus } from './SessionLoadStatus'
 
 function formatTotalScore(score: number): string {
   return Number.isInteger(score) ? String(score) : score.toFixed(1)
 }
 
-type NoteKeyArcadePlayfieldProps = {
+type ScaleDegreePlayfieldProps = {
   state: TrainerState
   sessionStats: SessionStats
-  lastQuiz: NoteKeyQuiz | null
+  lastQuiz: ScaleDegreeQuiz | null
   currentKeyLabel: string | null
-  encouragement: NoteKeyEncouragement | null
+  encouragement: ScaleDegreeEncouragement | null
   loadProgress: number | null
   loadIndeterminate: boolean
   loadError: string | null
@@ -141,7 +141,7 @@ function DegreeButton({
   )
 }
 
-export function NoteKeyArcadePlayfield({
+export function ScaleDegreePlayfield({
   state,
   sessionStats,
   lastQuiz,
@@ -152,7 +152,7 @@ export function NoteKeyArcadePlayfield({
   loadError,
   onSelect,
   onRetry,
-}: NoteKeyArcadePlayfieldProps) {
+}: ScaleDegreePlayfieldProps) {
   const phase = getPhase(state)
   const canAnswer =
     state === 'awaiting_answer' || LISTENING_STATES.includes(state)
@@ -218,7 +218,7 @@ export function NoteKeyArcadePlayfield({
 
       {encouragement ? (
         <div className="pointer-events-none absolute inset-x-0 top-14 z-10 flex justify-center px-4">
-          <NoteKeyEncouragementToast
+          <ScaleDegreeEncouragementToast
             key={encouragement.key}
             message={encouragement.message}
           />

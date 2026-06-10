@@ -26,7 +26,7 @@ export type MajorKeySession = {
   label: string
 }
 
-export type NoteKeyQuiz = {
+export type ScaleDegreeQuiz = {
   tonicMidi: number
   noteMidi: number
   degree: number
@@ -252,13 +252,13 @@ function pickRandomNoteMidi(
   )
 }
 
-export function randomNoteKeyQuiz(
+export function randomScaleDegreeQuiz(
   session: MajorKeySession,
   rootMin: number,
   rootMax: number,
   previousNoteMidi?: number | null,
   sessionDegreeWeights?: SessionDegreeWeights,
-): NoteKeyQuiz {
+): ScaleDegreeQuiz {
   const midis = listDiatonicMidisInRange(session.tonicPitchClass, rootMin, rootMax)
   const noteMidi = pickRandomNoteMidi(
     midis,
@@ -281,13 +281,13 @@ export function randomNoteKeyQuiz(
   }
 }
 
-export function noteKeyQuizFromMistake(
+export function scaleDegreeQuizFromMistake(
   session: MajorKeySession,
   record: { correctDegree: number },
   rootMin: number,
   rootMax: number,
   previousNoteMidi?: number | null,
-): NoteKeyQuiz | null {
+): ScaleDegreeQuiz | null {
   const midis = listDiatonicMidisInRange(session.tonicPitchClass, rootMin, rootMax).filter(
     (midi) => midiToDegree(session.tonicPitchClass, midi) === record.correctDegree,
   )

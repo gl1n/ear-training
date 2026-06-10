@@ -3,14 +3,14 @@ import {
   aggregateByCorrectDegree,
   aggregateByDegreePair,
   MAX_RECENT_MISTAKES,
-  recordNoteKeyMistake,
-  weightedRandomNoteKeyQuizFromMistakes,
-  type NoteKeyMistakeStatsStore,
-} from './noteKeyMistakeStats'
+  recordScaleDegreeMistake,
+  weightedRandomScaleDegreeQuizFromMistakes,
+  type ScaleDegreeMistakeStatsStore,
+} from './scaleDegreeMistakeStats'
 
 describe('aggregateByCorrectDegree', () => {
   it('counts mistakes per correct degree', () => {
-    const store: NoteKeyMistakeStatsStore = [
+    const store: ScaleDegreeMistakeStatsStore = [
       { previousNoteMidi: 60, correctDegree: 3, wrongDegree: '1' },
       { previousNoteMidi: 62, correctDegree: 3, wrongDegree: '5' },
       { previousNoteMidi: null, correctDegree: 5, wrongDegree: '4' },
@@ -30,7 +30,7 @@ describe('aggregateByCorrectDegree', () => {
 
 describe('aggregateByDegreePair', () => {
   it('groups mistakes by correct and wrong degree with ratios', () => {
-    const store: NoteKeyMistakeStatsStore = [
+    const store: ScaleDegreeMistakeStatsStore = [
       { previousNoteMidi: 60, correctDegree: 2, wrongDegree: '6' },
       { previousNoteMidi: 62, correctDegree: 2, wrongDegree: '6' },
       { previousNoteMidi: null, correctDegree: 2, wrongDegree: '1' },
@@ -49,12 +49,12 @@ describe('aggregateByDegreePair', () => {
   })
 })
 
-describe('recordNoteKeyMistake', () => {
+describe('recordScaleDegreeMistake', () => {
   it('caps the store at MAX_RECENT_MISTAKES', () => {
-    const store: NoteKeyMistakeStatsStore = []
+    const store: ScaleDegreeMistakeStatsStore = []
 
     for (let i = 0; i < MAX_RECENT_MISTAKES + 5; i++) {
-      recordNoteKeyMistake(store, {
+      recordScaleDegreeMistake(store, {
         previousNoteMidi: 60,
         correctDegree: 1,
         wrongDegree: '2',
@@ -70,9 +70,9 @@ describe('recordNoteKeyMistake', () => {
   })
 
   it('ignores invalid records', () => {
-    const store: NoteKeyMistakeStatsStore = []
+    const store: ScaleDegreeMistakeStatsStore = []
 
-    recordNoteKeyMistake(store, {
+    recordScaleDegreeMistake(store, {
       previousNoteMidi: 60,
       correctDegree: 8,
       wrongDegree: '2',
@@ -82,17 +82,17 @@ describe('recordNoteKeyMistake', () => {
   })
 })
 
-describe('weightedRandomNoteKeyQuizFromMistakes', () => {
+describe('weightedRandomScaleDegreeQuizFromMistakes', () => {
   const session = { tonicMidi: 60, tonicPitchClass: 0, label: 'C 大调' }
 
   it('returns a quiz with the chosen mistake degree', () => {
-    const store: NoteKeyMistakeStatsStore = [
+    const store: ScaleDegreeMistakeStatsStore = [
       { previousNoteMidi: 60, correctDegree: 5, wrongDegree: '3' },
     ]
 
     vi.spyOn(Math, 'random').mockReturnValue(0)
 
-    const quiz = weightedRandomNoteKeyQuizFromMistakes(store, session, 48, 85, 60)
+    const quiz = weightedRandomScaleDegreeQuizFromMistakes(store, session, 48, 85, 60)
     expect(quiz).not.toBeNull()
     expect(quiz!.degree).toBe(5)
     expect(quiz!.previousNoteMidi).toBe(60)
@@ -101,13 +101,13 @@ describe('weightedRandomNoteKeyQuizFromMistakes', () => {
   })
 
   it('returns null when the degree is unavailable in the current key range', () => {
-    const store: NoteKeyMistakeStatsStore = [
+    const store: ScaleDegreeMistakeStatsStore = [
       { previousNoteMidi: 60, correctDegree: 5, wrongDegree: '3' },
     ]
 
     vi.spyOn(Math, 'random').mockReturnValue(0)
 
-    const quiz = weightedRandomNoteKeyQuizFromMistakes(store, session, 60, 60, null)
+    const quiz = weightedRandomScaleDegreeQuizFromMistakes(store, session, 60, 60, null)
     expect(quiz).toBeNull()
 
     vi.restoreAllMocks()

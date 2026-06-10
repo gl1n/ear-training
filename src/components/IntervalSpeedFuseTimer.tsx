@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import { ARCADE_SESSION_TIME_MS } from '../quiz/sequencer'
+import { INTERVAL_SPEED_TIME_MS } from '../quiz/sequencer'
 
-type ArcadeFuseTimerProps = {
+type IntervalSpeedFuseTimerProps = {
   deadlineMs: number
 }
 
-export function ArcadeFuseTimer({ deadlineMs }: ArcadeFuseTimerProps) {
+export function IntervalSpeedFuseTimer({ deadlineMs }: IntervalSpeedFuseTimerProps) {
   const fillRef = useRef<HTMLDivElement>(null)
   const [remainingSeconds, setRemainingSeconds] = useState(() =>
     Math.ceil(Math.max(0, deadlineMs - performance.now()) / 1000),
   )
   const [isLow, setIsLow] = useState(
-    () => (deadlineMs - performance.now()) / ARCADE_SESSION_TIME_MS <= 0.25,
+    () => (deadlineMs - performance.now()) / INTERVAL_SPEED_TIME_MS <= 0.25,
   )
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export function ArcadeFuseTimer({ deadlineMs }: ArcadeFuseTimerProps) {
 
     const tick = () => {
       const remaining = Math.max(0, deadlineMs - performance.now())
-      const ratio = remaining / ARCADE_SESSION_TIME_MS
+      const ratio = remaining / INTERVAL_SPEED_TIME_MS
       const fill = fillRef.current
 
       if (fill) {

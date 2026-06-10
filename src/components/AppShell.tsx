@@ -19,11 +19,11 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const subtitle =
-    mode === 'arcade'
-      ? '听音辨程 · 即时作答 · 统计成绩'
-      : mode === 'noteKey'
+    mode === 'intervalSpeed'
+      ? '听音辨程 · 限时作答 · 统计成绩'
+      : mode === 'scaleDegree'
         ? '随机大调 · 听音选级 · 连对挑战'
-        : '上行 · 下行 · 和弦 · 中文播报'
+        : '循环播放 · 语音播报 · 无需作答'
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col px-4 py-6 sm:px-6 sm:py-8">
@@ -34,7 +34,7 @@ export function AppShell({
 
       <div
         className={
-          mode === 'noteKey'
+          mode === 'scaleDegree'
             ? 'flex flex-1 flex-col gap-5'
             : 'flex flex-1 flex-col gap-5 lg:grid lg:grid-cols-[1fr_300px] lg:items-start lg:gap-8'
         }
@@ -48,10 +48,10 @@ export function AppShell({
           </footer>
         </div>
 
-        {mode !== 'noteKey' && (
+        {mode !== 'scaleDegree' && (
           <aside className="hidden lg:block">
             <div className="sticky top-6">
-              <h2 className="mb-4 text-sm font-medium text-[var(--text-secondary)]">练习设置</h2>
+              <h2 className="mb-4 text-sm font-medium text-[var(--text-secondary)]">训练设置</h2>
               {settingsPanel}
             </div>
           </aside>

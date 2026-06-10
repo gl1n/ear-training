@@ -1,13 +1,13 @@
 const STORAGE_KEY = 'ear-trainer:note-key-session-history'
 const MAX_RECORDS = 40
 
-export type NoteKeySessionRecord = {
+export type ScaleDegreeSessionRecord = {
   correctCount: number
   totalScore?: number
   at: number
 }
 
-function isNoteKeySessionRecord(value: unknown): value is NoteKeySessionRecord {
+function isScaleDegreeSessionRecord(value: unknown): value is ScaleDegreeSessionRecord {
   if (typeof value !== 'object' || value === null) return false
   const record = value as Record<string, unknown>
   return (
@@ -20,7 +20,7 @@ function isNoteKeySessionRecord(value: unknown): value is NoteKeySessionRecord {
   )
 }
 
-export function loadNoteKeySessionHistory(): NoteKeySessionRecord[] {
+export function loadScaleDegreeSessionHistory(): ScaleDegreeSessionRecord[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return []
@@ -28,31 +28,31 @@ export function loadNoteKeySessionHistory(): NoteKeySessionRecord[] {
     const parsed: unknown = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
 
-    return parsed.filter(isNoteKeySessionRecord)
+    return parsed.filter(isScaleDegreeSessionRecord)
   } catch {
     return []
   }
 }
 
-function saveNoteKeySessionHistory(records: NoteKeySessionRecord[]): void {
+function saveScaleDegreeSessionHistory(records: ScaleDegreeSessionRecord[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
 }
 
-export function appendNoteKeySessionRecord(
+export function appendScaleDegreeSessionRecord(
   correctCount: number,
   totalScore?: number,
-): NoteKeySessionRecord[] {
-  const nextRecord: NoteKeySessionRecord = {
+): ScaleDegreeSessionRecord[] {
+  const nextRecord: ScaleDegreeSessionRecord = {
     correctCount,
     ...(totalScore !== undefined ? { totalScore } : {}),
     at: Date.now(),
   }
-  const records = [...loadNoteKeySessionHistory(), nextRecord].slice(-MAX_RECORDS)
-  saveNoteKeySessionHistory(records)
+  const records = [...loadScaleDegreeSessionHistory(), nextRecord].slice(-MAX_RECORDS)
+  saveScaleDegreeSessionHistory(records)
   return records
 }
 
-export function clearNoteKeySessionHistory(): void {
+export function clearScaleDegreeSessionHistory(): void {
   try {
     localStorage.removeItem(STORAGE_KEY)
   } catch {

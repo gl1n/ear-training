@@ -6,10 +6,10 @@ import {
   getTotalScore,
   MAX_SESSION_DEGREE_COUNT_VARIANCE,
   populationVariance,
-  recordNoteKeyResult,
+  recordScaleDegreeResult,
   recordResult,
 } from './stats'
-import { randomNoteKeyQuiz } from './keys'
+import { randomScaleDegreeQuiz } from './keys'
 
 describe('aggregateSessionDegreeDistribution', () => {
   it('returns zero counts for an empty session', () => {
@@ -72,7 +72,7 @@ function simulateBalancedSessionDegreeCounts(
   let previousNoteMidi: number | null = null
 
   for (let i = 0; i < trials; i++) {
-    const quiz = randomNoteKeyQuiz(
+    const quiz = randomScaleDegreeQuiz(
       session,
       rootMin,
       rootMax,
@@ -86,18 +86,18 @@ function simulateBalancedSessionDegreeCounts(
   return aggregateSessionDegreeDistribution(stats).map((item) => item.count)
 }
 
-describe('recordNoteKeyResult', () => {
+describe('recordScaleDegreeResult', () => {
   it('adds weighted score for correct answers with reaction time', () => {
     let stats = EMPTY_SESSION_STATS
-    stats = recordNoteKeyResult(stats, '3', { correct: true, reactionMs: 500 })
-    stats = recordNoteKeyResult(stats, '5', { correct: true, reactionMs: 1_500 })
-    stats = recordNoteKeyResult(stats, '1', { correct: true, reactionMs: 2_500 })
+    stats = recordScaleDegreeResult(stats, '3', { correct: true, reactionMs: 500 })
+    stats = recordScaleDegreeResult(stats, '5', { correct: true, reactionMs: 1_500 })
+    stats = recordScaleDegreeResult(stats, '1', { correct: true, reactionMs: 2_500 })
 
     expect(getTotalScore(stats)).toBe(2.5)
   })
 
   it('does not add score for incorrect answers', () => {
-    const stats = recordNoteKeyResult(EMPTY_SESSION_STATS, '3', {
+    const stats = recordScaleDegreeResult(EMPTY_SESSION_STATS, '3', {
       correct: false,
       reactionMs: 100,
     })

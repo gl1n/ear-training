@@ -10,7 +10,7 @@ import { MistakeDistributionChart } from './MistakeDistributionChart'
 import { PlayAreaCard } from './PlayAreaCard'
 import { PlayableIntervalCard } from './PlayableIntervalCard'
 import { ResetStatsButton } from './ResetStatsButton'
-type ArcadeIdlePanelProps = {
+type IntervalSpeedIdlePanelProps = {
   lastQuiz: Quiz | null
   sessionStats: SessionStats
   trainingStats: TrainingStatsViewModel
@@ -30,7 +30,7 @@ function ScoreCard({ correctCount }: { correctCount: number }) {
   )
 }
 
-export function ArcadeIdlePanel({
+export function IntervalSpeedIdlePanel({
   lastQuiz,
   sessionStats,
   trainingStats,
@@ -39,8 +39,9 @@ export function ArcadeIdlePanel({
   replayingQuizKey,
   isReplayBusy,
   onPlayQuiz,
-}: ArcadeIdlePanelProps) {
-  const { mistakeStats, bestRecord, isNewBestRecord, canReset, reset } = trainingStats
+}: IntervalSpeedIdlePanelProps) {
+  const { mistakeStats, intervalSpeedBestRecord, isNewIntervalSpeedBestRecord, canReset, reset } =
+    trainingStats
   const gameEnded = lastQuiz !== null && hasSessionAttempts(sessionStats)
   const correctCount = getCorrectAnswerCount(sessionStats)
 
@@ -58,19 +59,19 @@ export function ArcadeIdlePanel({
           <ScoreCard correctCount={correctCount} />
         </div>
 
-        {bestRecord && (
+        {intervalSpeedBestRecord && (
           <div className="flex w-full max-w-sm flex-col gap-3">
             <div className="flex items-center justify-center gap-2">
               <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
                 最佳记录
               </p>
-              {isNewBestRecord && (
+              {isNewIntervalSpeedBestRecord && (
                 <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300">
                   新纪录
                 </span>
               )}
             </div>
-            <ScoreCard correctCount={bestRecord.correctCount} />
+            <ScoreCard correctCount={intervalSpeedBestRecord.correctCount} />
           </div>
         )}
 
@@ -102,7 +103,7 @@ export function ArcadeIdlePanel({
   return (
     <PlayAreaCard className={canReset ? 'gap-6' : undefined}>
       <div className="text-center">
-        <p className="text-sm font-medium">街机挑战</p>
+        <p className="text-sm font-medium">音程竞速</p>
         <p className="mt-2 max-w-sm text-sm leading-relaxed text-[var(--text-secondary)]">
           听音后点选答案 · 30 秒时限 · 答错或超时即结束
         </p>

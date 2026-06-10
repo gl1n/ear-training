@@ -4,16 +4,16 @@ import { createAudioContext, unlockAudioContextSync } from '../audio/context'
 import { getInitialSettings, usePersistedSettings } from '../hooks/usePersistedSettings'
 import { useTrainingStats } from '../hooks/useTrainingStats'
 import { ALL_INTERVAL_IDS, type IntervalDirection, type Quiz } from '../quiz/intervals'
-import type { NoteKeyQuiz } from '../quiz/keys'
-import type { NoteKeyMistakeRecord, NoteKeyMistakeStatsStore } from '../quiz/noteKeyMistakeStats'
+import type { ScaleDegreeQuiz } from '../quiz/keys'
+import type { ScaleDegreeMistakeRecord, ScaleDegreeMistakeStatsStore } from '../quiz/scaleDegreeMistakeStats'
 import {
   createDefaultSettings,
   replayQuiz,
-  runArcadeLoop,
-  runLoop,
-  runNoteKeyArcadeLoop,
+  runIntervalFollowLoop,
+  runIntervalSpeedLoop,
+  runScaleDegreeLoop,
   stopPlayback,
-  ARCADE_SESSION_TIME_MS,
+  INTERVAL_SPEED_TIME_MS,
   type AppMode,
   type Settings,
   type SpeedPreset,
@@ -21,14 +21,14 @@ import {
 } from '../quiz/sequencer'
 import {
   EMPTY_SESSION_STATS,
-  recordNoteKeyResult,
+  recordScaleDegreeResult,
   recordResult,
   type SessionStats,
 } from '../quiz/stats'
 import { getQuizPitchKey } from '../quiz/intervals'
 import { IDLE_TIP_MESSAGES } from './IdleTipToast'
-import type { NoteKeyEncouragement } from './NoteKeyEncouragementToast'
-import { getEncouragementForReactionMs } from '../quiz/noteKeyScoring'
+import type { ScaleDegreeEncouragement } from './ScaleDegreeEncouragementToast'
+import { getEncouragementForReactionMs } from '../quiz/scaleDegreeScoring'
 import { LISTENING_STATES } from '../quiz/sequencer'
 import { abortError, isAbortError } from '../utils/abort'
 import type { SettingsPanelProps } from './SettingsPanel'
@@ -57,16 +57,17 @@ export function Trainer() {
   const [speedPreset, setSpeedPreset] = useState<SpeedPreset>(initial.speedPreset)
   const [settings, setSettings] = useState<Settings>(initial.settings)
   const [lastQuiz, setLastQuiz] = useState<Quiz | null>(null)
-  const [lastNoteKeyQuiz, setLastNoteKeyQuiz] = useState<NoteKeyQuiz | null>(null)
+  const [lastScaleDegreeQuiz, setLastScaleDegreeQuiz] = useState<ScaleDegreeQuiz | null>(null)
   const [currentKeyLabel, setCurrentKeyLabel] = useState<string | null>(null)
-  const [noteKeyGameStarted, setNoteKeyGameStarted] = useState(false)
-  const [noteKeyReviewEnabled, setNoteKeyReviewEnabled] = useState(initial.noteKeyReviewEnabled)
-  const [sessionNoteKeyMistakes, setSessionNoteKeyMistakes] = useState<NoteKeyMistakeStatsStore>(
-    [],
+  const [scaleDegreeGameStarted, setScaleDegreeGameStarted] = useState(false)
+  const [scaleDegreeReviewEnabled, setScaleDegreeReviewEnabled] = useState(
+    initial.scaleDegreeReviewEnabled,
   )
+  const [sessionScaleDegreeMistakes, setSessionScaleDegreeMistakes] =
+    useState<ScaleDegreeMistakeStatsStore>([])
   const [sessionStats, setSessionStats] = useState<SessionStats>(EMPTY_SESSION_STATS)
-  const [arcadeDeadlineMs, setArcadeDeadlineMs] = useState<number | null>(null)
-  const [arcadeTimedOut, setArcadeTimedOut] = useState(false)
+  const [intervalSpeedDeadlineMs, setIntervalSpeedDeadlineMs] = useState<number | null>(null)
+  const [intervalSpeedTimedOut, setIntervalSpeedTimedOut] = useState(false)
   const [loadProgress, setLoadProgress] = useState<number | null>(null)
   const [loadIndeterminate, setLoadIndeterminate] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -83,19 +84,18 @@ export function Trainer() {
   const sessionStatsRef = useRef<SessionStats>(EMPTY_SESSION_STATS)
   const idleTipIndexRef = useRef(0)
   const [idleTip, setIdleTip] = useState<string | null>(null)
-  const noteKeyEncouragementKeyRef = useRef(0)
-  const [noteKeyEncouragement, setNoteKeyEncouragement] = useState<NoteKeyEncouragement | null>(
-    null,
-  )
+  const scaleDegreeEncouragementKeyRef = useRef(0)
+  const [scaleDegreeEncouragement, setScaleDegreeEncouragement] =
+    useState<ScaleDegreeEncouragement | null>(null)
 
   const {
     mistakeStoreRef,
-    noteKeyMistakeStoreRef,
+    scaleDegreeMistakeStoreRef,
     viewModel: trainingStats,
     recordQuizMistake,
-    recordNoteKeyQuizMistake,
+    recordScaleDegreeQuizMistake,
     clearNewBestRecord,
-    finalizeArcadeSession,
+    finalizeChallengeSession,
   } = useTrainingStats({
     direction: settings.direction,
     enabledIntervalIds: settings.enabledIntervalIds,
@@ -111,9 +111,9 @@ export function Trainer() {
 
   useEffect(() => {
     if (
-      mode !== 'noteKey' ||
+      mode !== 'scaleDegree' ||
       !isRunning ||
-      noteKeyGameStarted ||
+      scaleDegreeGameStarted ||
       state !== 'idle' ||
       currentKeyLabel === null ||
       !gameStartResolverRef.current
@@ -122,7 +122,7 @@ export function Trainer() {
     }
 
     gameStartResolverRef.current()
-  }, [mode, isRunning, noteKeyGameStarted, state, currentKeyLabel])
+  }, [mode, isRunning, scaleDegreeGameStarted, state, currentKeyLabel])
 
   useEffect(() => {
     if (!idleTip) {
@@ -139,25 +139,25 @@ export function Trainer() {
   }, [idleTip])
 
   useEffect(() => {
-    if (!noteKeyEncouragement) {
+    if (!scaleDegreeEncouragement) {
       return
     }
 
     const timeoutId = setTimeout(() => {
-      setNoteKeyEncouragement(null)
+      setScaleDegreeEncouragement(null)
     }, 1800)
 
     return () => {
       clearTimeout(timeoutId)
     }
-  }, [noteKeyEncouragement?.key])
+  }, [scaleDegreeEncouragement?.key])
 
   usePersistedSettings(
     speedPreset,
     settings.enabledIntervalIds,
     settings.direction,
     mode,
-    noteKeyReviewEnabled,
+    scaleDegreeReviewEnabled,
   )
 
   const showIdleTip = useCallback(() => {
@@ -166,7 +166,7 @@ export function Trainer() {
     setIdleTip(message)
   }, [])
 
-  const resetArcadeAnswerState = useCallback(() => {
+  const resetChallengeAnswerState = useCallback(() => {
     answerResolverRef.current = null
     answerCleanupRef.current?.()
     answerCleanupRef.current = null
@@ -186,18 +186,18 @@ export function Trainer() {
     abortRef.current = null
     replayAbortRef.current?.abort()
     replayAbortRef.current = null
-    resetArcadeAnswerState()
+    resetChallengeAnswerState()
     stopPlayback(pianoRef.current)
-  }, [resetArcadeAnswerState])
+  }, [resetChallengeAnswerState])
 
   const stop = useCallback(() => {
     abortSession()
     setIsRunning(false)
     setState('idle')
-    setArcadeDeadlineMs(null)
+    setIntervalSpeedDeadlineMs(null)
     setIdleTip(null)
-    setNoteKeyEncouragement(null)
-    setNoteKeyGameStarted(false)
+    setScaleDegreeEncouragement(null)
+    setScaleDegreeGameStarted(false)
     resetLoadingState()
   }, [abortSession, resetLoadingState])
 
@@ -225,7 +225,7 @@ export function Trainer() {
 
       gameStartResolverRef.current = () => {
         cleanup()
-        setNoteKeyGameStarted(true)
+        setScaleDegreeGameStarted(true)
         resolve()
       }
       gameStartCleanupRef.current = cleanup
@@ -233,7 +233,7 @@ export function Trainer() {
     })
   }, [])
 
-  const waitForNoteKeyAnswer = useCallback((signal: AbortSignal) => {
+  const waitForScaleDegreeAnswer = useCallback((signal: AbortSignal) => {
     return new Promise<{ selectedDegree: string; timedOut?: boolean }>((resolve, reject) => {
       const onAbort = () => {
         cleanup()
@@ -340,7 +340,7 @@ export function Trainer() {
   )
 
   const start = useCallback(async () => {
-    if (mode !== 'noteKey' && settings.enabledIntervalIds.length === 0) {
+    if (mode !== 'scaleDegree' && settings.enabledIntervalIds.length === 0) {
       return
     }
 
@@ -353,18 +353,18 @@ export function Trainer() {
     setLoadError(null)
     setSessionStats(EMPTY_SESSION_STATS)
     sessionStatsRef.current = EMPTY_SESSION_STATS
-    resetArcadeAnswerState()
-    if (mode === 'arcade') {
+    resetChallengeAnswerState()
+    if (mode === 'intervalSpeed') {
       setLastQuiz(null)
-      clearNewBestRecord('interval')
-      setArcadeTimedOut(false)
+      clearNewBestRecord('intervalSpeed')
+      setIntervalSpeedTimedOut(false)
     }
-    if (mode === 'noteKey') {
-      setLastNoteKeyQuiz(null)
+    if (mode === 'scaleDegree') {
+      setLastScaleDegreeQuiz(null)
       setCurrentKeyLabel(null)
-      setNoteKeyGameStarted(false)
-      setSessionNoteKeyMistakes([])
-      clearNewBestRecord('noteKey')
+      setScaleDegreeGameStarted(false)
+      setSessionScaleDegreeMistakes([])
+      clearNewBestRecord('scaleDegree')
     }
 
     try {
@@ -392,13 +392,13 @@ export function Trainer() {
       resetLoadingState()
 
       const sessionDeadlineMs =
-        mode === 'arcade' ? performance.now() + ARCADE_SESSION_TIME_MS : null
+        mode === 'intervalSpeed' ? performance.now() + INTERVAL_SPEED_TIME_MS : null
       if (sessionDeadlineMs !== null) {
-        setArcadeDeadlineMs(sessionDeadlineMs)
+        setIntervalSpeedDeadlineMs(sessionDeadlineMs)
       }
 
-      if (mode === 'arcade') {
-        await runArcadeLoop(
+      if (mode === 'intervalSpeed') {
+        await runIntervalSpeedLoop(
           pianoRef.current,
           settings,
           {
@@ -406,7 +406,7 @@ export function Trainer() {
             waitForAnswer: (signal, timeoutMs) => waitForAnswer(signal, timeoutMs),
             onAnswerSubmitted: (quiz, answer, correct) => {
               if (answer.timedOut) {
-                setArcadeTimedOut(true)
+                setIntervalSpeedTimedOut(true)
               }
               if (!correct && !answer.timedOut) {
                 recordQuizMistake(quiz)
@@ -427,8 +427,8 @@ export function Trainer() {
           sessionDeadlineMs!,
           mistakeStoreRef.current,
         )
-      } else if (mode === 'noteKey') {
-        await runNoteKeyArcadeLoop(
+      } else if (mode === 'scaleDegree') {
+        await runScaleDegreeLoop(
           pianoRef.current,
           settings,
           {
@@ -437,35 +437,35 @@ export function Trainer() {
               setCurrentKeyLabel(session.label)
             },
             waitForGameStart: (signal) => waitForGameStart(signal),
-            waitForAnswer: (signal) => waitForNoteKeyAnswer(signal),
+            waitForAnswer: (signal) => waitForScaleDegreeAnswer(signal),
             onAnswerSubmitted: (quiz, answer, correct) => {
-              setLastNoteKeyQuiz(quiz)
+              setLastScaleDegreeQuiz(quiz)
               if (
                 !correct &&
                 !answer.timedOut &&
                 answer.selectedDegree !== '' &&
                 answer.selectedDegree !== String(quiz.degree)
               ) {
-                const record: NoteKeyMistakeRecord = {
+                const record: ScaleDegreeMistakeRecord = {
                   previousNoteMidi: quiz.previousNoteMidi,
                   correctDegree: quiz.degree,
                   wrongDegree: answer.selectedDegree,
                 }
-                recordNoteKeyQuizMistake(record)
-                setSessionNoteKeyMistakes((current) => [...current, record])
+                recordScaleDegreeQuizMistake(record)
+                setSessionScaleDegreeMistakes((current) => [...current, record])
               }
               if (correct && answer.reactionMs !== undefined) {
                 const message = getEncouragementForReactionMs(answer.reactionMs)
                 if (message) {
-                  noteKeyEncouragementKeyRef.current += 1
-                  setNoteKeyEncouragement({
+                  scaleDegreeEncouragementKeyRef.current += 1
+                  setScaleDegreeEncouragement({
                     message,
-                    key: noteKeyEncouragementKeyRef.current,
+                    key: scaleDegreeEncouragementKeyRef.current,
                   })
                 }
               }
               setSessionStats((current) => {
-                const next = recordNoteKeyResult(current, String(quiz.degree), {
+                const next = recordScaleDegreeResult(current, String(quiz.degree), {
                   correct,
                   reactionMs: answer.reactionMs,
                 })
@@ -476,11 +476,11 @@ export function Trainer() {
             getSessionStats: () => sessionStatsRef.current,
           },
           controller.signal,
-          noteKeyMistakeStoreRef.current,
-          noteKeyReviewEnabled,
+          scaleDegreeMistakeStoreRef.current,
+          scaleDegreeReviewEnabled,
         )
       } else {
-        await runLoop(
+        await runIntervalFollowLoop(
           pianoRef.current,
           settings,
           {
@@ -500,25 +500,25 @@ export function Trainer() {
       setState('idle')
     } finally {
       if (abortRef.current === controller) {
-        if (mode === 'arcade') {
-          finalizeArcadeSession(sessionStatsRef.current, 'interval')
+        if (mode === 'intervalSpeed') {
+          finalizeChallengeSession(sessionStatsRef.current, 'intervalSpeed')
         }
-        if (mode === 'noteKey') {
-          finalizeArcadeSession(sessionStatsRef.current, 'noteKey')
+        if (mode === 'scaleDegree') {
+          finalizeChallengeSession(sessionStatsRef.current, 'scaleDegree')
         }
 
         setIsRunning(false)
         setState('idle')
-        setArcadeDeadlineMs(null)
-        setNoteKeyGameStarted(false)
+        setIntervalSpeedDeadlineMs(null)
+        setScaleDegreeGameStarted(false)
         abortRef.current = null
-        resetArcadeAnswerState()
+        resetChallengeAnswerState()
       }
     }
-  }, [mode, noteKeyReviewEnabled, resetArcadeAnswerState, resetLoadingState, settings, showIdleTip, waitForAnswer, waitForGameStart, waitForNoteKeyAnswer, recordQuizMistake, recordNoteKeyQuizMistake, finalizeArcadeSession, clearNewBestRecord])
+  }, [mode, scaleDegreeReviewEnabled, resetChallengeAnswerState, resetLoadingState, settings, showIdleTip, waitForAnswer, waitForGameStart, waitForScaleDegreeAnswer, recordQuizMistake, recordScaleDegreeQuizMistake, finalizeChallengeSession, clearNewBestRecord])
 
   const handleToggle = () => {
-    if (isRunning && mode === 'noteKey' && !noteKeyGameStarted) {
+    if (isRunning && mode === 'scaleDegree' && !scaleDegreeGameStarted) {
       stop()
       return
     }
@@ -533,22 +533,22 @@ export function Trainer() {
     void start()
   }
 
-  const handleNoteKeyHome = useCallback(() => {
-    setLastNoteKeyQuiz(null)
+  const handleScaleDegreeHome = useCallback(() => {
+    setLastScaleDegreeQuiz(null)
     setSessionStats(EMPTY_SESSION_STATS)
     sessionStatsRef.current = EMPTY_SESSION_STATS
-    setSessionNoteKeyMistakes([])
+    setSessionScaleDegreeMistakes([])
   }, [])
 
   const handleModeChange = (nextMode: AppMode) => {
     setMode(nextMode)
     setLastQuiz(null)
-    setLastNoteKeyQuiz(null)
+    setLastScaleDegreeQuiz(null)
     setCurrentKeyLabel(null)
-    setNoteKeyGameStarted(false)
+    setScaleDegreeGameStarted(false)
     setSessionStats(EMPTY_SESSION_STATS)
-    setArcadeTimedOut(false)
-    resetArcadeAnswerState()
+    setIntervalSpeedTimedOut(false)
+    resetChallengeAnswerState()
   }
 
   const handleSpeedChange = (preset: SpeedPreset) => {
@@ -613,20 +613,20 @@ export function Trainer() {
         isLoading={state === 'loading'}
         settingsControls={settingsControls}
         lastQuiz={lastQuiz}
-        lastNoteKeyQuiz={lastNoteKeyQuiz}
+        lastScaleDegreeQuiz={lastScaleDegreeQuiz}
         currentKeyLabel={currentKeyLabel}
-        noteKeyGameStarted={noteKeyGameStarted}
-        sessionNoteKeyMistakes={sessionNoteKeyMistakes}
-        noteKeyReviewEnabled={noteKeyReviewEnabled}
-        onNoteKeyReviewChange={setNoteKeyReviewEnabled}
+        scaleDegreeGameStarted={scaleDegreeGameStarted}
+        sessionScaleDegreeMistakes={sessionScaleDegreeMistakes}
+        scaleDegreeReviewEnabled={scaleDegreeReviewEnabled}
+        onScaleDegreeReviewChange={setScaleDegreeReviewEnabled}
         sessionStats={sessionStats}
         trainingStats={trainingStats}
         rootMin={settings.rootMin}
         rootMax={settings.rootMax}
-        arcadeDeadlineMs={arcadeDeadlineMs}
-        arcadeTimedOut={arcadeTimedOut}
+        intervalSpeedDeadlineMs={intervalSpeedDeadlineMs}
+        intervalSpeedTimedOut={intervalSpeedTimedOut}
         idleTip={idleTip}
-        noteKeyEncouragement={noteKeyEncouragement}
+        scaleDegreeEncouragement={scaleDegreeEncouragement}
         loadProgress={loadProgress}
         loadIndeterminate={loadIndeterminate}
         loadError={loadError}
@@ -638,10 +638,10 @@ export function Trainer() {
         replayingQuizKey={replayingQuizKey}
         isReplayBusy={replayingQuizKey !== null}
         onPlayQuiz={handlePlayQuiz}
-        onNoteKeyHome={handleNoteKeyHome}
+        onScaleDegreeHome={handleScaleDegreeHome}
       />
 
-      {mode !== 'noteKey' && (
+      {mode !== 'scaleDegree' && (
         <SettingsDrawer
           open={drawerOpen}
           onClose={() => setDrawerOpen(false)}

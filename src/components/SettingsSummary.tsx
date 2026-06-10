@@ -23,7 +23,7 @@ export function SettingsSummary({
   showHint,
   onOpenSettings,
 }: SettingsSummaryProps) {
-  const isNoteKeyMode = mode === 'noteKey'
+  const isScaleDegreeMode = mode === 'scaleDegree'
   const selectedIntervals = INTERVALS.filter((interval) =>
     enabledIntervalIds.includes(interval.id),
   )
@@ -47,7 +47,7 @@ export function SettingsSummary({
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <span className="text-sm text-[var(--text-secondary)]">速度</span>
           <Chip active>{getSpeedLabel(speedPreset)}</Chip>
-          {!isNoteKeyMode && (
+          {!isScaleDegreeMode && (
             <>
               <span className="text-[var(--text-secondary)]">·</span>
               <Chip active>{getDirectionLabel(direction)}</Chip>
@@ -57,11 +57,11 @@ export function SettingsSummary({
               </span>
             </>
           )}
-          {isNoteKeyMode && (
+          {isScaleDegreeMode && (
             <>
               <span className="text-[var(--text-secondary)]">·</span>
               <span className="rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-1.5 text-sm text-sky-200">
-                调内听音
+                音级辨识
               </span>
             </>
           )}
@@ -69,7 +69,7 @@ export function SettingsSummary({
         <span className="shrink-0 text-sm text-sky-400">设置 ›</span>
       </div>
 
-      {!isNoteKeyMode && selectedIntervals.length > 0 && (
+      {!isScaleDegreeMode && selectedIntervals.length > 0 && (
         <div className="flex flex-wrap gap-1.5 border-t border-[var(--border-subtle)] pt-3">
           {selectedIntervals.map((interval) => (
             <Chip key={interval.id} active>

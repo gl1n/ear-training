@@ -1,5 +1,5 @@
 import { DEGREE_OPTION_IDS } from './keys'
-import { getScoreForReactionMs } from './noteKeyScoring'
+import { getScoreForReactionMs } from './scaleDegreeScoring'
 
 export type QuizResult = {
   correct: boolean
@@ -25,7 +25,7 @@ export const EMPTY_SESSION_STATS: SessionStats = {
   totalScore: 0,
 }
 
-export type NoteKeyQuizResult = QuizResult & {
+export type ScaleDegreeQuizResult = QuizResult & {
   reactionMs?: number
 }
 
@@ -60,10 +60,10 @@ export function getCorrectAnswerCount(stats: SessionStats): number {
   )
 }
 
-export function recordNoteKeyResult(
+export function recordScaleDegreeResult(
   stats: SessionStats,
   degree: string,
-  result: NoteKeyQuizResult,
+  result: ScaleDegreeQuizResult,
 ): SessionStats {
   const next = recordResult(stats, degree, result)
 
