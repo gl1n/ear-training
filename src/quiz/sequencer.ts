@@ -154,6 +154,7 @@ export type ArcadeCallbacks = {
 export type NoteKeyArcadeAnswer = {
   selectedDegree: string
   timedOut?: boolean
+  reactionMs?: number
 }
 
 export const NOTE_KEY_TONIC_CHORD_DURATION_MS = 2_400
@@ -444,9 +445,11 @@ export async function runNoteKeyArcadeLoop(
     signal.addEventListener('abort', onSessionAbort)
 
     const answerPromise = callbacks.waitForAnswer(signal)
+    let notePlayStartMs: number | null = null
 
     const audioPromise = (async () => {
       callbacks.onStateChange('playing_note')
+      notePlayStartMs = performance.now()
       await playNote(piano, quiz.noteMidi, settings.noteDurationMs, audioAbort.signal)
       if (!audioAbort.signal.aborted) {
         callbacks.onStateChange('awaiting_answer')
@@ -460,6 +463,9 @@ export async function runNoteKeyArcadeLoop(
     let answer: NoteKeyArcadeAnswer
     try {
       answer = await answerPromise
+      if (notePlayStartMs !== null) {
+        answer = { ...answer, reactionMs: performance.now() - notePlayStartMs }
+      }
     } finally {
       audioAbort.abort()
       stopPlayback(piano)

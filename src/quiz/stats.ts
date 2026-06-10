@@ -1,4 +1,5 @@
 import { DEGREE_OPTION_IDS } from './keys'
+import { getScoreForReactionMs } from './noteKeyScoring'
 
 export type QuizResult = {
   correct: boolean
@@ -16,10 +17,16 @@ export type IntervalStats = {
 
 export type SessionStats = {
   byInterval: Record<string, IntervalStats>
+  totalScore: number
 }
 
 export const EMPTY_SESSION_STATS: SessionStats = {
   byInterval: {},
+  totalScore: 0,
+}
+
+export type NoteKeyQuizResult = QuizResult & {
+  reactionMs?: number
 }
 
 const EMPTY_INTERVAL_STATS: IntervalStats = {
@@ -35,6 +42,7 @@ export function recordResult(
   const current = stats.byInterval[intervalId] ?? EMPTY_INTERVAL_STATS
 
   return {
+    ...stats,
     byInterval: {
       ...stats.byInterval,
       [intervalId]: {
@@ -50,6 +58,27 @@ export function getCorrectAnswerCount(stats: SessionStats): number {
     (sum, interval) => sum + interval.correctCount,
     0,
   )
+}
+
+export function recordNoteKeyResult(
+  stats: SessionStats,
+  degree: string,
+  result: NoteKeyQuizResult,
+): SessionStats {
+  const next = recordResult(stats, degree, result)
+
+  if (!result.correct || result.reactionMs === undefined) {
+    return next
+  }
+
+  return {
+    ...next,
+    totalScore: next.totalScore + getScoreForReactionMs(result.reactionMs),
+  }
+}
+
+export function getTotalScore(stats: SessionStats): number {
+  return stats.totalScore
 }
 
 function getTotalAnswerCount(stats: SessionStats): number {

@@ -21,6 +21,7 @@ import {
 } from '../quiz/sequencer'
 import {
   EMPTY_SESSION_STATS,
+  recordNoteKeyResult,
   recordResult,
   type SessionStats,
 } from '../quiz/stats'
@@ -433,7 +434,10 @@ export function Trainer() {
                 setSessionNoteKeyMistakes((current) => [...current, record])
               }
               setSessionStats((current) => {
-                const next = recordResult(current, String(quiz.degree), { correct })
+                const next = recordNoteKeyResult(current, String(quiz.degree), {
+                  correct,
+                  reactionMs: answer.reactionMs,
+                })
                 sessionStatsRef.current = next
                 return next
               })

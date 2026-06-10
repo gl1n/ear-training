@@ -34,12 +34,12 @@ describe('noteKeySessionHistory', () => {
   it('appends session records', () => {
     vi.stubGlobal('localStorage', createLocalStorageMock())
 
-    appendNoteKeySessionRecord(3)
-    appendNoteKeySessionRecord(7)
+    appendNoteKeySessionRecord(3, 2.5)
+    appendNoteKeySessionRecord(7, 6)
 
     expect(loadNoteKeySessionHistory()).toEqual([
-      { correctCount: 3, at: expect.any(Number) },
-      { correctCount: 7, at: expect.any(Number) },
+      { correctCount: 3, totalScore: 2.5, at: expect.any(Number) },
+      { correctCount: 7, totalScore: 6, at: expect.any(Number) },
     ])
   })
 

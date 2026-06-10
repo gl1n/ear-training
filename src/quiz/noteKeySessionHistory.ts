@@ -3,6 +3,7 @@ const MAX_RECORDS = 40
 
 export type NoteKeySessionRecord = {
   correctCount: number
+  totalScore?: number
   at: number
 }
 
@@ -13,7 +14,9 @@ function isNoteKeySessionRecord(value: unknown): value is NoteKeySessionRecord {
     typeof record.correctCount === 'number' &&
     Number.isFinite(record.correctCount) &&
     typeof record.at === 'number' &&
-    Number.isFinite(record.at)
+    Number.isFinite(record.at) &&
+    (record.totalScore === undefined ||
+      (typeof record.totalScore === 'number' && Number.isFinite(record.totalScore)))
   )
 }
 
@@ -35,9 +38,13 @@ function saveNoteKeySessionHistory(records: NoteKeySessionRecord[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
 }
 
-export function appendNoteKeySessionRecord(correctCount: number): NoteKeySessionRecord[] {
+export function appendNoteKeySessionRecord(
+  correctCount: number,
+  totalScore?: number,
+): NoteKeySessionRecord[] {
   const nextRecord: NoteKeySessionRecord = {
     correctCount,
+    ...(totalScore !== undefined ? { totalScore } : {}),
     at: Date.now(),
   }
   const records = [...loadNoteKeySessionHistory(), nextRecord].slice(-MAX_RECORDS)

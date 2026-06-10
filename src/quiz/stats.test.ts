@@ -3,8 +3,10 @@ import {
   aggregateSessionDegreeDistribution,
   EMPTY_SESSION_STATS,
   getSessionDegreeWeights,
+  getTotalScore,
   MAX_SESSION_DEGREE_COUNT_VARIANCE,
   populationVariance,
+  recordNoteKeyResult,
   recordResult,
 } from './stats'
 import { randomNoteKeyQuiz } from './keys'
@@ -83,6 +85,26 @@ function simulateBalancedSessionDegreeCounts(
 
   return aggregateSessionDegreeDistribution(stats).map((item) => item.count)
 }
+
+describe('recordNoteKeyResult', () => {
+  it('adds weighted score for correct answers with reaction time', () => {
+    let stats = EMPTY_SESSION_STATS
+    stats = recordNoteKeyResult(stats, '3', { correct: true, reactionMs: 500 })
+    stats = recordNoteKeyResult(stats, '5', { correct: true, reactionMs: 1_500 })
+    stats = recordNoteKeyResult(stats, '1', { correct: true, reactionMs: 2_500 })
+
+    expect(getTotalScore(stats)).toBe(2.5)
+  })
+
+  it('does not add score for incorrect answers', () => {
+    const stats = recordNoteKeyResult(EMPTY_SESSION_STATS, '3', {
+      correct: false,
+      reactionMs: 100,
+    })
+
+    expect(getTotalScore(stats)).toBe(0)
+  })
+})
 
 describe('non-review note key session balancing', () => {
   it('keeps simulated session degree count variance within threshold', () => {

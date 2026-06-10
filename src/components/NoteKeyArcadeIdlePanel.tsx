@@ -2,6 +2,7 @@ import type { NoteKeyQuiz } from '../quiz/keys'
 import type { NoteKeyMistakeStatsStore } from '../quiz/noteKeyMistakeStats'
 import {
   getCorrectAnswerCount,
+  getTotalScore,
   hasSessionAttempts,
   type SessionStats,
 } from '../quiz/stats'
@@ -30,31 +31,50 @@ const HOW_TO_STEPS = [
 ] as const
 
 function ScoreCard({
-  correctCount,
+  value,
+  label,
   highlight = false,
+  variant = 'count',
 }: {
-  correctCount: number
+  value: number | string
+  label: string
   highlight?: boolean
+  variant?: 'count' | 'score'
 }) {
+  const isScore = variant === 'score'
+
   return (
     <div
       className={[
         'w-full max-w-sm rounded-2xl border px-5 py-5 text-center transition-colors',
         highlight
-          ? 'border-sky-400/30 bg-gradient-to-b from-sky-500/15 to-sky-500/5 note-key-glow'
+          ? isScore
+            ? 'border-amber-400/30 bg-gradient-to-b from-amber-500/15 to-amber-500/5'
+            : 'border-sky-400/30 bg-gradient-to-b from-sky-500/15 to-sky-500/5 note-key-glow'
           : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)]',
       ].join(' ')}
     >
       <p
-        className={`text-4xl font-bold tabular-nums ${highlight ? 'text-sky-100' : 'text-[var(--text-primary)]'}`}
+        className={[
+          'text-4xl font-bold tabular-nums',
+          highlight
+            ? isScore
+              ? 'text-amber-100'
+              : 'text-sky-100'
+            : 'text-[var(--text-primary)]',
+        ].join(' ')}
       >
-        {correctCount}
+        {value}
       </p>
       <p className="mt-1.5 text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-        连对题数
+        {label}
       </p>
     </div>
   )
+}
+
+function formatTotalScore(score: number): string {
+  return Number.isInteger(score) ? String(score) : score.toFixed(1)
 }
 
 function HowToPlay() {
@@ -99,6 +119,7 @@ export function NoteKeyArcadeIdlePanel({
   } = trainingStats
   const gameEnded = lastQuiz !== null && hasSessionAttempts(sessionStats)
   const correctCount = getCorrectAnswerCount(sessionStats)
+  const totalScore = getTotalScore(sessionStats)
   const hasHistoricalMistakes = noteKeyMistakeStats.length > 0
 
   if (gameEnded) {
@@ -117,7 +138,13 @@ export function NoteKeyArcadeIdlePanel({
           <p className="text-center text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
             本次成绩
           </p>
-          <ScoreCard correctCount={correctCount} highlight />
+          <ScoreCard value={correctCount} label="连对题数" highlight />
+          <ScoreCard
+            value={formatTotalScore(totalScore)}
+            label="加权总分"
+            highlight
+            variant="score"
+          />
         </div>
 
         {noteKeySessionHistory.length >= 2 && (
@@ -136,7 +163,7 @@ export function NoteKeyArcadeIdlePanel({
                 </span>
               )}
             </div>
-            <ScoreCard correctCount={noteKeyBestRecord.correctCount} />
+            <ScoreCard value={noteKeyBestRecord.correctCount} label="连对题数" />
           </div>
         )}
 

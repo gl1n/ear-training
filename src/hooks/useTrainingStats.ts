@@ -12,7 +12,12 @@ import {
   saveMistakeStats,
   type MistakeStatsStore,
 } from '../quiz/mistakeStats'
-import { getCorrectAnswerCount, hasSessionAttempts, type SessionStats } from '../quiz/stats'
+import {
+  getCorrectAnswerCount,
+  getTotalScore,
+  hasSessionAttempts,
+  type SessionStats,
+} from '../quiz/stats'
 import {
   loadNoteKeyMistakeStats,
   recordNoteKeyMistake,
@@ -124,7 +129,12 @@ export function useTrainingStats({
       if (variant === 'noteKey') {
         setNoteKeyBestRecord(record)
         setIsNewNoteKeyBestRecord(isNew)
-        setNoteKeySessionHistory(appendNoteKeySessionRecord(getCorrectAnswerCount(sessionStats)))
+        setNoteKeySessionHistory(
+          appendNoteKeySessionRecord(
+            getCorrectAnswerCount(sessionStats),
+            getTotalScore(sessionStats),
+          ),
+        )
         return
       }
 
