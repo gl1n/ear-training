@@ -2,7 +2,6 @@ import { getIntervalsByIds, type Quiz } from '../quiz/intervals'
 import { type TrainerState } from '../quiz/sequencer'
 import { type SessionStats } from '../quiz/stats'
 import { usePracticePlayfieldState } from '../hooks/usePracticePlayfieldState'
-import { IntervalSpeedFuseTimer } from './IntervalSpeedFuseTimer'
 import { AnswerSecondaryLabel } from './practice/AnswerSecondaryLabel'
 import { ChallengeAnswerButton } from './practice/ChallengeAnswerButton'
 import { PracticeEncouragementOverlay } from './practice/PracticeEncouragementOverlay'
@@ -17,8 +16,6 @@ type IntervalSpeedPlayfieldProps = {
   state: TrainerState
   sessionStats: SessionStats
   lastQuiz: Quiz | null
-  intervalSpeedDeadlineMs: number | null
-  intervalSpeedTimedOut: boolean
   encouragement: PracticeEncouragement | null
   loadProgress: number | null
   loadIndeterminate: boolean
@@ -39,8 +36,6 @@ export function IntervalSpeedPlayfield({
   state,
   sessionStats,
   lastQuiz,
-  intervalSpeedDeadlineMs,
-  intervalSpeedTimedOut,
   encouragement,
   loadProgress,
   loadIndeterminate,
@@ -49,26 +44,17 @@ export function IntervalSpeedPlayfield({
   onRetry,
 }: IntervalSpeedPlayfieldProps) {
   const options = getIntervalsByIds(optionIds)
-  const { canAnswer, isWrong, correctCount, currentQuestion, isListening } =
+  const { canAnswer, isWrong, correctCount, totalScore, currentQuestion, isListening } =
     usePracticePlayfieldState(state, sessionStats)
 
   return (
     <Card variant="default" className="relative flex flex-1 flex-col gap-4 p-4 sm:p-5">
-      {intervalSpeedDeadlineMs !== null && (
-        <IntervalSpeedFuseTimer deadlineMs={intervalSpeedDeadlineMs} />
-      )}
-
       <PracticeSessionHeader
         variant="intervalSpeed"
         currentQuestion={currentQuestion}
         correctCount={correctCount}
-        trailing={
-          <PracticePhaseIndicator
-            state={state}
-            variant="intervalSpeed"
-            timedOut={intervalSpeedTimedOut}
-          />
-        }
+        totalScore={totalScore}
+        trailing={<PracticePhaseIndicator state={state} variant="intervalSpeed" />}
       />
 
       <PracticeLoadStatus
@@ -79,7 +65,7 @@ export function IntervalSpeedPlayfield({
         onRetry={onRetry}
       />
 
-      <PracticeEncouragementOverlay encouragement={encouragement} variant="orange" />
+      <PracticeEncouragementOverlay encouragement={encouragement} />
 
       <div
         className={`grid flex-1 gap-2 sm:gap-2.5 ${gridColumns(options.length)}`}

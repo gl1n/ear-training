@@ -1,14 +1,8 @@
 import type { ScaleDegreeQuiz } from '../quiz/keys'
 import type { ScaleDegreeMistakeStatsStore } from '../quiz/scaleDegreeMistakeStats'
-import {
-  getCorrectAnswerCount,
-  getTotalScore,
-  hasSessionAttempts,
-  type SessionStats,
-} from '../quiz/stats'
+import { hasSessionAttempts, type SessionStats } from '../quiz/stats'
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
-import { formatScoreDisplay } from '../lib/formatScore'
-import { ChallengeEndedSection, ChallengeScoreCard } from './practice/ChallengeEndedSection'
+import { ChallengeSessionResults } from './practice/ChallengeSessionResults'
 import { ScaleDegreeCorrectCountChart } from './ScaleDegreeCorrectCountChart'
 import { ScaleDegreeMistakeSummary } from './ScaleDegreeMistakeSummary'
 import { PlayAreaCard } from './PlayAreaCard'
@@ -73,27 +67,18 @@ export function ScaleDegreeIdlePanel({
     reset,
   } = trainingStats
   const gameEnded = lastQuiz !== null && hasSessionAttempts(sessionStats)
-  const correctCount = getCorrectAnswerCount(sessionStats)
-  const totalScore = getTotalScore(sessionStats)
   const hasHistoricalMistakes = scaleDegreeMistakeStats.length > 0
 
   if (gameEnded) {
     return (
       <PlayAreaCard className="gap-7">
-        <ChallengeEndedSection
+        <ChallengeSessionResults
           accent="sky"
+          sessionStats={sessionStats}
           subtitle={lastQuiz?.keyLabel}
           isNewBestRecord={isNewScaleDegreeBestRecord}
           bestRecord={scaleDegreeBestRecord}
-        >
-          <ChallengeScoreCard value={correctCount} label="连对题数" highlight />
-          <ChallengeScoreCard
-            value={formatScoreDisplay(totalScore)}
-            label="加权总分"
-            highlight
-            variant="score"
-          />
-        </ChallengeEndedSection>
+        />
 
         {scaleDegreeSessionHistory.length >= 2 && (
           <ScaleDegreeCorrectCountChart records={scaleDegreeSessionHistory} highlightLast />

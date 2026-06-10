@@ -21,7 +21,7 @@ import type { LoadStatusProps } from './practice/viewProps'
 const MODE_OPTIONS = [
   { value: 'intervalFollow' as const, label: '音程跟听' },
   { value: 'scaleDegree' as const, label: '音级辨识' },
-  { value: 'intervalSpeed' as const, label: '音程竞速' },
+  { value: 'intervalSpeed' as const, label: '音程辨认' },
 ]
 
 type PracticeViewProps = {
@@ -41,10 +41,7 @@ type PracticeViewProps = {
   trainingStats: TrainingStatsViewModel
   rootMin: number
   rootMax: number
-  intervalSpeedDeadlineMs: number | null
-  intervalSpeedTimedOut: boolean
-  intervalSpeedEncouragement: PracticeEncouragement | null
-  scaleDegreeEncouragement: PracticeEncouragement | null
+  challengeEncouragement: PracticeEncouragement | null
   loadStatus: LoadStatusProps
   onModeChange: (mode: AppMode) => void
   onToggle: () => void
@@ -73,10 +70,7 @@ export function PracticeView({
   trainingStats,
   rootMin,
   rootMax,
-  intervalSpeedDeadlineMs,
-  intervalSpeedTimedOut,
-  intervalSpeedEncouragement,
-  scaleDegreeEncouragement,
+  challengeEncouragement,
   loadStatus,
   onModeChange,
   onToggle,
@@ -161,9 +155,7 @@ export function PracticeView({
             state={state}
             sessionStats={sessionStats}
             lastQuiz={lastQuiz}
-            intervalSpeedDeadlineMs={intervalSpeedDeadlineMs}
-            intervalSpeedTimedOut={intervalSpeedTimedOut}
-            encouragement={intervalSpeedEncouragement}
+            encouragement={challengeEncouragement}
             loadProgress={loadProgress}
             loadIndeterminate={loadIndeterminate}
             loadError={loadError}
@@ -189,7 +181,7 @@ export function PracticeView({
             sessionStats={sessionStats}
             lastQuiz={lastScaleDegreeQuiz}
             currentKeyLabel={currentKeyLabel}
-            encouragement={scaleDegreeEncouragement}
+            encouragement={challengeEncouragement}
             loadProgress={loadProgress}
             loadIndeterminate={loadIndeterminate}
             loadError={loadError}

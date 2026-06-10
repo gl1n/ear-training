@@ -18,21 +18,11 @@ import {
   type ScaleDegreeMistakeStatsStore,
 } from './scaleDegreeMistakeStats'
 import { getSessionDegreeWeights, type SessionStats } from './stats'
-import { raceAnswerAgainstAudio } from './challengeLoopHelpers'
-
-const IDLE_BOOST_MS = 1_000
-
-function isIdleBoostEligible(
-  answerWindowStartMs: number | null,
-  playerAnswered: boolean,
-  idleBoosted: boolean,
-): boolean {
-  if (playerAnswered || idleBoosted || answerWindowStartMs === null) {
-    return false
-  }
-
-  return performance.now() - answerWindowStartMs >= IDLE_BOOST_MS
-}
+import {
+  finishChallengeOnIncorrect,
+  raceAnswerAgainstAudio,
+  withReactionMs,
+} from './challengeLoopHelpers'
 
 export type TrainerState =
   | 'idle'
@@ -50,7 +40,7 @@ export type TrainerState =
 
 export type SpeedPreset = 'slow' | 'medium' | 'fast'
 
-/** 音程跟听 · 音程竞速 · 音级辨识 */
+/** 音程跟听 · 音程辨认 · 音级辨识 */
 export type AppMode = 'intervalFollow' | 'intervalSpeed' | 'scaleDegree'
 
 export function normalizeAppMode(value: unknown): AppMode | null {
@@ -141,29 +131,26 @@ export type SequencerCallbacks = {
   onAnswerRevealed: (quiz: Quiz) => void
 }
 
-/** 音程竞速模式单局总时长 */
-export const INTERVAL_SPEED_TIME_MS = 30_000
+export type ChallengeAnswer = {
+  reactionMs?: number
+}
 
-export type IntervalSpeedAnswer = {
+export type IntervalSpeedAnswer = ChallengeAnswer & {
   selectedIntervalId: string
-  timedOut?: boolean
 }
 
 export type IntervalSpeedCallbacks = {
   onStateChange: (state: TrainerState) => void
-  waitForAnswer: (signal: AbortSignal, timeoutMs: number) => Promise<IntervalSpeedAnswer>
+  waitForAnswer: (signal: AbortSignal) => Promise<IntervalSpeedAnswer>
   onAnswerSubmitted: (
     quiz: Quiz,
     answer: IntervalSpeedAnswer,
     correct: boolean,
   ) => void
-  onIdleBoost?: (quiz: Quiz) => void
 }
 
-export type ScaleDegreeAnswer = {
+export type ScaleDegreeAnswer = ChallengeAnswer & {
   selectedDegree: string
-  timedOut?: boolean
-  reactionMs?: number
 }
 
 export const SCALE_DEGREE_TONIC_CHORD_DURATION_MS = 2_400
@@ -258,25 +245,16 @@ export async function runIntervalFollowLoop(
   }
 }
 
-const INTERVAL_SPEED_FEEDBACK_INCORRECT_MS = 1200
-
-/** 音程竞速：限时听辨音程并即时作答 */
+/** 音程辨认：听辨音程并即时作答，按反应速度加权计分 */
 export async function runIntervalSpeedLoop(
   piano: Piano,
   settings: Settings,
   callbacks: IntervalSpeedCallbacks,
   signal: AbortSignal,
-  sessionDeadlineMs: number,
   mistakeStore: MistakeStatsStore,
 ): Promise<void> {
-  const getRemainingMs = () => Math.max(0, sessionDeadlineMs - performance.now())
-
   while (!signal.aborted) {
-    if (getRemainingMs() <= 0) {
-      return
-    }
-
-    // 音程竞速：始终按错题分布加权出题（MISTAKE_FOCUSED_RATE 控制聚焦比例）。
+    // 音程辨认：始终按错题分布加权出题（MISTAKE_FOCUSED_RATE 控制聚焦比例）。
     const quiz = weightedRandomQuizFromMistakes(
       mistakeStore,
       settings.enabledIntervalIds,
@@ -285,96 +263,36 @@ export async function runIntervalSpeedLoop(
       settings.rootMax,
     )
 
-    const remainingMs = getRemainingMs()
-    if (remainingMs <= 0) {
-      callbacks.onAnswerSubmitted(
-        quiz,
-        { selectedIntervalId: '', timedOut: true },
-        false,
-      )
-      callbacks.onStateChange('feedback_incorrect')
-      await delay(INTERVAL_SPEED_FEEDBACK_INCORRECT_MS, signal)
-      return
-    }
-
-    const questionState = {
-      playerAnswered: false,
-      idleBoosted: false,
-      answerWindowStartMs: null as number | null,
-      idleTimer: null as ReturnType<typeof setTimeout> | null,
-    }
-
-    const notifyIdleBoost = () => {
-      callbacks.onIdleBoost?.(quiz)
-    }
-
-    const clearIdleTimer = () => {
-      if (questionState.idleTimer !== null) {
-        clearTimeout(questionState.idleTimer)
-        questionState.idleTimer = null
-      }
-    }
-
-    const startIdleTimerIfNeeded = () => {
-      if (
-        questionState.playerAnswered ||
-        questionState.idleBoosted ||
-        questionState.answerWindowStartMs !== null
-      ) {
-        return
-      }
-
-      questionState.answerWindowStartMs = performance.now()
-      questionState.idleTimer = setTimeout(() => {
-        if (!questionState.playerAnswered) {
-          questionState.idleBoosted = true
-          notifyIdleBoost()
-        }
-      }, IDLE_BOOST_MS)
-    }
-
     const onStateChange = (state: TrainerState) => {
       callbacks.onStateChange(state)
     }
 
-    let answer: IntervalSpeedAnswer
-    try {
-      answer = await raceAnswerAgainstAudio({
+    let audioPlayStartMs: number | null = null
+    const answer = withReactionMs(
+      await raceAnswerAgainstAudio({
         signal,
         piano,
-        waitForAnswer: () => callbacks.waitForAnswer(signal, remainingMs),
-        playAudio: (audioSignal) =>
-          playQuizAudio(piano, quiz, settings, { onStateChange }, audioSignal),
-        onAwaitingAnswer: () => {
-          if (!questionState.playerAnswered) {
-            callbacks.onStateChange('awaiting_answer')
-            startIdleTimerIfNeeded()
-          }
+        waitForAnswer: () => callbacks.waitForAnswer(signal),
+        playAudio: async (audioSignal) => {
+          audioPlayStartMs = performance.now()
+          await playQuizAudio(piano, quiz, settings, { onStateChange }, audioSignal)
         },
-      })
-      questionState.playerAnswered = !answer.timedOut && answer.selectedIntervalId !== ''
-    } finally {
-      clearIdleTimer()
-    }
+        onAwaitingAnswer: () => {
+          callbacks.onStateChange('awaiting_answer')
+        },
+      }),
+      audioPlayStartMs,
+    )
 
-    if (
-      isIdleBoostEligible(
-        questionState.answerWindowStartMs,
-        questionState.playerAnswered,
-        questionState.idleBoosted,
-      )
-    ) {
-      questionState.idleBoosted = true
-      notifyIdleBoost()
-    }
-
-    const correct = !answer.timedOut && answer.selectedIntervalId === quiz.interval.id
+    const correct =
+      answer.selectedIntervalId !== '' && answer.selectedIntervalId === quiz.interval.id
 
     callbacks.onAnswerSubmitted(quiz, answer, correct)
 
     if (!correct) {
-      callbacks.onStateChange('feedback_incorrect')
-      await delay(INTERVAL_SPEED_FEEDBACK_INCORRECT_MS, signal)
+      await finishChallengeOnIncorrect(signal, () =>
+        callbacks.onStateChange('feedback_incorrect'),
+      )
       return
     }
   }
@@ -452,20 +370,17 @@ export async function runScaleDegreeLoop(
         }
       },
     })
-    if (notePlayStartMs !== null) {
-      answer = { ...answer, reactionMs: performance.now() - notePlayStartMs }
-    }
+    answer = withReactionMs(answer, notePlayStartMs)
 
     const correct =
-      !answer.timedOut &&
-      answer.selectedDegree !== '' &&
-      answer.selectedDegree === String(quiz.degree)
+      answer.selectedDegree !== '' && answer.selectedDegree === String(quiz.degree)
 
     callbacks.onAnswerSubmitted(quiz, answer, correct)
 
     if (!correct) {
-      callbacks.onStateChange('feedback_incorrect')
-      await delay(INTERVAL_SPEED_FEEDBACK_INCORRECT_MS, signal)
+      await finishChallengeOnIncorrect(signal, () =>
+        callbacks.onStateChange('feedback_incorrect'),
+      )
       return
     }
   }

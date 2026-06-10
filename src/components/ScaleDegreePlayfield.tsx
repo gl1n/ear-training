@@ -86,7 +86,7 @@ export function ScaleDegreePlayfield({
         onRetry={onRetry}
       />
 
-      <PracticeEncouragementOverlay encouragement={encouragement} variant="emerald" />
+      <PracticeEncouragementOverlay encouragement={encouragement} />
 
       <div
         className="relative flex flex-1 flex-col justify-center gap-3"

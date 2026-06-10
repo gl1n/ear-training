@@ -9,7 +9,7 @@ import {
   MAX_SESSION_DEGREE_COUNT_VARIANCE,
   populationVariance,
   recordResult,
-  recordScaleDegreeResult,
+  recordChallengeResult,
 } from './stats'
 import { randomScaleDegreeQuiz } from './keys'
 
@@ -124,18 +124,18 @@ function simulateBalancedSessionDegreeCounts(
   return aggregateSessionDegreeDistribution(stats).map((item) => item.count)
 }
 
-describe('recordScaleDegreeResult', () => {
+describe('recordChallengeResult', () => {
   it('adds weighted score for correct answers with reaction time', () => {
     let stats = EMPTY_SESSION_STATS
-    stats = recordScaleDegreeResult(stats, '3', { correct: true, reactionMs: 500 })
-    stats = recordScaleDegreeResult(stats, '5', { correct: true, reactionMs: 1_500 })
-    stats = recordScaleDegreeResult(stats, '1', { correct: true, reactionMs: 2_500 })
+    stats = recordChallengeResult(stats, '3', { correct: true, reactionMs: 500 })
+    stats = recordChallengeResult(stats, '5', { correct: true, reactionMs: 1_500 })
+    stats = recordChallengeResult(stats, '1', { correct: true, reactionMs: 2_500 })
 
     expect(getTotalScore(stats)).toBe(2.5)
   })
 
   it('does not add score for incorrect answers', () => {
-    const stats = recordScaleDegreeResult(EMPTY_SESSION_STATS, '3', {
+    const stats = recordChallengeResult(EMPTY_SESSION_STATS, '3', {
       correct: false,
       reactionMs: 100,
     })

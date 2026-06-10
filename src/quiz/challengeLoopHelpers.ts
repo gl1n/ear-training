@@ -1,6 +1,27 @@
 import type { Piano } from '../audio/piano'
 import { cancelSpeech } from '../audio/speech'
-import { isAbortError } from '../utils/abort'
+import { delay, isAbortError } from '../utils/abort'
+
+export const CHALLENGE_FEEDBACK_INCORRECT_MS = 1200
+
+export function withReactionMs<T extends { reactionMs?: number }>(
+  answer: T,
+  audioPlayStartMs: number | null,
+): T {
+  if (audioPlayStartMs === null) {
+    return answer
+  }
+
+  return { ...answer, reactionMs: performance.now() - audioPlayStartMs }
+}
+
+export async function finishChallengeOnIncorrect(
+  signal: AbortSignal,
+  onIncorrect: () => void,
+): Promise<void> {
+  onIncorrect()
+  await delay(CHALLENGE_FEEDBACK_INCORRECT_MS, signal)
+}
 
 export async function raceAnswerAgainstAudio<TAnswer>(options: {
   signal: AbortSignal

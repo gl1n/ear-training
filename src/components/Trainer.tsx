@@ -17,7 +17,6 @@ import {
   runIntervalSpeedLoop,
   runScaleDegreeLoop,
   stopPlayback,
-  INTERVAL_SPEED_TIME_MS,
   LISTENING_STATES,
   type AppMode,
   type Settings,
@@ -29,7 +28,6 @@ import type { SettingsPanelProps } from './SettingsPanel'
 import { PracticeView } from './PracticeView'
 import type { PracticeEncouragement } from './practice/types'
 import { SettingsDrawer } from './SettingsDrawer'
-import { IDLE_TIP_MESSAGES } from './ui/encouragementMessages'
 
 export function Trainer() {
   const initial = getInitialSettings()
@@ -45,8 +43,6 @@ export function Trainer() {
   const [scaleDegreeReviewEnabled, setScaleDegreeReviewEnabled] = useState(
     initial.scaleDegreeReviewEnabled,
   )
-  const [intervalSpeedDeadlineMs, setIntervalSpeedDeadlineMs] = useState<number | null>(null)
-  const [intervalSpeedTimedOut, setIntervalSpeedTimedOut] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const abortRef = useRef<AbortController | null>(null)
@@ -54,11 +50,8 @@ export function Trainer() {
   const answerCleanupRef = useRef<(() => void) | null>(null)
   const gameStartResolverRef = useRef<(() => void) | null>(null)
   const gameStartCleanupRef = useRef<(() => void) | null>(null)
-  const intervalSpeedEncouragementIndexRef = useRef(0)
-  const scaleDegreeEncouragementKeyRef = useRef(0)
-  const [intervalSpeedEncouragement, setIntervalSpeedEncouragement] =
-    useState<PracticeEncouragement | null>(null)
-  const [scaleDegreeEncouragement, setScaleDegreeEncouragement] =
+  const challengeEncouragementKeyRef = useRef(0)
+  const [challengeEncouragement, setChallengeEncouragement] =
     useState<PracticeEncouragement | null>(null)
 
   const {
@@ -112,8 +105,7 @@ export function Trainer() {
     gameStartResolverRef.current()
   }, [mode, isRunning, scaleDegreeGameStarted, state, currentKeyLabel])
 
-  useAutoDismiss(intervalSpeedEncouragement, 2500, () => setIntervalSpeedEncouragement(null), intervalSpeedEncouragement?.message)
-  useAutoDismiss(scaleDegreeEncouragement, 1800, () => setScaleDegreeEncouragement(null), scaleDegreeEncouragement?.key)
+  useAutoDismiss(challengeEncouragement, 1800, () => setChallengeEncouragement(null), challengeEncouragement?.key)
 
   usePersistedSettings(
     speedPreset,
@@ -122,15 +114,6 @@ export function Trainer() {
     mode,
     scaleDegreeReviewEnabled,
   )
-
-  const showIntervalSpeedEncouragement = useCallback(() => {
-    const message =
-      IDLE_TIP_MESSAGES[
-        intervalSpeedEncouragementIndexRef.current % IDLE_TIP_MESSAGES.length
-      ]
-    intervalSpeedEncouragementIndexRef.current += 1
-    setIntervalSpeedEncouragement({ message })
-  }, [])
 
   const resetChallengeAnswerState = useCallback(() => {
     answerResolverRef.current = null
@@ -154,9 +137,7 @@ export function Trainer() {
     abortSession()
     setIsRunning(false)
     setState('idle')
-    setIntervalSpeedDeadlineMs(null)
-    setIntervalSpeedEncouragement(null)
-    setScaleDegreeEncouragement(null)
+    setChallengeEncouragement(null)
     setScaleDegreeGameStarted(false)
     resetLoadingState()
   }, [abortSession, resetLoadingState])
@@ -172,15 +153,12 @@ export function Trainer() {
 
   const handleTrainerStateChange = useCallback((nextState: TrainerState) => {
     if (LISTENING_STATES.includes(nextState)) {
-      setIntervalSpeedEncouragement(null)
+      setChallengeEncouragement(null)
     }
     setState(nextState)
   }, [])
 
-  const waitForIntervalSpeedAnswer = (signal: AbortSignal, timeoutMs?: number) =>
-    createAnswerWaiter({ answerResolverRef, answerCleanupRef })(signal, timeoutMs)
-
-  const waitForScaleDegreeAnswer = (signal: AbortSignal) =>
+  const waitForChallengeAnswer = (signal: AbortSignal) =>
     createAnswerWaiter({ answerResolverRef, answerCleanupRef })(signal)
 
   const waitForGameStart = (signal: AbortSignal) =>
@@ -219,7 +197,6 @@ export function Trainer() {
     if (mode === 'intervalSpeed') {
       setLastQuiz(null)
       clearNewBestRecord('intervalSpeed')
-      setIntervalSpeedTimedOut(false)
     }
     if (mode === 'scaleDegree') {
       setLastScaleDegreeQuiz(null)
@@ -233,31 +210,23 @@ export function Trainer() {
       const piano = await ensurePiano(settings, controller.signal)
       resetLoadingState()
 
-      const sessionDeadlineMs =
-        mode === 'intervalSpeed' ? performance.now() + INTERVAL_SPEED_TIME_MS : null
-      if (sessionDeadlineMs !== null) {
-        setIntervalSpeedDeadlineMs(sessionDeadlineMs)
-      }
-
       if (mode === 'intervalSpeed') {
         await runIntervalSpeedLoop(
           piano,
           settings,
           buildIntervalSpeedLoopCallbacks({
             onStateChange: handleTrainerStateChange,
-            waitForAnswer: (signal, timeoutMs) =>
-              waitForIntervalSpeedAnswer(signal, timeoutMs).then(({ answer, timedOut }) => ({
+            waitForAnswer: (signal) =>
+              waitForChallengeAnswer(signal).then((answer) => ({
                 selectedIntervalId: answer,
-                timedOut,
               })),
             setLastQuiz,
-            setIntervalSpeedTimedOut,
             recordQuizMistake,
+            setEncouragement: setChallengeEncouragement,
+            encouragementKeyRef: challengeEncouragementKeyRef,
             updateSessionStats,
-            showIntervalSpeedEncouragement,
           }),
           controller.signal,
-          sessionDeadlineMs!,
           mistakeStoreRef.current,
         )
       } else if (mode === 'scaleDegree') {
@@ -269,15 +238,14 @@ export function Trainer() {
             onSessionStart: (session) => setCurrentKeyLabel(session.label),
             waitForGameStart,
             waitForAnswer: (signal) =>
-              waitForScaleDegreeAnswer(signal).then(({ answer, timedOut }) => ({
+              waitForChallengeAnswer(signal).then((answer) => ({
                 selectedDegree: answer,
-                timedOut,
               })),
             setLastScaleDegreeQuiz,
             recordScaleDegreeQuizMistake,
             appendSessionScaleDegreeMistake,
-            setScaleDegreeEncouragement,
-            scaleDegreeEncouragementKeyRef,
+            setEncouragement: setChallengeEncouragement,
+            encouragementKeyRef: challengeEncouragementKeyRef,
             updateSessionStats,
             getSessionStats: () => sessionStatsRef.current,
           }),
@@ -314,7 +282,6 @@ export function Trainer() {
 
         setIsRunning(false)
         setState('idle')
-        setIntervalSpeedDeadlineMs(null)
         setScaleDegreeGameStarted(false)
         abortRef.current = null
         resetChallengeAnswerState()
@@ -326,7 +293,6 @@ export function Trainer() {
     resetChallengeAnswerState,
     resetSessionState,
     settings,
-    showIntervalSpeedEncouragement,
     handleTrainerStateChange,
     recordQuizMistake,
     recordScaleDegreeQuizMistake,
@@ -373,7 +339,6 @@ export function Trainer() {
     setCurrentKeyLabel(null)
     setScaleDegreeGameStarted(false)
     resetSessionState()
-    setIntervalSpeedTimedOut(false)
     resetChallengeAnswerState()
   }
 
@@ -456,10 +421,7 @@ export function Trainer() {
         trainingStats={trainingStats}
         rootMin={settings.rootMin}
         rootMax={settings.rootMax}
-        intervalSpeedDeadlineMs={intervalSpeedDeadlineMs}
-        intervalSpeedTimedOut={intervalSpeedTimedOut}
-        intervalSpeedEncouragement={intervalSpeedEncouragement}
-        scaleDegreeEncouragement={scaleDegreeEncouragement}
+        challengeEncouragement={challengeEncouragement}
         loadStatus={loadStatus}
         onModeChange={handleModeChange}
         onToggle={handleToggle}

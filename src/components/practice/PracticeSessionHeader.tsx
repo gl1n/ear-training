@@ -18,25 +18,10 @@ export function PracticeSessionHeader({
   leading,
   trailing,
 }: PracticeSessionHeaderProps) {
-  if (variant === 'intervalSpeed') {
-    return (
-      <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-              第 {currentQuestion} 题
-            </span>
-            {correctCount > 0 && (
-              <span className="text-xs tabular-nums text-[var(--text-secondary)]">
-                连对 {correctCount} 题
-              </span>
-            )}
-          </div>
-        </div>
-        {trailing}
-      </div>
-    )
-  }
+  const accentClass =
+    variant === 'scaleDegree'
+      ? 'bg-sky-500/10 text-sky-200/90 ring-sky-400/20'
+      : 'bg-amber-500/10 text-amber-200/90 ring-amber-400/20'
 
   return (
     <div className="relative flex flex-col gap-3 border-b border-[var(--border-subtle)] pb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -47,12 +32,16 @@ export function PracticeSessionHeader({
             第 {currentQuestion} 题
           </span>
           {correctCount > 0 && (
-            <span className="inline-flex items-center rounded-md bg-sky-500/10 px-2 py-0.5 text-xs tabular-nums text-sky-200/90 ring-1 ring-sky-400/20">
+            <span
+              className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs tabular-nums ring-1 ${accentClass}`}
+            >
               连对 {correctCount}
             </span>
           )}
           {totalScore > 0 && (
-            <span className="inline-flex items-center rounded-md bg-amber-500/10 px-2 py-0.5 text-xs tabular-nums text-amber-200/90 ring-1 ring-amber-400/20">
+            <span
+              className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs tabular-nums ring-1 ${accentClass}`}
+            >
               得分 {formatScoreDisplay(totalScore)}
             </span>
           )}

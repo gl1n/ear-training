@@ -7,7 +7,6 @@ export type { PracticePhaseVariant } from './practicePhase'
 type PracticePhaseIndicatorProps = {
   state: TrainerState
   variant: PracticePhaseVariant
-  timedOut?: boolean
 }
 
 function getPhase(state: TrainerState) {
@@ -27,7 +26,6 @@ function getListeningLabel(state: TrainerState, variant: PracticePhaseVariant): 
 export function PracticePhaseIndicator({
   state,
   variant,
-  timedOut = false,
 }: PracticePhaseIndicatorProps) {
   const phase = getPhase(state)
 
@@ -79,14 +77,12 @@ export function PracticePhaseIndicator({
   }
 
   if (phase === 'wrong') {
-    const message =
-      variant === 'intervalSpeed' && timedOut ? '时间到' : '答错了'
     const wrongClass =
       variant === 'scaleDegree'
         ? 'inline-flex items-center gap-2 rounded-full bg-red-500/10 px-3 py-1 text-sm font-medium text-red-300 ring-1 ring-red-400/25'
         : 'inline-flex items-center gap-2 text-sm font-medium text-red-300'
 
-    return <span className={wrongClass}>{message}</span>
+    return <span className={wrongClass}>答错了</span>
   }
 
   return null

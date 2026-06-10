@@ -20,7 +20,7 @@ export function AppShell({
 }: AppShellProps) {
   const subtitle =
     mode === 'intervalSpeed'
-      ? '听音辨程 · 限时作答 · 统计成绩'
+      ? '听音辨程 · 即时作答 · 加权计分'
       : mode === 'scaleDegree'
         ? '随机大调 · 听音选级 · 连对挑战'
         : '循环播放 · 语音播报 · 无需作答'

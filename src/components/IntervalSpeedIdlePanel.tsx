@@ -1,12 +1,8 @@
 import type { Quiz } from '../quiz/intervals'
 import { getQuizPitchKey } from '../quiz/intervals'
-import {
-  getCorrectAnswerCount,
-  hasSessionAttempts,
-  type SessionStats,
-} from '../quiz/stats'
+import { hasSessionAttempts, type SessionStats } from '../quiz/stats'
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
-import { ChallengeEndedSection, ChallengeScoreCard } from './practice/ChallengeEndedSection'
+import { ChallengeSessionResults } from './practice/ChallengeSessionResults'
 import { MistakeDistributionChart } from './MistakeDistributionChart'
 import { PlayAreaCard } from './PlayAreaCard'
 import { PlayableIntervalCard } from './PlayableIntervalCard'
@@ -36,19 +32,16 @@ export function IntervalSpeedIdlePanel({
   const { mistakeStats, intervalSpeedBestRecord, isNewIntervalSpeedBestRecord, canReset, reset } =
     trainingStats
   const gameEnded = lastQuiz !== null && hasSessionAttempts(sessionStats)
-  const correctCount = getCorrectAnswerCount(sessionStats)
 
   if (gameEnded) {
     return (
       <PlayAreaCard className="gap-6">
-        <ChallengeEndedSection
+        <ChallengeSessionResults
           accent="amber"
+          sessionStats={sessionStats}
           isNewBestRecord={isNewIntervalSpeedBestRecord}
           bestRecord={intervalSpeedBestRecord}
-          bestRecordLabel="正确答题"
-        >
-          <ChallengeScoreCard value={correctCount} label="正确答题" />
-        </ChallengeEndedSection>
+        />
 
         <MistakeDistributionChart
           store={mistakeStats}
@@ -78,13 +71,13 @@ export function IntervalSpeedIdlePanel({
   return (
     <PlayAreaCard className={canReset ? 'gap-6' : undefined}>
       <div className="text-center">
-        <p className="text-sm font-medium">音程竞速</p>
+        <p className="text-sm font-medium">音程辨认</p>
         <p className="mt-2 max-w-sm text-sm leading-relaxed text-[var(--text-secondary)]">
-          听音后点选答案 · 30 秒时限 · 答错或超时即结束
+          听音后点选答案 · 反应越快得分越高 · 答错即结束
         </p>
       </div>
       <p className={`max-w-md text-base leading-relaxed text-[var(--text-secondary)] ${canReset ? '' : 'mt-8'}`}>
-        点击「开始挑战」，在 30 秒内尽可能多答对；答错或超时即结束。
+        点击「开始挑战」，尽可能多连对；答错即结束，快速作答可获得更高加权分。
       </p>
 
       {canReset && <ResetStatsButton onReset={reset} />}

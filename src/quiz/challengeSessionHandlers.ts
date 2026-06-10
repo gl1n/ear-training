@@ -2,56 +2,69 @@ import type { MutableRefObject } from 'react'
 import type { Quiz } from './intervals'
 import type { MajorKeySession, ScaleDegreeQuiz } from './keys'
 import type { ScaleDegreeMistakeRecord } from './scaleDegreeMistakeStats'
-import { getEncouragementForReactionMs } from './scaleDegreeScoring'
+import {
+  maybeShowReactionEncouragement,
+  updateChallengeSessionStats,
+  type ChallengeEncouragement,
+} from './challengeAnswerHandling'
 import type {
   IntervalSpeedCallbacks,
   ScaleDegreeCallbacks,
   TrainerState,
 } from './sequencer'
-import { recordResult, recordScaleDegreeResult, type SessionStats } from './stats'
+import type { SessionStats } from './stats'
 
-type IntervalSpeedHandlerDeps = {
+type ChallengeHandlerDeps = {
+  setEncouragement: (encouragement: ChallengeEncouragement) => void
+  encouragementKeyRef: MutableRefObject<number>
+  updateSessionStats: (updater: (current: SessionStats) => SessionStats) => void
+}
+
+function handleChallengeAnswerResult(
+  { setEncouragement, encouragementKeyRef, updateSessionStats }: ChallengeHandlerDeps,
+  answerKey: string,
+  correct: boolean,
+  reactionMs?: number,
+): void {
+  maybeShowReactionEncouragement(correct, reactionMs, setEncouragement, encouragementKeyRef)
+  updateChallengeSessionStats(updateSessionStats, answerKey, { correct, reactionMs })
+}
+
+type IntervalSpeedHandlerDeps = ChallengeHandlerDeps & {
   onStateChange: (state: TrainerState) => void
   waitForAnswer: IntervalSpeedCallbacks['waitForAnswer']
   setLastQuiz: (quiz: Quiz) => void
-  setIntervalSpeedTimedOut: (timedOut: boolean) => void
   recordQuizMistake: (quiz: Quiz) => void
-  updateSessionStats: (updater: (current: SessionStats) => SessionStats) => void
-  showIntervalSpeedEncouragement: () => void
 }
 
 export function buildIntervalSpeedLoopCallbacks({
   onStateChange,
   waitForAnswer,
   setLastQuiz,
-  setIntervalSpeedTimedOut,
   recordQuizMistake,
+  setEncouragement,
+  encouragementKeyRef,
   updateSessionStats,
-  showIntervalSpeedEncouragement,
 }: IntervalSpeedHandlerDeps): IntervalSpeedCallbacks {
   return {
     onStateChange,
     waitForAnswer,
     onAnswerSubmitted: (quiz, answer, correct) => {
-      if (answer.timedOut) {
-        setIntervalSpeedTimedOut(true)
-      }
-      if (!correct && !answer.timedOut) {
+      if (!correct && answer.selectedIntervalId !== '') {
         recordQuizMistake(quiz)
       }
       setLastQuiz(quiz)
-      updateSessionStats((current) =>
-        recordResult(current, quiz.interval.id, { correct }),
+      handleChallengeAnswerResult(
+        { setEncouragement, encouragementKeyRef, updateSessionStats },
+        quiz.interval.id,
+        correct,
+        answer.reactionMs,
       )
-    },
-    onIdleBoost: (quiz) => {
-      recordQuizMistake(quiz)
-      showIntervalSpeedEncouragement()
     },
   }
 }
 
-type ScaleDegreeHandlerDeps = {
+type ScaleDegreeHandlerDeps = ChallengeHandlerDeps & {
   onStateChange: (state: TrainerState) => void
   onSessionStart: (session: MajorKeySession) => void
   waitForGameStart: ScaleDegreeCallbacks['waitForGameStart']
@@ -59,9 +72,6 @@ type ScaleDegreeHandlerDeps = {
   setLastScaleDegreeQuiz: (quiz: ScaleDegreeQuiz) => void
   recordScaleDegreeQuizMistake: (record: ScaleDegreeMistakeRecord) => void
   appendSessionScaleDegreeMistake: (record: ScaleDegreeMistakeRecord) => void
-  setScaleDegreeEncouragement: (encouragement: { message: string; key: number }) => void
-  scaleDegreeEncouragementKeyRef: MutableRefObject<number>
-  updateSessionStats: (updater: (current: SessionStats) => SessionStats) => void
   getSessionStats: () => SessionStats
 }
 
@@ -73,8 +83,8 @@ export function buildScaleDegreeLoopCallbacks({
   setLastScaleDegreeQuiz,
   recordScaleDegreeQuizMistake,
   appendSessionScaleDegreeMistake,
-  setScaleDegreeEncouragement,
-  scaleDegreeEncouragementKeyRef,
+  setEncouragement,
+  encouragementKeyRef,
   updateSessionStats,
   getSessionStats,
 }: ScaleDegreeHandlerDeps): ScaleDegreeCallbacks {
@@ -87,7 +97,6 @@ export function buildScaleDegreeLoopCallbacks({
       setLastScaleDegreeQuiz(quiz)
       if (
         !correct &&
-        !answer.timedOut &&
         answer.selectedDegree !== '' &&
         answer.selectedDegree !== String(quiz.degree)
       ) {
@@ -99,21 +108,11 @@ export function buildScaleDegreeLoopCallbacks({
         recordScaleDegreeQuizMistake(record)
         appendSessionScaleDegreeMistake(record)
       }
-      if (correct && answer.reactionMs !== undefined) {
-        const message = getEncouragementForReactionMs(answer.reactionMs)
-        if (message) {
-          scaleDegreeEncouragementKeyRef.current += 1
-          setScaleDegreeEncouragement({
-            message,
-            key: scaleDegreeEncouragementKeyRef.current,
-          })
-        }
-      }
-      updateSessionStats((current) =>
-        recordScaleDegreeResult(current, String(quiz.degree), {
-          correct,
-          reactionMs: answer.reactionMs,
-        }),
+      handleChallengeAnswerResult(
+        { setEncouragement, encouragementKeyRef, updateSessionStats },
+        String(quiz.degree),
+        correct,
+        answer.reactionMs,
       )
     },
     getSessionStats,

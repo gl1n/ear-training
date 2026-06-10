@@ -5,7 +5,7 @@ Browser-based ear training for interval recognition and scale-degree identificat
 ## Features
 
 - **音程跟听** — Loop playback with spoken interval names (Web Speech API, zh-CN)
-- **音程竞速** — 30-second timed challenge with mistake-weighted question selection
+- **音程辨认** — Interval challenge with reaction-weighted scoring and mistake-weighted question selection
 - **音级辨识** — Identify scale degrees in random major keys, with optional mistake review mode
 
 Progress (mistake stats, best records, session history) is stored in `localStorage`. Piano samples load from CDN via [smplr](https://github.com/danigb/smplr) on first use.

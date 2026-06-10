@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getEncouragementForReactionMs, getScoreForReactionMs } from './scaleDegreeScoring'
+import { getEncouragementForReactionMs, getScoreForReactionMs } from './challengeScoring'
 
 describe('getScoreForReactionMs', () => {
   it('awards top tier below 600ms', () => {

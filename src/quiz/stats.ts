@@ -1,5 +1,5 @@
 import { DEGREE_OPTION_IDS } from './keys'
-import { getScoreForReactionMs } from './scaleDegreeScoring'
+import { getScoreForReactionMs } from './challengeScoring'
 
 export type QuizResult = {
   correct: boolean
@@ -28,7 +28,7 @@ export const EMPTY_SESSION_STATS: SessionStats = {
   totalScore: 0,
 }
 
-export type ScaleDegreeQuizResult = QuizResult & {
+export type ChallengeQuizResult = QuizResult & {
   reactionMs?: number
 }
 
@@ -60,12 +60,12 @@ export function getCorrectAnswerCount(stats: SessionStats): number {
   return Object.values(stats.byKey).reduce((sum, entry) => sum + entry.correctCount, 0)
 }
 
-export function recordScaleDegreeResult(
+export function recordChallengeResult(
   stats: SessionStats,
-  degree: string,
-  result: ScaleDegreeQuizResult,
+  answerKey: string,
+  result: ChallengeQuizResult,
 ): SessionStats {
-  const next = recordResult(stats, degree, result)
+  const next = recordResult(stats, answerKey, result)
 
   if (!result.correct || result.reactionMs === undefined) {
     return next
