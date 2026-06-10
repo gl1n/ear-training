@@ -42,6 +42,7 @@ type PracticeViewProps = {
   rootMin: number
   rootMax: number
   challengeEncouragement: PracticeEncouragement | null
+  correctionWrongSelection: string | null
   loadStatus: LoadStatusProps
   onModeChange: (mode: AppMode) => void
   onToggle: () => void
@@ -71,6 +72,7 @@ export function PracticeView({
   rootMin,
   rootMax,
   challengeEncouragement,
+  correctionWrongSelection,
   loadStatus,
   onModeChange,
   onToggle,
@@ -156,6 +158,7 @@ export function PracticeView({
             sessionStats={sessionStats}
             lastQuiz={lastQuiz}
             encouragement={challengeEncouragement}
+            correctionWrongSelection={correctionWrongSelection}
             loadProgress={loadProgress}
             loadIndeterminate={loadIndeterminate}
             loadError={loadError}
@@ -182,6 +185,7 @@ export function PracticeView({
             lastQuiz={lastScaleDegreeQuiz}
             currentKeyLabel={currentKeyLabel}
             encouragement={challengeEncouragement}
+            correctionWrongSelection={correctionWrongSelection}
             loadProgress={loadProgress}
             loadIndeterminate={loadIndeterminate}
             loadError={loadError}

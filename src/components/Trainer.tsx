@@ -53,6 +53,7 @@ export function Trainer() {
   const challengeEncouragementKeyRef = useRef(0)
   const [challengeEncouragement, setChallengeEncouragement] =
     useState<PracticeEncouragement | null>(null)
+  const [correctionWrongSelection, setCorrectionWrongSelection] = useState<string | null>(null)
 
   const {
     pianoRef,
@@ -122,6 +123,7 @@ export function Trainer() {
     gameStartResolverRef.current = null
     gameStartCleanupRef.current?.()
     gameStartCleanupRef.current = null
+    setCorrectionWrongSelection(null)
   }, [])
 
   const abortSession = useCallback(() => {
@@ -154,8 +156,13 @@ export function Trainer() {
   const handleTrainerStateChange = useCallback((nextState: TrainerState) => {
     if (LISTENING_STATES.includes(nextState)) {
       setChallengeEncouragement(null)
+      setCorrectionWrongSelection(null)
     }
     setState(nextState)
+  }, [])
+
+  const handleAnswerCorrectionStart = useCallback((wrongSelection: string) => {
+    setCorrectionWrongSelection(wrongSelection)
   }, [])
 
   const waitForChallengeAnswer = (signal: AbortSignal) =>
@@ -220,6 +227,7 @@ export function Trainer() {
               waitForChallengeAnswer(signal).then((answer) => ({
                 selectedIntervalId: answer,
               })),
+            onAnswerCorrectionStart: handleAnswerCorrectionStart,
             setLastQuiz,
             recordQuizMistake,
             setEncouragement: setChallengeEncouragement,
@@ -241,6 +249,7 @@ export function Trainer() {
               waitForChallengeAnswer(signal).then((answer) => ({
                 selectedDegree: answer,
               })),
+            onAnswerCorrectionStart: handleAnswerCorrectionStart,
             setLastScaleDegreeQuiz,
             recordScaleDegreeQuizMistake,
             appendSessionScaleDegreeMistake,
@@ -294,6 +303,7 @@ export function Trainer() {
     resetSessionState,
     settings,
     handleTrainerStateChange,
+    handleAnswerCorrectionStart,
     recordQuizMistake,
     recordScaleDegreeQuizMistake,
     finalizeChallengeSession,
@@ -422,6 +432,7 @@ export function Trainer() {
         rootMin={settings.rootMin}
         rootMax={settings.rootMax}
         challengeEncouragement={challengeEncouragement}
+        correctionWrongSelection={correctionWrongSelection}
         loadStatus={loadStatus}
         onModeChange={handleModeChange}
         onToggle={handleToggle}

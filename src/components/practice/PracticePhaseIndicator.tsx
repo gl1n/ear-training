@@ -76,6 +76,20 @@ export function PracticePhaseIndicator({
     )
   }
 
+  if (phase === 'correction') {
+    const correctionClass =
+      variant === 'scaleDegree'
+        ? 'inline-flex items-center gap-2 rounded-full bg-amber-500/10 px-3 py-1 text-sm font-medium text-amber-200 ring-1 ring-amber-400/25'
+        : 'inline-flex items-center gap-2 rounded-full bg-amber-500/10 px-3 py-1 text-sm font-medium text-amber-200 ring-1 ring-amber-400/25'
+
+    return (
+      <span className={correctionClass}>
+        <span className="h-2 w-2 rounded-full bg-amber-400" />
+        请重新选择
+      </span>
+    )
+  }
+
   if (phase === 'wrong') {
     const wrongClass =
       variant === 'scaleDegree'

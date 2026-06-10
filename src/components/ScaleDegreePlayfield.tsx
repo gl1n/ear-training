@@ -19,6 +19,7 @@ type ScaleDegreePlayfieldProps = {
   lastQuiz: ScaleDegreeQuiz | null
   currentKeyLabel: string | null
   encouragement: PracticeEncouragement | null
+  correctionWrongSelection: string | null
   loadProgress: number | null
   loadIndeterminate: boolean
   loadError: string | null
@@ -32,13 +33,14 @@ export function ScaleDegreePlayfield({
   lastQuiz,
   currentKeyLabel,
   encouragement,
+  correctionWrongSelection,
   loadProgress,
   loadIndeterminate,
   loadError,
   onSelect,
   onRetry,
 }: ScaleDegreePlayfieldProps) {
-  const { canAnswer, isWrong, correctCount, totalScore, currentQuestion, isListening } =
+  const { canAnswer, isCorrection, isWrong, correctCount, totalScore, currentQuestion, isListening } =
     usePracticePlayfieldState(state, sessionStats)
 
   const renderDegree = (degree: string) => (
@@ -48,6 +50,7 @@ export function ScaleDegreePlayfield({
       isReady={canAnswer}
       isListening={isListening}
       isCorrectAnswer={isWrong && lastQuiz !== null && String(lastQuiz.degree) === degree}
+      isWrongSelection={isCorrection && correctionWrongSelection === degree}
       onClick={() => onSelect(degree)}
       className="min-h-[56px] sm:min-h-[64px]"
       primaryLabel={<span className="text-xl font-bold leading-none sm:text-2xl">{degree}</span>}

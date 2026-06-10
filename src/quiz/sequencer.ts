@@ -21,6 +21,7 @@ import { getSessionDegreeWeights, type SessionStats } from './stats'
 import {
   finishChallengeOnIncorrect,
   raceAnswerAgainstAudio,
+  resolveAnswerWithCorrection,
   withReactionMs,
 } from './challengeLoopHelpers'
 
@@ -36,6 +37,7 @@ export type TrainerState =
   | 'speaking'
   | 'gap'
   | 'awaiting_answer'
+  | 'answer_correction'
   | 'feedback_incorrect'
 
 export type SpeedPreset = 'slow' | 'medium' | 'fast'
@@ -142,6 +144,7 @@ export type IntervalSpeedAnswer = ChallengeAnswer & {
 export type IntervalSpeedCallbacks = {
   onStateChange: (state: TrainerState) => void
   waitForAnswer: (signal: AbortSignal) => Promise<IntervalSpeedAnswer>
+  onAnswerCorrectionStart?: (wrongSelection: string) => void
   onAnswerSubmitted: (
     quiz: Quiz,
     answer: IntervalSpeedAnswer,
@@ -160,6 +163,7 @@ export type ScaleDegreeCallbacks = {
   onSessionStart: (session: MajorKeySession) => void
   waitForGameStart: (signal: AbortSignal) => Promise<void>
   waitForAnswer: (signal: AbortSignal) => Promise<ScaleDegreeAnswer>
+  onAnswerCorrectionStart?: (wrongSelection: string) => void
   onAnswerSubmitted: (
     quiz: ScaleDegreeQuiz,
     answer: ScaleDegreeAnswer,
@@ -268,7 +272,7 @@ export async function runIntervalSpeedLoop(
     }
 
     let audioPlayStartMs: number | null = null
-    const answer = withReactionMs(
+    const firstAnswer = withReactionMs(
       await raceAnswerAgainstAudio({
         signal,
         piano,
@@ -284,8 +288,23 @@ export async function runIntervalSpeedLoop(
       audioPlayStartMs,
     )
 
-    const correct =
-      answer.selectedIntervalId !== '' && answer.selectedIntervalId === quiz.interval.id
+    const { answer, correct } = await resolveAnswerWithCorrection({
+      firstAnswer,
+      isCorrect: (candidate) =>
+        candidate.selectedIntervalId !== '' &&
+        candidate.selectedIntervalId === quiz.interval.id,
+      isEmpty: (candidate) => candidate.selectedIntervalId === '',
+      getSelection: (candidate) => candidate.selectedIntervalId,
+      mergeRetrySelection: (first, retry) => ({
+        ...first,
+        selectedIntervalId: retry.selectedIntervalId,
+      }),
+      waitForAnswer: () => callbacks.waitForAnswer(signal),
+      onEnterCorrection: (wrongSelection) => {
+        callbacks.onAnswerCorrectionStart?.(wrongSelection)
+        callbacks.onStateChange('answer_correction')
+      },
+    })
 
     callbacks.onAnswerSubmitted(quiz, answer, correct)
 
@@ -357,23 +376,39 @@ export async function runScaleDegreeLoop(
     previousNoteMidi = quiz.noteMidi
 
     let notePlayStartMs: number | null = null
-    let answer: ScaleDegreeAnswer = await raceAnswerAgainstAudio({
-      signal,
-      piano,
+    const firstAnswer = withReactionMs(
+      await raceAnswerAgainstAudio({
+        signal,
+        piano,
+        waitForAnswer: () => callbacks.waitForAnswer(signal),
+        playAudio: async (audioSignal) => {
+          callbacks.onStateChange('playing_note')
+          notePlayStartMs = performance.now()
+          await playNote(piano, quiz.noteMidi, settings.noteDurationMs, audioSignal)
+          if (!audioSignal.aborted) {
+            callbacks.onStateChange('awaiting_answer')
+          }
+        },
+      }),
+      notePlayStartMs,
+    )
+
+    const { answer, correct } = await resolveAnswerWithCorrection({
+      firstAnswer,
+      isCorrect: (candidate) =>
+        candidate.selectedDegree !== '' && candidate.selectedDegree === String(quiz.degree),
+      isEmpty: (candidate) => candidate.selectedDegree === '',
+      getSelection: (candidate) => candidate.selectedDegree,
+      mergeRetrySelection: (first, retry) => ({
+        ...first,
+        selectedDegree: retry.selectedDegree,
+      }),
       waitForAnswer: () => callbacks.waitForAnswer(signal),
-      playAudio: async (audioSignal) => {
-        callbacks.onStateChange('playing_note')
-        notePlayStartMs = performance.now()
-        await playNote(piano, quiz.noteMidi, settings.noteDurationMs, audioSignal)
-        if (!audioSignal.aborted) {
-          callbacks.onStateChange('awaiting_answer')
-        }
+      onEnterCorrection: (wrongSelection) => {
+        callbacks.onAnswerCorrectionStart?.(wrongSelection)
+        callbacks.onStateChange('answer_correction')
       },
     })
-    answer = withReactionMs(answer, notePlayStartMs)
-
-    const correct =
-      answer.selectedDegree !== '' && answer.selectedDegree === String(quiz.degree)
 
     callbacks.onAnswerSubmitted(quiz, answer, correct)
 

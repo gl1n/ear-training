@@ -33,6 +33,7 @@ function handleChallengeAnswerResult(
 type IntervalSpeedHandlerDeps = ChallengeHandlerDeps & {
   onStateChange: (state: TrainerState) => void
   waitForAnswer: IntervalSpeedCallbacks['waitForAnswer']
+  onAnswerCorrectionStart?: (wrongSelection: string) => void
   setLastQuiz: (quiz: Quiz) => void
   recordQuizMistake: (quiz: Quiz) => void
 }
@@ -40,6 +41,7 @@ type IntervalSpeedHandlerDeps = ChallengeHandlerDeps & {
 export function buildIntervalSpeedLoopCallbacks({
   onStateChange,
   waitForAnswer,
+  onAnswerCorrectionStart,
   setLastQuiz,
   recordQuizMistake,
   setEncouragement,
@@ -49,6 +51,7 @@ export function buildIntervalSpeedLoopCallbacks({
   return {
     onStateChange,
     waitForAnswer,
+    onAnswerCorrectionStart,
     onAnswerSubmitted: (quiz, answer, correct) => {
       if (!correct && answer.selectedIntervalId !== '') {
         recordQuizMistake(quiz)
@@ -69,6 +72,7 @@ type ScaleDegreeHandlerDeps = ChallengeHandlerDeps & {
   onSessionStart: (session: MajorKeySession) => void
   waitForGameStart: ScaleDegreeCallbacks['waitForGameStart']
   waitForAnswer: ScaleDegreeCallbacks['waitForAnswer']
+  onAnswerCorrectionStart?: (wrongSelection: string) => void
   setLastScaleDegreeQuiz: (quiz: ScaleDegreeQuiz) => void
   recordScaleDegreeQuizMistake: (record: ScaleDegreeMistakeRecord) => void
   appendSessionScaleDegreeMistake: (record: ScaleDegreeMistakeRecord) => void
@@ -80,6 +84,7 @@ export function buildScaleDegreeLoopCallbacks({
   onSessionStart,
   waitForGameStart,
   waitForAnswer,
+  onAnswerCorrectionStart,
   setLastScaleDegreeQuiz,
   recordScaleDegreeQuizMistake,
   appendSessionScaleDegreeMistake,
@@ -93,6 +98,7 @@ export function buildScaleDegreeLoopCallbacks({
     onSessionStart,
     waitForGameStart,
     waitForAnswer,
+    onAnswerCorrectionStart,
     onAnswerSubmitted: (quiz, answer, correct) => {
       setLastScaleDegreeQuiz(quiz)
       if (

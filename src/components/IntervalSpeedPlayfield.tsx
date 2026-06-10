@@ -17,6 +17,7 @@ type IntervalSpeedPlayfieldProps = {
   sessionStats: SessionStats
   lastQuiz: Quiz | null
   encouragement: PracticeEncouragement | null
+  correctionWrongSelection: string | null
   loadProgress: number | null
   loadIndeterminate: boolean
   loadError: string | null
@@ -37,6 +38,7 @@ export function IntervalSpeedPlayfield({
   sessionStats,
   lastQuiz,
   encouragement,
+  correctionWrongSelection,
   loadProgress,
   loadIndeterminate,
   loadError,
@@ -44,7 +46,7 @@ export function IntervalSpeedPlayfield({
   onRetry,
 }: IntervalSpeedPlayfieldProps) {
   const options = getIntervalsByIds(optionIds)
-  const { canAnswer, isWrong, correctCount, totalScore, currentQuestion, isListening } =
+  const { canAnswer, isCorrection, isWrong, correctCount, totalScore, currentQuestion, isListening } =
     usePracticePlayfieldState(state, sessionStats)
 
   return (
@@ -76,6 +78,8 @@ export function IntervalSpeedPlayfield({
         {options.map((interval) => {
           const isReady = canAnswer
           const isCorrectAnswer = isWrong && lastQuiz?.interval.id === interval.id
+          const isWrongSelection =
+            isCorrection && correctionWrongSelection === interval.id
 
           return (
             <ChallengeAnswerButton
@@ -84,6 +88,7 @@ export function IntervalSpeedPlayfield({
               isReady={isReady}
               isListening={isListening}
               isCorrectAnswer={isCorrectAnswer}
+              isWrongSelection={isWrongSelection}
               onClick={() => onSelect(interval.id)}
               primaryLabel={
                 <span className="text-base font-bold leading-none sm:text-lg">{interval.short}</span>

@@ -25,6 +25,7 @@ const STATE_LABELS: Record<TrainerState, string> = {
   speaking: '播报答案…',
   gap: '下一题准备中…',
   awaiting_answer: '请选择音程',
+  answer_correction: '请重新选择',
   feedback_incorrect: '回答错误',
 }
 

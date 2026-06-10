@@ -5,6 +5,7 @@ type ChallengeAnswerButtonProps = {
   isReady: boolean
   isListening: boolean
   isCorrectAnswer: boolean
+  isWrongSelection?: boolean
   onClick: () => void
   primaryLabel: ReactNode
   secondaryLabel?: ReactNode
@@ -16,6 +17,7 @@ export function ChallengeAnswerButton({
   isReady,
   isListening,
   isCorrectAnswer,
+  isWrongSelection = false,
   onClick,
   primaryLabel,
   secondaryLabel,
@@ -32,11 +34,13 @@ export function ChallengeAnswerButton({
         className,
         isCorrectAnswer
           ? 'border-emerald-400/60 bg-emerald-500/15 text-emerald-200 ring-2 ring-emerald-400/30'
-          : isReady
-            ? 'border-sky-400/50 bg-sky-500/10 text-[var(--text-primary)] shadow-[0_0_20px_rgba(56,189,248,0.15)] hover:border-sky-400 hover:bg-sky-500/20 hover:shadow-[0_0_28px_rgba(56,189,248,0.25)] active:scale-[0.97]'
-            : isListening
-              ? 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] opacity-60'
-              : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] opacity-40',
+          : isWrongSelection
+            ? 'border-red-400/60 bg-red-500/15 text-red-200 ring-2 ring-red-400/30'
+            : isReady
+              ? 'border-sky-400/50 bg-sky-500/10 text-[var(--text-primary)] shadow-[0_0_20px_rgba(56,189,248,0.15)] hover:border-sky-400 hover:bg-sky-500/20 hover:shadow-[0_0_28px_rgba(56,189,248,0.25)] active:scale-[0.97]'
+              : isListening
+                ? 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] opacity-60'
+                : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] opacity-40',
       ].join(' ')}
     >
       {primaryLabel}

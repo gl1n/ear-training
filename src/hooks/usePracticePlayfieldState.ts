@@ -4,7 +4,9 @@ import { getPracticePhase } from '../components/practice/practicePhase'
 
 export function usePracticePlayfieldState(state: TrainerState, sessionStats: SessionStats) {
   const phase = getPracticePhase(state)
-  const canAnswer = state === 'awaiting_answer' || LISTENING_STATES.includes(state)
+  const isCorrection = state === 'answer_correction'
+  const canAnswer =
+    state === 'awaiting_answer' || isCorrection || LISTENING_STATES.includes(state)
   const isWrong = state === 'feedback_incorrect'
   const correctCount = getCorrectAnswerCount(sessionStats)
   const totalScore = getTotalScore(sessionStats)
@@ -15,6 +17,7 @@ export function usePracticePlayfieldState(state: TrainerState, sessionStats: Ses
   return {
     phase,
     canAnswer,
+    isCorrection,
     isWrong,
     correctCount,
     totalScore,
