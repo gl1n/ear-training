@@ -1,7 +1,7 @@
 import { INTERVALS, type IntervalDirection } from '../quiz/intervals'
 import { getDirectionLabel, getSpeedLabel } from '../lib/labels'
 import type { AppMode, SpeedPreset } from '../quiz/sequencer'
-import { cardClasses } from './ui/Card'
+import { cardClasses } from './ui/cardClasses'
 import { Chip } from './ui/Chip'
 
 type SettingsSummaryProps = {

@@ -7,6 +7,8 @@ import {
   type SessionStats,
 } from '../quiz/stats'
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
+import { formatScoreDisplay } from '../lib/formatScore'
+import { ChallengeEndedSection, ChallengeScoreCard } from './practice/ChallengeEndedSection'
 import { ScaleDegreeCorrectCountChart } from './ScaleDegreeCorrectCountChart'
 import { ScaleDegreeMistakeSummary } from './ScaleDegreeMistakeSummary'
 import { PlayAreaCard } from './PlayAreaCard'
@@ -29,53 +31,6 @@ const HOW_TO_STEPS = [
   { step: '2', title: '听音', desc: '辨认调内单音' },
   { step: '3', title: '选级', desc: '点选 1–7 音级' },
 ] as const
-
-function ScoreCard({
-  value,
-  label,
-  highlight = false,
-  variant = 'count',
-}: {
-  value: number | string
-  label: string
-  highlight?: boolean
-  variant?: 'count' | 'score'
-}) {
-  const isScore = variant === 'score'
-
-  return (
-    <div
-      className={[
-        'w-full max-w-sm rounded-2xl border px-5 py-5 text-center transition-colors',
-        highlight
-          ? isScore
-            ? 'border-amber-400/30 bg-gradient-to-b from-amber-500/15 to-amber-500/5'
-            : 'border-sky-400/30 bg-gradient-to-b from-sky-500/15 to-sky-500/5 note-key-glow'
-          : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)]',
-      ].join(' ')}
-    >
-      <p
-        className={[
-          'text-4xl font-bold tabular-nums',
-          highlight
-            ? isScore
-              ? 'text-amber-100'
-              : 'text-sky-100'
-            : 'text-[var(--text-primary)]',
-        ].join(' ')}
-      >
-        {value}
-      </p>
-      <p className="mt-1.5 text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-        {label}
-      </p>
-    </div>
-  )
-}
-
-function formatTotalScore(score: number): string {
-  return Number.isInteger(score) ? String(score) : score.toFixed(1)
-}
 
 function HowToPlay() {
   return (
@@ -125,46 +80,23 @@ export function ScaleDegreeIdlePanel({
   if (gameEnded) {
     return (
       <PlayAreaCard className="gap-7">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <span className="inline-flex items-center gap-2 rounded-full bg-red-500/10 px-3 py-1 text-xs font-medium uppercase tracking-wider text-red-300 ring-1 ring-red-400/20">
-            挑战结束
-          </span>
-          {lastQuiz && (
-            <p className="text-sm text-[var(--text-secondary)]">{lastQuiz.keyLabel}</p>
-          )}
-        </div>
-
-        <div className="flex w-full max-w-sm flex-col gap-3">
-          <p className="text-center text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-            本次成绩
-          </p>
-          <ScoreCard value={correctCount} label="连对题数" highlight />
-          <ScoreCard
-            value={formatTotalScore(totalScore)}
+        <ChallengeEndedSection
+          accent="sky"
+          subtitle={lastQuiz?.keyLabel}
+          isNewBestRecord={isNewScaleDegreeBestRecord}
+          bestRecord={scaleDegreeBestRecord}
+        >
+          <ChallengeScoreCard value={correctCount} label="连对题数" highlight />
+          <ChallengeScoreCard
+            value={formatScoreDisplay(totalScore)}
             label="加权总分"
             highlight
             variant="score"
           />
-        </div>
+        </ChallengeEndedSection>
 
         {scaleDegreeSessionHistory.length >= 2 && (
           <ScaleDegreeCorrectCountChart records={scaleDegreeSessionHistory} highlightLast />
-        )}
-
-        {scaleDegreeBestRecord && (
-          <div className="flex w-full max-w-sm flex-col gap-3">
-            <div className="flex items-center justify-center gap-2">
-              <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-                最佳记录
-              </p>
-              {isNewScaleDegreeBestRecord && (
-                <span className="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-[10px] font-semibold text-sky-200 ring-1 ring-sky-400/25">
-                  新纪录
-                </span>
-              )}
-            </div>
-            <ScoreCard value={scaleDegreeBestRecord.correctCount} label="连对题数" />
-          </div>
         )}
 
         {lastQuiz && (

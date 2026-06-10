@@ -2,14 +2,52 @@ import { describe, expect, it } from 'vitest'
 import {
   aggregateSessionDegreeDistribution,
   EMPTY_SESSION_STATS,
+  getCorrectAnswerCount,
   getSessionDegreeWeights,
   getTotalScore,
+  hasSessionAttempts,
   MAX_SESSION_DEGREE_COUNT_VARIANCE,
   populationVariance,
-  recordScaleDegreeResult,
   recordResult,
+  recordScaleDegreeResult,
 } from './stats'
 import { randomScaleDegreeQuiz } from './keys'
+
+describe('getCorrectAnswerCount', () => {
+  it('returns zero for an empty session', () => {
+    expect(getCorrectAnswerCount(EMPTY_SESSION_STATS)).toBe(0)
+  })
+
+  it('sums correct answers across keys', () => {
+    let stats = EMPTY_SESSION_STATS
+    stats = recordResult(stats, 'M2', { correct: true })
+    stats = recordResult(stats, 'M2', { correct: false })
+    stats = recordResult(stats, 'P5', { correct: true })
+
+    expect(getCorrectAnswerCount(stats)).toBe(2)
+  })
+})
+
+describe('hasSessionAttempts', () => {
+  it('is false before any answers', () => {
+    expect(hasSessionAttempts(EMPTY_SESSION_STATS)).toBe(false)
+  })
+
+  it('is true after at least one answer', () => {
+    const stats = recordResult(EMPTY_SESSION_STATS, '3', { correct: false })
+    expect(hasSessionAttempts(stats)).toBe(true)
+  })
+})
+
+describe('recordResult for interval speed', () => {
+  it('tracks correct and total counts per interval id', () => {
+    let stats = EMPTY_SESSION_STATS
+    stats = recordResult(stats, 'M3', { correct: true })
+    stats = recordResult(stats, 'M3', { correct: false })
+
+    expect(stats.byKey.M3).toEqual({ correctCount: 1, totalCount: 2 })
+  })
+})
 
 describe('aggregateSessionDegreeDistribution', () => {
   it('returns zero counts for an empty session', () => {

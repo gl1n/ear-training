@@ -1,4 +1,6 @@
 import { LISTENING_STATES, type TrainerState } from '../quiz/sequencer'
+import { KeyLabel } from './practice/KeyLabel'
+import { SoundBars } from './practice/SoundBars'
 import { PlayAreaCard } from './PlayAreaCard'
 import { SessionLoadStatus } from './SessionLoadStatus'
 
@@ -9,17 +11,6 @@ type ScaleDegreeReadyPanelProps = {
   loadIndeterminate: boolean
   loadError: string | null
   onRetry?: () => void
-}
-
-function KeyDisplay({ label }: { label: string }) {
-  return (
-    <div className="flex flex-col items-center gap-3">
-      <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-sky-400/30 bg-gradient-to-br from-sky-500/20 via-sky-500/10 to-cyan-500/5 note-key-glow">
-        <span className="text-3xl font-bold text-sky-100">{label.replace(/ 大调$/, '')}</span>
-      </div>
-      <p className="text-lg font-semibold text-sky-100">{label}</p>
-    </div>
-  )
 }
 
 export function ScaleDegreeReadyPanel({
@@ -63,7 +54,7 @@ export function ScaleDegreeReadyPanel({
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                   已定调
                 </span>
-                <KeyDisplay label={currentKeyLabel} />
+                <KeyLabel label={currentKeyLabel} variant="display" />
                 <p className="max-w-xs text-sm leading-relaxed text-[var(--text-secondary)]">
                   调性已建立，即将开始答题
                 </p>
@@ -75,13 +66,13 @@ export function ScaleDegreeReadyPanel({
 
           {isEstablishing && (
             <div className="flex items-end justify-center gap-1.5" aria-hidden="true">
-              {[0, 1, 2, 3, 4].map((i) => (
-                <span
-                  key={i}
-                  className="w-1.5 rounded-full bg-sky-400 animate-sound-bar"
-                  style={{ animationDelay: `${i * 0.1}s`, height: `${12 + (i % 3) * 6}px` }}
-                />
-              ))}
+              <SoundBars
+                className="w-1.5 rounded-full bg-sky-400 animate-sound-bar"
+                bars={[0, 1, 2, 3, 4].map((i) => ({
+                  delay: i * 0.1,
+                  height: 12 + (i % 3) * 6,
+                }))}
+              />
             </div>
           )}
         </>

@@ -1,12 +1,70 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   aggregateByCorrectDegree,
   aggregateByDegreePair,
+  clearScaleDegreeMistakeStats,
+  loadScaleDegreeMistakeStats,
   MAX_RECENT_MISTAKES,
   recordScaleDegreeMistake,
+  saveScaleDegreeMistakeStats,
+  SCALE_DEGREE_MISTAKE_STATS_SCHEMA_VERSION,
   weightedRandomScaleDegreeQuizFromMistakes,
   type ScaleDegreeMistakeStatsStore,
 } from './scaleDegreeMistakeStats'
+import { STORAGE_KEYS } from './storageKeys'
+
+const STORAGE_KEY = STORAGE_KEYS.scaleDegreeMistakeStats
+const SCHEMA_KEY = STORAGE_KEYS.scaleDegreeMistakeStatsSchema
+
+function createLocalStorageMock(initial: Record<string, string> = {}) {
+  const store = new Map(Object.entries(initial))
+
+  return {
+    getItem: vi.fn((key: string) => store.get(key) ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      store.set(key, value)
+    }),
+    removeItem: vi.fn((key: string) => {
+      store.delete(key)
+    }),
+  }
+}
+
+describe('scale degree mistake persistence', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('round-trips records through localStorage', () => {
+    const localStorage = createLocalStorageMock({
+      [SCHEMA_KEY]: String(SCALE_DEGREE_MISTAKE_STATS_SCHEMA_VERSION),
+    })
+    vi.stubGlobal('localStorage', localStorage)
+
+    const store: ScaleDegreeMistakeStatsStore = [
+      { previousNoteMidi: 60, correctDegree: 3, wrongDegree: '1' },
+    ]
+    saveScaleDegreeMistakeStats(store)
+
+    expect(localStorage.setItem).toHaveBeenCalledWith(STORAGE_KEY, JSON.stringify(store))
+    expect(loadScaleDegreeMistakeStats()).toEqual(store)
+  })
+
+  it('clears stored records', () => {
+    const localStorage = createLocalStorageMock({
+      [STORAGE_KEY]: JSON.stringify([
+        { previousNoteMidi: 60, correctDegree: 2, wrongDegree: '4' },
+      ]),
+      [SCHEMA_KEY]: String(SCALE_DEGREE_MISTAKE_STATS_SCHEMA_VERSION),
+    })
+    vi.stubGlobal('localStorage', localStorage)
+
+    clearScaleDegreeMistakeStats()
+
+    expect(localStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+    expect(loadScaleDegreeMistakeStats()).toEqual([])
+  })
+})
 
 describe('aggregateByCorrectDegree', () => {
   it('counts mistakes per correct degree', () => {

@@ -92,7 +92,7 @@ describe('getLastMistakeQuizForRoot', () => {
     expect(getLastMistakeQuizForRoot(store, 60)).toEqual(newerQuiz)
   })
 
-  it('skips root-only legacy records', () => {
+  it('returns null for incomplete records', () => {
     const store: MistakeStatsStore = [rootRecord(60), rootRecord(60)]
     expect(getLastMistakeQuizForRoot(store, 60)).toBeNull()
   })
@@ -140,19 +140,6 @@ describe('loadMistakeStats', () => {
     vi.unstubAllGlobals()
   })
 
-  it('discards legacy number arrays when schema guard is enabled', () => {
-    vi.stubGlobal('localStorage', {
-      getItem: vi.fn((key: string) => {
-        if (key === MISTAKE_STATS_SCHEMA_KEY) return String(MISTAKE_STATS_SCHEMA_VERSION)
-        if (key === MISTAKE_STATS_STORAGE_KEY) return JSON.stringify([60, 62])
-        return null
-      }),
-      setItem: vi.fn(),
-      removeItem: vi.fn(),
-    })
-
-    expect(loadMistakeStats()).toEqual([])
-  })
 
   it('loads complete records when schema version matches', () => {
     const record = {

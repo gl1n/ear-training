@@ -1,7 +1,6 @@
 import {
   clearChallengeBestRecord,
   type ChallengeBestRecord,
-  type ChallengeBestVariant,
 } from './challengeBestRecord'
 import { clearMistakeStats, type MistakeStatsStore } from './mistakeStats'
 import { clearScaleDegreeMistakeStats, type ScaleDegreeMistakeStatsStore } from './scaleDegreeMistakeStats'
@@ -29,5 +28,3 @@ export function clearAllTrainingStats(): void {
   clearScaleDegreeSessionHistory()
   clearChallengeBestRecord()
 }
-
-export type { ChallengeBestVariant }

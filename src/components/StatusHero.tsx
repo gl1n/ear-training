@@ -19,7 +19,6 @@ const STATE_LABELS: Record<TrainerState, string> = {
   playing_root: '播放第一音…',
   playing_second: '播放第二音…',
   playing_harmonic: '播放和弦…',
-  playing_tonic: '播放主音…',
   playing_tonic_chord: '播放定调和弦…',
   playing_note: '播放目标音…',
   pause: '请听辨音程…',

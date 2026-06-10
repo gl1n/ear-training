@@ -5,7 +5,7 @@ import {
   loadScaleDegreeSessionHistory,
 } from './scaleDegreeSessionHistory'
 
-const STORAGE_KEY = 'ear-trainer:note-key-session-history'
+const STORAGE_KEY = 'ear-trainer:scale-degree-session-history'
 
 function createLocalStorageMock() {
   const store = new Map<string, string>()

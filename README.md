@@ -1,73 +1,43 @@
-# React + TypeScript + Vite
+# Ear Trainer / 练耳工具
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Browser-based ear training for interval recognition and scale-degree identification. Built with React 19, TypeScript, and Vite.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **音程跟听** — Loop playback with spoken interval names (Web Speech API, zh-CN)
+- **音程竞速** — 30-second timed challenge with mistake-weighted question selection
+- **音级辨识** — Identify scale degrees in random major keys, with optional mistake review mode
 
-## React Compiler
+Progress (mistake stats, best records, session history) is stored in `localStorage`. Piano samples load from CDN via [smplr](https://github.com/danigb/smplr) on first use.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Development
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Other scripts:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run build   # typecheck + production build
+npm test        # vitest
+npm run lint
+npm run preview # preview production build locally
 ```
+
+## Deployment
+
+The app is configured for GitHub Pages at `/ear-training/` (`BASE_PATH` in `vite.config.ts`). CI deploys from `.github/workflows/deploy.yml`.
+
+## Project structure
+
+```
+src/
+  audio/        Web Audio, piano samples, speech synthesis
+  components/   UI (practice/, ui/ shared primitives)
+  hooks/        Settings, stats, session, audio engine
+  quiz/         Domain logic, game loops, persistence
+```
+
+Domain logic lives in `src/quiz/` with colocated Vitest tests. The root `Trainer` component wires hooks and delegates rendering to `PracticeView`.

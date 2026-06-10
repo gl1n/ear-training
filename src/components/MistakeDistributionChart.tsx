@@ -1,5 +1,6 @@
 import { useId, useMemo, useState, type KeyboardEvent } from 'react'
 import { getQuizPitchKey, midiToNoteName, type Quiz } from '../quiz/intervals'
+import { buildCurvePath } from '../lib/chartUtils'
 import {
   buildHistogram,
   buildKdeCurve,
@@ -21,16 +22,6 @@ type MistakeDistributionChartProps = {
 const CHART_WIDTH = 320
 const CHART_HEIGHT = 160
 const PADDING = { top: 20, right: 8, bottom: 28, left: 28 }
-
-function buildCurvePath(
-  points: { x: number; y: number }[],
-): string {
-  if (points.length === 0) return ''
-
-  return points
-    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
-    .join(' ')
-}
 
 function pickAxisLabels(rootMin: number, rootMax: number): number[] {
   const labels: number[] = []

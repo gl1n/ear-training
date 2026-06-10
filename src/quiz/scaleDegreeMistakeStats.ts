@@ -4,6 +4,9 @@ import {
   type MajorKeySession,
   type ScaleDegreeQuiz,
 } from './keys'
+import { createRecentRecordStore } from './recentRecordStore'
+import { STORAGE_KEYS } from './storageKeys'
+import { pickWeighted } from './weightedPick'
 
 export type ScaleDegreeMistakeRecord = {
   previousNoteMidi: number | null
@@ -25,7 +28,11 @@ export type ScaleDegreeMistakePairAggregate = {
   ratio: number
 }
 
-const STORAGE_KEY = 'ear-trainer:note-key-mistake-stats'
+const STORAGE_KEY = STORAGE_KEYS.scaleDegreeMistakeStats
+const SCHEMA_STORAGE_KEY = STORAGE_KEYS.scaleDegreeMistakeStatsSchema
+
+/** Bump when mistake record shape changes. On mismatch, stored stats are cleared. */
+export const SCALE_DEGREE_MISTAKE_STATS_SCHEMA_VERSION = 1
 
 export const MAX_RECENT_MISTAKES = 100
 
@@ -60,17 +67,20 @@ function isScaleDegreeMistakeStatsStore(value: unknown): value is ScaleDegreeMis
   return Array.isArray(value) && value.every(isScaleDegreeMistakeRecord)
 }
 
+const scaleDegreeMistakeRecordStore = createRecentRecordStore<ScaleDegreeMistakeRecord>({
+  storageKey: STORAGE_KEY,
+  maxRecords: MAX_RECENT_MISTAKES,
+  isValidRecord: isScaleDegreeMistakeRecord,
+  isValidStore: isScaleDegreeMistakeStatsStore,
+  schemaStorageKey: SCHEMA_STORAGE_KEY,
+  schemaVersion: SCALE_DEGREE_MISTAKE_STATS_SCHEMA_VERSION,
+})
+
 export function recordScaleDegreeMistake(
   store: ScaleDegreeMistakeStatsStore,
   record: ScaleDegreeMistakeRecord,
 ): void {
-  if (!isScaleDegreeMistakeRecord(record)) return
-
-  store.push(record)
-
-  if (store.length > MAX_RECENT_MISTAKES) {
-    store.splice(0, store.length - MAX_RECENT_MISTAKES)
-  }
+  scaleDegreeMistakeRecordStore.appendInMemory(store, record)
 }
 
 export function aggregateByCorrectDegree(
@@ -115,44 +125,16 @@ export function aggregateByDegreePair(
     )
 }
 
-export function getTotalScaleDegreeMistakeCount(store: ScaleDegreeMistakeStatsStore): number {
-  return store.length
-}
-
 export function loadScaleDegreeMistakeStats(): ScaleDegreeMistakeStatsStore {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-
-    const parsed: unknown = JSON.parse(raw)
-    if (isScaleDegreeMistakeStatsStore(parsed)) {
-      return parsed.slice(-MAX_RECENT_MISTAKES)
-    }
-
-    return []
-  } catch {
-    return []
-  }
+  return scaleDegreeMistakeRecordStore.load()
 }
 
 export function saveScaleDegreeMistakeStats(store: ScaleDegreeMistakeStatsStore): void {
-  const normalized = store
-    .filter(isScaleDegreeMistakeRecord)
-    .slice(-MAX_RECENT_MISTAKES)
-
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized))
-  } catch {
-    // Ignore quota / private mode errors.
-  }
+  scaleDegreeMistakeRecordStore.save(store)
 }
 
 export function clearScaleDegreeMistakeStats(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEY)
-  } catch {
-    // Ignore private mode errors.
-  }
+  scaleDegreeMistakeRecordStore.clear()
 }
 
 function pickWeightedMistakeRecord(
@@ -162,21 +144,10 @@ function pickWeightedMistakeRecord(
 
   const aggregates = aggregateByCorrectDegree(store)
   const weighted = aggregates.filter((item) => item.count > 0)
-  if (weighted.length === 0) return null
+  const chosen = pickWeighted(weighted, (item) => item.count)
+  if (!chosen) return null
 
-  const totalWeight = weighted.reduce((sum, item) => sum + item.count, 0)
-  let pick = Math.random() * totalWeight
-
-  let chosenDegree = weighted[weighted.length - 1]!.degree
-  for (const item of weighted) {
-    pick -= item.count
-    if (pick <= 0) {
-      chosenDegree = item.degree
-      break
-    }
-  }
-
-  const candidates = store.filter((record) => record.correctDegree === chosenDegree)
+  const candidates = store.filter((record) => record.correctDegree === chosen.degree)
   return candidates[Math.floor(Math.random() * candidates.length)] ?? null
 }
 

@@ -1,6 +1,6 @@
 import { cancelSpeech, speak } from '../audio/speech'
 import type { Piano } from '../audio/piano'
-import { delay, isAbortError } from '../utils/abort'
+import { delay } from '../utils/abort'
 import {
   createMajorKeySession,
   getTonicMajorTriadMidis,
@@ -18,6 +18,7 @@ import {
   type ScaleDegreeMistakeStatsStore,
 } from './scaleDegreeMistakeStats'
 import { getSessionDegreeWeights, type SessionStats } from './stats'
+import { raceAnswerAgainstAudio } from './challengeLoopHelpers'
 
 const IDLE_BOOST_MS = 1_000
 
@@ -39,7 +40,6 @@ export type TrainerState =
   | 'playing_root'
   | 'playing_second'
   | 'playing_harmonic'
-  | 'playing_tonic'
   | 'playing_tonic_chord'
   | 'playing_note'
   | 'pause'
@@ -53,19 +53,9 @@ export type SpeedPreset = 'slow' | 'medium' | 'fast'
 /** 音程跟听 · 音程竞速 · 音级辨识 */
 export type AppMode = 'intervalFollow' | 'intervalSpeed' | 'scaleDegree'
 
-const LEGACY_APP_MODES: Record<string, AppMode> = {
-  practice: 'intervalFollow',
-  arcade: 'intervalSpeed',
-  noteKey: 'scaleDegree',
-}
-
 export function normalizeAppMode(value: unknown): AppMode | null {
   if (value === 'intervalFollow' || value === 'intervalSpeed' || value === 'scaleDegree') {
     return value
-  }
-
-  if (typeof value === 'string' && value in LEGACY_APP_MODES) {
-    return LEGACY_APP_MODES[value]
   }
 
   return null
@@ -88,7 +78,6 @@ export const LISTENING_STATES: TrainerState[] = [
   'playing_root',
   'playing_second',
   'playing_harmonic',
-  'playing_tonic',
   'playing_tonic_chord',
   'playing_note',
 ]
@@ -287,6 +276,7 @@ export async function runIntervalSpeedLoop(
       return
     }
 
+    // 音程竞速：始终按错题分布加权出题（MISTAKE_FOCUSED_RATE 控制聚焦比例）。
     const quiz = weightedRandomQuizFromMistakes(
       mistakeStore,
       settings.enabledIntervalIds,
@@ -343,44 +333,28 @@ export async function runIntervalSpeedLoop(
       }, IDLE_BOOST_MS)
     }
 
-    const audioAbort = new AbortController()
-
-    const onSessionAbort = () => audioAbort.abort()
-    signal.addEventListener('abort', onSessionAbort)
-
     const onStateChange = (state: TrainerState) => {
       callbacks.onStateChange(state)
     }
 
-    const answerPromise = callbacks.waitForAnswer(signal, remainingMs)
-
-    const audioPromise = playQuizAudio(piano, quiz, settings, { onStateChange }, audioAbort.signal)
-      .then(() => {
-        if (!audioAbort.signal.aborted && !questionState.playerAnswered) {
-          callbacks.onStateChange('awaiting_answer')
-          startIdleTimerIfNeeded()
-        }
-      })
-      .catch((error) => {
-        if (!isAbortError(error)) {
-          throw error
-        }
-      })
-
     let answer: IntervalSpeedAnswer
     try {
-      answer = await answerPromise
+      answer = await raceAnswerAgainstAudio({
+        signal,
+        piano,
+        waitForAnswer: () => callbacks.waitForAnswer(signal, remainingMs),
+        playAudio: (audioSignal) =>
+          playQuizAudio(piano, quiz, settings, { onStateChange }, audioSignal),
+        onAwaitingAnswer: () => {
+          if (!questionState.playerAnswered) {
+            callbacks.onStateChange('awaiting_answer')
+            startIdleTimerIfNeeded()
+          }
+        },
+      })
       questionState.playerAnswered = !answer.timedOut && answer.selectedIntervalId !== ''
     } finally {
       clearIdleTimer()
-      audioAbort.abort()
-      stopPlayback(piano)
-      signal.removeEventListener('abort', onSessionAbort)
-      try {
-        await audioPromise
-      } catch {
-        // Audio stopped early when the player answered.
-      }
     }
 
     if (
@@ -433,6 +407,7 @@ export async function runScaleDegreeLoop(
   let previousNoteMidi: number | null = null
 
   while (!signal.aborted) {
+    // 音级辨识：复习模式开启时优先历史错题；关闭时用本局均衡权重随机。
     let quiz: ScaleDegreeQuiz
     if (reviewEnabled && mistakeStore.length > 0) {
       quiz =
@@ -462,42 +437,23 @@ export async function runScaleDegreeLoop(
       )
     }
     previousNoteMidi = quiz.noteMidi
-    const audioAbort = new AbortController()
 
-    const onSessionAbort = () => audioAbort.abort()
-    signal.addEventListener('abort', onSessionAbort)
-
-    const answerPromise = callbacks.waitForAnswer(signal)
     let notePlayStartMs: number | null = null
-
-    const audioPromise = (async () => {
-      callbacks.onStateChange('playing_note')
-      notePlayStartMs = performance.now()
-      await playNote(piano, quiz.noteMidi, settings.noteDurationMs, audioAbort.signal)
-      if (!audioAbort.signal.aborted) {
-        callbacks.onStateChange('awaiting_answer')
-      }
-    })().catch((error) => {
-      if (!isAbortError(error)) {
-        throw error
-      }
+    let answer: ScaleDegreeAnswer = await raceAnswerAgainstAudio({
+      signal,
+      piano,
+      waitForAnswer: () => callbacks.waitForAnswer(signal),
+      playAudio: async (audioSignal) => {
+        callbacks.onStateChange('playing_note')
+        notePlayStartMs = performance.now()
+        await playNote(piano, quiz.noteMidi, settings.noteDurationMs, audioSignal)
+        if (!audioSignal.aborted) {
+          callbacks.onStateChange('awaiting_answer')
+        }
+      },
     })
-
-    let answer: ScaleDegreeAnswer
-    try {
-      answer = await answerPromise
-      if (notePlayStartMs !== null) {
-        answer = { ...answer, reactionMs: performance.now() - notePlayStartMs }
-      }
-    } finally {
-      audioAbort.abort()
-      stopPlayback(piano)
-      signal.removeEventListener('abort', onSessionAbort)
-      try {
-        await audioPromise
-      } catch {
-        // Audio stopped early when the player answered.
-      }
+    if (notePlayStartMs !== null) {
+      answer = { ...answer, reactionMs: performance.now() - notePlayStartMs }
     }
 
     const correct =

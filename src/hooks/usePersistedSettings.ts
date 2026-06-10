@@ -1,13 +1,15 @@
-import { useEffect, useRef } from 'react'
-import type { IntervalDirection } from '../quiz/intervals'
 import {
   createDefaultSettings,
   normalizeAppMode,
   type AppMode,
   type SpeedPreset,
 } from '../quiz/sequencer'
+import type { IntervalDirection } from '../quiz/intervals'
+import { useDebouncedPersist } from './useDebouncedPersist'
 
-const STORAGE_KEY = 'ear-trainer:settings'
+import { STORAGE_KEYS } from '../quiz/storageKeys'
+
+const STORAGE_KEY = STORAGE_KEYS.settings
 
 type PersistedSettings = {
   speedPreset: SpeedPreset
@@ -30,24 +32,11 @@ function parseDirection(parsed: Record<string, unknown>): IntervalDirection | nu
     return parsed.direction
   }
 
-  if ('enabledDirections' in parsed && Array.isArray(parsed.enabledDirections)) {
-    const first = parsed.enabledDirections.find(isIntervalDirection)
-    if (first) return first
-  }
-
   return null
 }
 
 function parseScaleDegreeReviewEnabled(record: Record<string, unknown>): boolean {
-  if ('scaleDegreeReviewEnabled' in record && record.scaleDegreeReviewEnabled === true) {
-    return true
-  }
-
-  if ('noteKeyReviewEnabled' in record && record.noteKeyReviewEnabled === true) {
-    return true
-  }
-
-  return false
+  return record.scaleDegreeReviewEnabled === true
 }
 
 function loadPersistedSettings(): PersistedSettings | null {
@@ -121,28 +110,14 @@ export function usePersistedSettings(
   mode: AppMode,
   scaleDegreeReviewEnabled: boolean,
 ) {
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
+  useDebouncedPersist(() => {
+    const data: PersistedSettings = {
+      speedPreset,
+      enabledIntervalIds,
+      direction,
+      mode,
+      scaleDegreeReviewEnabled,
     }
-
-    timeoutRef.current = setTimeout(() => {
-      const data: PersistedSettings = {
-        speedPreset,
-        enabledIntervalIds,
-        direction,
-        mode,
-        scaleDegreeReviewEnabled,
-      }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-    }, 300)
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current)
-      }
-    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
   }, [speedPreset, enabledIntervalIds, direction, mode, scaleDegreeReviewEnabled])
 }

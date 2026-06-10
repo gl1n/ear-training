@@ -1,4 +1,6 @@
 import { midiToNoteName } from './intervals'
+import type { SessionDegreeWeights } from './stats'
+import { pickUniform, pickWeighted } from './weightedPick'
 
 export const MAJOR_SCALE_INTERVALS = [0, 2, 4, 5, 7, 9, 11] as const
 
@@ -159,30 +161,6 @@ export function getTonicMajorTriadMidis(tonicMidi: number): [number, number, num
   return [tonicMidi, tonicMidi + 4, tonicMidi + 7]
 }
 
-export type SessionDegreeWeights = Readonly<Record<number, number>>
-
-function pickUniform<T>(items: T[]): T {
-  return items[Math.floor(Math.random() * items.length)]!
-}
-
-function pickWeighted<T>(items: T[], weights: number[]): T {
-  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0)
-
-  if (totalWeight === 0) {
-    return pickUniform(items)
-  }
-
-  let pick = Math.random() * totalWeight
-  for (let i = 0; i < items.length; i++) {
-    pick -= weights[i]!
-    if (pick <= 0) {
-      return items[i]!
-    }
-  }
-
-  return items[items.length - 1]!
-}
-
 function listAvailableDegrees(midis: number[], tonicPitchClass: number): number[] {
   const degrees = new Set<number>()
 
@@ -206,8 +184,7 @@ function pickRandomDegree(
     throw new Error('音域内没有可用的调内音级数')
   }
 
-  const weights = availableDegrees.map((degree) => sessionDegreeWeights?.[degree] ?? 1)
-  return pickWeighted(availableDegrees, weights)
+  return pickWeighted(availableDegrees, (degree) => sessionDegreeWeights?.[degree] ?? 1)!
 }
 
 /** 选定音级后，八度选择的理想跳距（半音）与高斯标准差。 */
@@ -225,14 +202,13 @@ function pickRegisterAmongMidis(midis: number[], previousNoteMidi: number | null
   }
 
   if (previousNoteMidi === null) {
-    return pickUniform(midis)
+    return pickUniform(midis)!
   }
 
   const withoutSameMidi = midis.filter((midi) => midi !== previousNoteMidi)
   const pool = withoutSameMidi.length > 0 ? withoutSameMidi : midis
-  const weights = pool.map((midi) => gaussianJumpWeight(midi - previousNoteMidi))
 
-  return pickWeighted(pool, weights)
+  return pickWeighted(pool, (midi) => gaussianJumpWeight(midi - previousNoteMidi))!
 }
 
 function pickRandomNoteMidi(

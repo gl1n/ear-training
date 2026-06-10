@@ -5,6 +5,9 @@ import {
   type IntervalDirection,
   type Quiz,
 } from './intervals'
+import { createRecentRecordStore } from './recentRecordStore'
+import { STORAGE_KEYS } from './storageKeys'
+import { pickWeighted } from './weightedPick'
 
 export type MistakeRecord = {
   root: number
@@ -16,23 +19,18 @@ export type MistakeRecord = {
 /** Recent mistake records, oldest first; capped at MAX_RECENT_MISTAKES. */
 export type MistakeStatsStore = MistakeRecord[]
 
-const STORAGE_KEY = 'ear-trainer:mistake-stats'
-const SCHEMA_STORAGE_KEY = 'ear-trainer:mistake-stats-schema'
+const STORAGE_KEY = STORAGE_KEYS.mistakeStats
+const SCHEMA_STORAGE_KEY = STORAGE_KEYS.mistakeStatsSchema
 
 /**
  * Bump when mistake record shape changes. On mismatch, stored stats are cleared.
- * Set to false once the format is stable and legacy cleanup is no longer needed.
  */
-export const DISCARD_INCOMPATIBLE_MISTAKE_STATS = true
-
-/** Increment to wipe persisted mistake stats on next load (when discard flag is on). */
 export const MISTAKE_STATS_SCHEMA_VERSION = 2
 
 export const MAX_RECENT_MISTAKES = 100
 
 /** When mistakes exist: 35% weighted by distribution, 65% fully random. */
 export const MISTAKE_FOCUSED_RATE = 0.35
-export const RANDOM_POOL_RATE = 1 - MISTAKE_FOCUSED_RATE
 
 /** One semitone in log₂(Hz) space. */
 export const LOG_PITCH_BIN_WIDTH = 1 / 12
@@ -113,29 +111,6 @@ function buildLastQuizByRoot(store: MistakeStatsStore): Map<number, Quiz> {
   return lastQuizByRoot
 }
 
-export function recordMistake(store: MistakeStatsStore, quiz: Quiz): void {
-  if (!Number.isInteger(quiz.root)) return
-
-  store.push({
-    root: quiz.root,
-    second: quiz.second,
-    intervalId: quiz.interval.id,
-    direction: quiz.direction,
-  })
-
-  if (store.length > MAX_RECENT_MISTAKES) {
-    store.splice(0, store.length - MAX_RECENT_MISTAKES)
-  }
-}
-
-export function getTotalMistakeCount(store: MistakeStatsStore): number {
-  return store.length
-}
-
-function isRootOnlyMistakeStatsStore(value: unknown): value is number[] {
-  return Array.isArray(value) && value.every((midi) => Number.isInteger(midi))
-}
-
 function isMistakeRecord(value: unknown): value is MistakeRecord {
   if (typeof value !== 'object' || value === null) return false
 
@@ -158,108 +133,42 @@ function isMistakeStatsStore(value: unknown): value is MistakeStatsStore {
   return Array.isArray(value) && value.every(isMistakeRecord)
 }
 
-function isLegacyMistakeStatsStore(value: unknown): value is Record<string, number> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+const mistakeRecordStore = createRecentRecordStore<MistakeRecord>({
+  storageKey: STORAGE_KEY,
+  maxRecords: MAX_RECENT_MISTAKES,
+  isValidRecord: isMistakeRecord,
+  isValidStore: isMistakeStatsStore,
+  schemaStorageKey: SCHEMA_STORAGE_KEY,
+  schemaVersion: MISTAKE_STATS_SCHEMA_VERSION,
+  sanitizeLoaded: (store) => store.filter((record) => mistakeRecordToQuiz(record) !== null),
+  normalizeForSave: (store) => store.filter((record) => Number.isInteger(record.root)),
+})
 
-  return Object.entries(value).every(([key, count]) => {
-    return (
-      key.length > 0 &&
-      Number.isInteger(Number(key)) &&
-      typeof count === 'number' &&
-      Number.isInteger(count) &&
-      count > 0
-    )
+export function recordMistake(store: MistakeStatsStore, quiz: Quiz): void {
+  if (!Number.isInteger(quiz.root)) return
+
+  mistakeRecordStore.appendInMemory(store, {
+    root: quiz.root,
+    second: quiz.second,
+    intervalId: quiz.interval.id,
+    direction: quiz.direction,
   })
 }
 
-function migrateRootOnlyStore(roots: number[]): MistakeStatsStore {
-  return roots
-    .filter((root) => Number.isInteger(root))
-    .slice(-MAX_RECENT_MISTAKES)
-    .map((root) => ({ root }))
-}
-
-function migrateLegacyStore(legacy: Record<string, number>): MistakeStatsStore {
-  const recent: MistakeRecord[] = []
-
-  for (const [key, count] of Object.entries(legacy)) {
-    const midi = Number(key)
-    if (!Number.isInteger(midi) || !Number.isInteger(count) || count <= 0) continue
-
-    for (let i = 0; i < count; i++) {
-      recent.push({ root: midi })
-    }
-  }
-
-  return recent.slice(-MAX_RECENT_MISTAKES)
-}
-
-function syncMistakeStatsSchema(): boolean {
-  if (!DISCARD_INCOMPATIBLE_MISTAKE_STATS) return false
-
-  try {
-    const storedVersion = localStorage.getItem(SCHEMA_STORAGE_KEY)
-    if (storedVersion === String(MISTAKE_STATS_SCHEMA_VERSION)) return false
-
-    clearMistakeStats()
-    localStorage.setItem(SCHEMA_STORAGE_KEY, String(MISTAKE_STATS_SCHEMA_VERSION))
-    return true
-  } catch {
-    return false
-  }
-}
-
-function sanitizeLoadedStore(store: MistakeStatsStore): MistakeStatsStore {
-  if (!DISCARD_INCOMPATIBLE_MISTAKE_STATS) return store
-
-  return store.filter((record) => mistakeRecordToQuiz(record) !== null)
+export function getTotalMistakeCount(store: MistakeStatsStore): number {
+  return store.length
 }
 
 export function loadMistakeStats(): MistakeStatsStore {
-  if (syncMistakeStatsSchema()) return []
-
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-
-    const parsed: unknown = JSON.parse(raw)
-    if (isMistakeStatsStore(parsed)) {
-      return sanitizeLoadedStore(parsed.slice(-MAX_RECENT_MISTAKES))
-    }
-
-    if (DISCARD_INCOMPATIBLE_MISTAKE_STATS) return []
-
-    if (isRootOnlyMistakeStatsStore(parsed)) {
-      return migrateRootOnlyStore(parsed)
-    }
-    if (isLegacyMistakeStatsStore(parsed)) {
-      return migrateLegacyStore(parsed)
-    }
-
-    return []
-  } catch {
-    return []
-  }
+  return mistakeRecordStore.load()
 }
 
 export function saveMistakeStats(store: MistakeStatsStore): void {
-  const normalized = store
-    .filter((record) => Number.isInteger(record.root))
-    .slice(-MAX_RECENT_MISTAKES)
-
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized))
-  } catch {
-    // Ignore quota / private mode errors.
-  }
+  mistakeRecordStore.save(store)
 }
 
 export function clearMistakeStats(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEY)
-  } catch {
-    // Ignore private mode errors.
-  }
+  mistakeRecordStore.clear()
 }
 
 export function buildHistogram(
@@ -368,23 +277,6 @@ export function buildKdeCurve(
   return points
 }
 
-function pickWeightedRoot(histogram: MistakeHistogram): number | null {
-  const weighted = histogram.bins.filter((bin) => bin.count > 0)
-  if (weighted.length === 0) return null
-
-  const totalWeight = weighted.reduce((sum, bin) => sum + bin.count, 0)
-  let pick = Math.random() * totalWeight
-
-  for (const bin of weighted) {
-    pick -= bin.count
-    if (pick <= 0) {
-      return bin.midi
-    }
-  }
-
-  return weighted[weighted.length - 1]!.midi
-}
-
 export function weightedRandomQuizFromMistakes(
   store: MistakeStatsStore,
   enabledIds: string[],
@@ -398,7 +290,11 @@ export function weightedRandomQuizFromMistakes(
     return randomQuiz(enabledIds, direction, rootMin, rootMax)
   }
 
-  const root = pickWeightedRoot(histogram)
+  const root =
+    pickWeighted(
+      histogram.bins.filter((bin) => bin.count > 0),
+      (bin) => bin.count,
+    )?.midi ?? null
   if (root === null) {
     return randomQuiz(enabledIds, direction, rootMin, rootMax)
   }

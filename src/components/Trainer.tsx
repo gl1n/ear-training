@@ -1,53 +1,35 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
-import { createPiano, type Piano } from '../audio/piano'
-import { createAudioContext, unlockAudioContextSync } from '../audio/context'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useAudioEngine } from '../hooks/useAudioEngine'
+import { useAutoDismiss } from '../hooks/useAutoDismiss'
+import { useChallengeSession } from '../hooks/useChallengeSession'
 import { getInitialSettings, usePersistedSettings } from '../hooks/usePersistedSettings'
 import { useTrainingStats } from '../hooks/useTrainingStats'
 import { ALL_INTERVAL_IDS, type IntervalDirection, type Quiz } from '../quiz/intervals'
 import type { ScaleDegreeQuiz } from '../quiz/keys'
-import type { ScaleDegreeMistakeRecord, ScaleDegreeMistakeStatsStore } from '../quiz/scaleDegreeMistakeStats'
+import {
+  buildIntervalSpeedLoopCallbacks,
+  buildScaleDegreeLoopCallbacks,
+} from '../quiz/challengeSessionHandlers'
+import { createAnswerWaiter, createGameStartWaiter } from '../quiz/createAnswerWaiter'
 import {
   createDefaultSettings,
-  replayQuiz,
   runIntervalFollowLoop,
   runIntervalSpeedLoop,
   runScaleDegreeLoop,
   stopPlayback,
   INTERVAL_SPEED_TIME_MS,
+  LISTENING_STATES,
   type AppMode,
   type Settings,
   type SpeedPreset,
   type TrainerState,
 } from '../quiz/sequencer'
-import {
-  EMPTY_SESSION_STATS,
-  recordScaleDegreeResult,
-  recordResult,
-  type SessionStats,
-} from '../quiz/stats'
-import { getQuizPitchKey } from '../quiz/intervals'
-import { IDLE_TIP_MESSAGES } from './IdleTipToast'
-import type { ScaleDegreeEncouragement } from './ScaleDegreeEncouragementToast'
-import { getEncouragementForReactionMs } from '../quiz/scaleDegreeScoring'
-import { LISTENING_STATES } from '../quiz/sequencer'
-import { abortError, isAbortError } from '../utils/abort'
+import { isAbortError } from '../utils/abort'
 import type { SettingsPanelProps } from './SettingsPanel'
 import { PracticeView } from './PracticeView'
+import type { PracticeEncouragement } from './practice/types'
 import { SettingsDrawer } from './SettingsDrawer'
-
-function ensureAudioContext(
-  audioRef: RefObject<AudioContext | null>,
-  pianoRef?: RefObject<Piano | null>,
-): AudioContext {
-  if (!audioRef.current || audioRef.current.state === 'closed') {
-    audioRef.current = createAudioContext()
-    if (pianoRef) {
-      pianoRef.current = null
-    }
-  }
-  unlockAudioContextSync(audioRef.current)
-  return audioRef.current
-}
+import { IDLE_TIP_MESSAGES } from './ui/encouragementMessages'
 
 export function Trainer() {
   const initial = getInitialSettings()
@@ -63,30 +45,47 @@ export function Trainer() {
   const [scaleDegreeReviewEnabled, setScaleDegreeReviewEnabled] = useState(
     initial.scaleDegreeReviewEnabled,
   )
-  const [sessionScaleDegreeMistakes, setSessionScaleDegreeMistakes] =
-    useState<ScaleDegreeMistakeStatsStore>([])
-  const [sessionStats, setSessionStats] = useState<SessionStats>(EMPTY_SESSION_STATS)
   const [intervalSpeedDeadlineMs, setIntervalSpeedDeadlineMs] = useState<number | null>(null)
   const [intervalSpeedTimedOut, setIntervalSpeedTimedOut] = useState(false)
-  const [loadProgress, setLoadProgress] = useState<number | null>(null)
-  const [loadIndeterminate, setLoadIndeterminate] = useState(false)
-  const [loadError, setLoadError] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
-  const audioContextRef = useRef<AudioContext | null>(null)
-  const pianoRef = useRef<Piano | null>(null)
   const abortRef = useRef<AbortController | null>(null)
-  const answerResolverRef = useRef<((intervalId: string) => void) | null>(null)
+  const answerResolverRef = useRef<((answer: string) => void) | null>(null)
   const answerCleanupRef = useRef<(() => void) | null>(null)
   const gameStartResolverRef = useRef<(() => void) | null>(null)
   const gameStartCleanupRef = useRef<(() => void) | null>(null)
-  const replayAbortRef = useRef<AbortController | null>(null)
-  const sessionStatsRef = useRef<SessionStats>(EMPTY_SESSION_STATS)
-  const idleTipIndexRef = useRef(0)
-  const [idleTip, setIdleTip] = useState<string | null>(null)
+  const intervalSpeedEncouragementIndexRef = useRef(0)
   const scaleDegreeEncouragementKeyRef = useRef(0)
+  const [intervalSpeedEncouragement, setIntervalSpeedEncouragement] =
+    useState<PracticeEncouragement | null>(null)
   const [scaleDegreeEncouragement, setScaleDegreeEncouragement] =
-    useState<ScaleDegreeEncouragement | null>(null)
+    useState<PracticeEncouragement | null>(null)
+
+  const {
+    pianoRef,
+    replayAbortRef,
+    audioContextRef,
+    loadProgress,
+    loadIndeterminate,
+    loadError,
+    replayingQuizKey,
+    ensureAudioContext,
+    resetLoadingState,
+    ensurePiano,
+    handlePlayQuiz: replayQuizAudio,
+    handleLoadFailure,
+    setLoadProgress,
+    setLoadIndeterminate,
+    setLoadError,
+  } = useAudioEngine()
+  const {
+    sessionStats,
+    sessionStatsRef,
+    sessionScaleDegreeMistakes,
+    resetSessionState,
+    updateSessionStats,
+    appendSessionScaleDegreeMistake,
+  } = useChallengeSession()
 
   const {
     mistakeStoreRef,
@@ -96,18 +95,7 @@ export function Trainer() {
     recordScaleDegreeQuizMistake,
     clearNewBestRecord,
     finalizeChallengeSession,
-  } = useTrainingStats({
-    direction: settings.direction,
-    enabledIntervalIds: settings.enabledIntervalIds,
-  })
-
-  const [replayingQuizKey, setReplayingQuizKey] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (LISTENING_STATES.includes(state)) {
-      setIdleTip(null)
-    }
-  }, [state])
+  } = useTrainingStats()
 
   useEffect(() => {
     if (
@@ -124,33 +112,8 @@ export function Trainer() {
     gameStartResolverRef.current()
   }, [mode, isRunning, scaleDegreeGameStarted, state, currentKeyLabel])
 
-  useEffect(() => {
-    if (!idleTip) {
-      return
-    }
-
-    const timeoutId = setTimeout(() => {
-      setIdleTip(null)
-    }, 2500)
-
-    return () => {
-      clearTimeout(timeoutId)
-    }
-  }, [idleTip])
-
-  useEffect(() => {
-    if (!scaleDegreeEncouragement) {
-      return
-    }
-
-    const timeoutId = setTimeout(() => {
-      setScaleDegreeEncouragement(null)
-    }, 1800)
-
-    return () => {
-      clearTimeout(timeoutId)
-    }
-  }, [scaleDegreeEncouragement?.key])
+  useAutoDismiss(intervalSpeedEncouragement, 2500, () => setIntervalSpeedEncouragement(null), intervalSpeedEncouragement?.message)
+  useAutoDismiss(scaleDegreeEncouragement, 1800, () => setScaleDegreeEncouragement(null), scaleDegreeEncouragement?.key)
 
   usePersistedSettings(
     speedPreset,
@@ -160,10 +123,13 @@ export function Trainer() {
     scaleDegreeReviewEnabled,
   )
 
-  const showIdleTip = useCallback(() => {
-    const message = IDLE_TIP_MESSAGES[idleTipIndexRef.current % IDLE_TIP_MESSAGES.length]
-    idleTipIndexRef.current += 1
-    setIdleTip(message)
+  const showIntervalSpeedEncouragement = useCallback(() => {
+    const message =
+      IDLE_TIP_MESSAGES[
+        intervalSpeedEncouragementIndexRef.current % IDLE_TIP_MESSAGES.length
+      ]
+    intervalSpeedEncouragementIndexRef.current += 1
+    setIntervalSpeedEncouragement({ message })
   }, [])
 
   const resetChallengeAnswerState = useCallback(() => {
@@ -173,12 +139,6 @@ export function Trainer() {
     gameStartResolverRef.current = null
     gameStartCleanupRef.current?.()
     gameStartCleanupRef.current = null
-  }, [])
-
-  const resetLoadingState = useCallback(() => {
-    setLoadProgress(null)
-    setLoadIndeterminate(false)
-    setLoadError(null)
   }, [])
 
   const abortSession = useCallback(() => {
@@ -195,7 +155,7 @@ export function Trainer() {
     setIsRunning(false)
     setState('idle')
     setIntervalSpeedDeadlineMs(null)
-    setIdleTip(null)
+    setIntervalSpeedEncouragement(null)
     setScaleDegreeEncouragement(null)
     setScaleDegreeGameStarted(false)
     resetLoadingState()
@@ -210,133 +170,35 @@ export function Trainer() {
     }
   }, [abortSession])
 
-  const waitForGameStart = useCallback((signal: AbortSignal) => {
-    return new Promise<void>((resolve, reject) => {
-      const onAbort = () => {
-        cleanup()
-        reject(abortError())
-      }
-
-      const cleanup = () => {
-        signal.removeEventListener('abort', onAbort)
-        gameStartResolverRef.current = null
-        gameStartCleanupRef.current = null
-      }
-
-      gameStartResolverRef.current = () => {
-        cleanup()
-        setScaleDegreeGameStarted(true)
-        resolve()
-      }
-      gameStartCleanupRef.current = cleanup
-      signal.addEventListener('abort', onAbort)
-    })
+  const handleTrainerStateChange = useCallback((nextState: TrainerState) => {
+    if (LISTENING_STATES.includes(nextState)) {
+      setIntervalSpeedEncouragement(null)
+    }
+    setState(nextState)
   }, [])
 
-  const waitForScaleDegreeAnswer = useCallback((signal: AbortSignal) => {
-    return new Promise<{ selectedDegree: string; timedOut?: boolean }>((resolve, reject) => {
-      const onAbort = () => {
-        cleanup()
-        reject(abortError())
-      }
+  const waitForIntervalSpeedAnswer = (signal: AbortSignal, timeoutMs?: number) =>
+    createAnswerWaiter({ answerResolverRef, answerCleanupRef })(signal, timeoutMs)
 
-      const cleanup = () => {
-        signal.removeEventListener('abort', onAbort)
-        answerResolverRef.current = null
-        answerCleanupRef.current = null
-      }
+  const waitForScaleDegreeAnswer = (signal: AbortSignal) =>
+    createAnswerWaiter({ answerResolverRef, answerCleanupRef })(signal)
 
-      answerResolverRef.current = (degree: string) => {
-        cleanup()
-        resolve({ selectedDegree: degree })
-      }
-      answerCleanupRef.current = cleanup
-      signal.addEventListener('abort', onAbort)
-    })
-  }, [])
+  const waitForGameStart = (signal: AbortSignal) =>
+    createGameStartWaiter({
+      gameStartResolverRef,
+      gameStartCleanupRef,
+      onStart: () => setScaleDegreeGameStarted(true),
+    })(signal)
 
-  const waitForAnswer = useCallback((signal: AbortSignal, timeoutMs: number) => {
-    return new Promise<{ selectedIntervalId: string; timedOut?: boolean }>((resolve, reject) => {
-        let timeoutId: ReturnType<typeof setTimeout> | null = null
-
-        const onAbort = () => {
-          cleanup()
-          reject(abortError())
-        }
-
-        const cleanup = () => {
-          signal.removeEventListener('abort', onAbort)
-          if (timeoutId !== null) {
-            clearTimeout(timeoutId)
-          }
-          answerResolverRef.current = null
-          answerCleanupRef.current = null
-        }
-
-        answerResolverRef.current = (intervalId: string) => {
-          cleanup()
-          resolve({ selectedIntervalId: intervalId })
-        }
-        answerCleanupRef.current = cleanup
-        signal.addEventListener('abort', onAbort)
-
-        if (timeoutMs <= 0) {
-          cleanup()
-          resolve({ selectedIntervalId: '', timedOut: true })
-          return
-        }
-
-        timeoutId = setTimeout(() => {
-          cleanup()
-          resolve({ selectedIntervalId: '', timedOut: true })
-        }, timeoutMs)
-    })
-  }, [])
-
-  const handleAnswerSelect = useCallback((intervalId: string) => {
-    answerResolverRef.current?.(intervalId)
+  const handleAnswerSelect = useCallback((answer: string) => {
+    answerResolverRef.current?.(answer)
   }, [])
 
   const handlePlayQuiz = useCallback(
-    async (quiz: Quiz) => {
-      if (isRunning || replayingQuizKey !== null) {
-        return
-      }
-
-      ensureAudioContext(audioContextRef, pianoRef)
-
-      replayAbortRef.current?.abort()
-      stopPlayback(pianoRef.current)
-
-      const controller = new AbortController()
-      replayAbortRef.current = controller
-      const pitchKey = getQuizPitchKey(quiz)
-      setReplayingQuizKey(pitchKey)
-
-      try {
-        const ctx = audioContextRef.current!
-        if (!pianoRef.current) {
-          pianoRef.current = await createPiano(ctx, {
-            rootMin: settings.rootMin,
-            rootMax: settings.rootMax,
-            signal: controller.signal,
-          })
-        }
-
-        await replayQuiz(pianoRef.current, quiz, settings, controller.signal)
-      } catch (error) {
-        if (isAbortError(error)) {
-          return
-        }
-        console.error(error)
-      } finally {
-        if (replayAbortRef.current === controller) {
-          setReplayingQuizKey(null)
-          replayAbortRef.current = null
-        }
-      }
+    (quiz: Quiz) => {
+      void replayQuizAudio(quiz, settings, isRunning)
     },
-    [isRunning, replayingQuizKey, settings],
+    [replayQuizAudio, isRunning, settings],
   )
 
   const start = useCallback(async () => {
@@ -351,9 +213,9 @@ export function Trainer() {
     setLoadProgress(0)
     setLoadIndeterminate(false)
     setLoadError(null)
-    setSessionStats(EMPTY_SESSION_STATS)
-    sessionStatsRef.current = EMPTY_SESSION_STATS
+    resetSessionState()
     resetChallengeAnswerState()
+
     if (mode === 'intervalSpeed') {
       setLastQuiz(null)
       clearNewBestRecord('intervalSpeed')
@@ -363,32 +225,12 @@ export function Trainer() {
       setLastScaleDegreeQuiz(null)
       setCurrentKeyLabel(null)
       setScaleDegreeGameStarted(false)
-      setSessionScaleDegreeMistakes([])
       clearNewBestRecord('scaleDegree')
     }
 
     try {
-      ensureAudioContext(audioContextRef, pianoRef)
-
-      const ctx = audioContextRef.current!
-
-      if (!pianoRef.current) {
-        pianoRef.current = await createPiano(ctx, {
-          rootMin: settings.rootMin,
-          rootMax: settings.rootMax,
-          onLoadProgress: (loaded, total) => {
-            setLoadIndeterminate(false)
-            const percent = total > 0 ? Math.round((loaded / total) * 100) : 0
-            setLoadProgress(percent)
-          },
-          onLoadingIndeterminate: () => {
-            setLoadProgress(null)
-            setLoadIndeterminate(true)
-          },
-          signal: controller.signal,
-        })
-      }
-
+      ensureAudioContext()
+      const piano = await ensurePiano(settings, controller.signal)
       resetLoadingState()
 
       const sessionDeadlineMs =
@@ -399,92 +241,56 @@ export function Trainer() {
 
       if (mode === 'intervalSpeed') {
         await runIntervalSpeedLoop(
-          pianoRef.current,
+          piano,
           settings,
-          {
-            onStateChange: setState,
-            waitForAnswer: (signal, timeoutMs) => waitForAnswer(signal, timeoutMs),
-            onAnswerSubmitted: (quiz, answer, correct) => {
-              if (answer.timedOut) {
-                setIntervalSpeedTimedOut(true)
-              }
-              if (!correct && !answer.timedOut) {
-                recordQuizMistake(quiz)
-              }
-              setLastQuiz(quiz)
-              setSessionStats((current) => {
-                const next = recordResult(current, quiz.interval.id, { correct })
-                sessionStatsRef.current = next
-                return next
-              })
-            },
-            onIdleBoost: (quiz) => {
-              recordQuizMistake(quiz)
-              showIdleTip()
-            },
-          },
+          buildIntervalSpeedLoopCallbacks({
+            onStateChange: handleTrainerStateChange,
+            waitForAnswer: (signal, timeoutMs) =>
+              waitForIntervalSpeedAnswer(signal, timeoutMs).then(({ answer, timedOut }) => ({
+                selectedIntervalId: answer,
+                timedOut,
+              })),
+            setLastQuiz,
+            setIntervalSpeedTimedOut,
+            recordQuizMistake,
+            updateSessionStats,
+            showIntervalSpeedEncouragement,
+          }),
           controller.signal,
           sessionDeadlineMs!,
           mistakeStoreRef.current,
         )
       } else if (mode === 'scaleDegree') {
         await runScaleDegreeLoop(
-          pianoRef.current,
+          piano,
           settings,
-          {
-            onStateChange: setState,
-            onSessionStart: (session) => {
-              setCurrentKeyLabel(session.label)
-            },
-            waitForGameStart: (signal) => waitForGameStart(signal),
-            waitForAnswer: (signal) => waitForScaleDegreeAnswer(signal),
-            onAnswerSubmitted: (quiz, answer, correct) => {
-              setLastScaleDegreeQuiz(quiz)
-              if (
-                !correct &&
-                !answer.timedOut &&
-                answer.selectedDegree !== '' &&
-                answer.selectedDegree !== String(quiz.degree)
-              ) {
-                const record: ScaleDegreeMistakeRecord = {
-                  previousNoteMidi: quiz.previousNoteMidi,
-                  correctDegree: quiz.degree,
-                  wrongDegree: answer.selectedDegree,
-                }
-                recordScaleDegreeQuizMistake(record)
-                setSessionScaleDegreeMistakes((current) => [...current, record])
-              }
-              if (correct && answer.reactionMs !== undefined) {
-                const message = getEncouragementForReactionMs(answer.reactionMs)
-                if (message) {
-                  scaleDegreeEncouragementKeyRef.current += 1
-                  setScaleDegreeEncouragement({
-                    message,
-                    key: scaleDegreeEncouragementKeyRef.current,
-                  })
-                }
-              }
-              setSessionStats((current) => {
-                const next = recordScaleDegreeResult(current, String(quiz.degree), {
-                  correct,
-                  reactionMs: answer.reactionMs,
-                })
-                sessionStatsRef.current = next
-                return next
-              })
-            },
+          buildScaleDegreeLoopCallbacks({
+            onStateChange: handleTrainerStateChange,
+            onSessionStart: (session) => setCurrentKeyLabel(session.label),
+            waitForGameStart,
+            waitForAnswer: (signal) =>
+              waitForScaleDegreeAnswer(signal).then(({ answer, timedOut }) => ({
+                selectedDegree: answer,
+                timedOut,
+              })),
+            setLastScaleDegreeQuiz,
+            recordScaleDegreeQuizMistake,
+            appendSessionScaleDegreeMistake,
+            setScaleDegreeEncouragement,
+            scaleDegreeEncouragementKeyRef,
+            updateSessionStats,
             getSessionStats: () => sessionStatsRef.current,
-          },
+          }),
           controller.signal,
           scaleDegreeMistakeStoreRef.current,
           scaleDegreeReviewEnabled,
         )
       } else {
         await runIntervalFollowLoop(
-          pianoRef.current,
+          piano,
           settings,
           {
-            onStateChange: setState,
+            onStateChange: handleTrainerStateChange,
             onAnswerRevealed: setLastQuiz,
           },
           controller.signal,
@@ -495,8 +301,7 @@ export function Trainer() {
         return
       }
       console.error(error)
-      pianoRef.current = null
-      setLoadError(error instanceof Error ? error.message : '钢琴音色加载失败')
+      handleLoadFailure(error)
       setState('idle')
     } finally {
       if (abortRef.current === controller) {
@@ -515,7 +320,31 @@ export function Trainer() {
         resetChallengeAnswerState()
       }
     }
-  }, [mode, scaleDegreeReviewEnabled, resetChallengeAnswerState, resetLoadingState, settings, showIdleTip, waitForAnswer, waitForGameStart, waitForScaleDegreeAnswer, recordQuizMistake, recordScaleDegreeQuizMistake, finalizeChallengeSession, clearNewBestRecord])
+  }, [
+    mode,
+    scaleDegreeReviewEnabled,
+    resetChallengeAnswerState,
+    resetSessionState,
+    settings,
+    showIntervalSpeedEncouragement,
+    handleTrainerStateChange,
+    recordQuizMistake,
+    recordScaleDegreeQuizMistake,
+    finalizeChallengeSession,
+    clearNewBestRecord,
+    ensureAudioContext,
+    ensurePiano,
+    resetLoadingState,
+    handleLoadFailure,
+    setLoadError,
+    setLoadProgress,
+    setLoadIndeterminate,
+    mistakeStoreRef,
+    scaleDegreeMistakeStoreRef,
+    sessionStatsRef,
+    updateSessionStats,
+    appendSessionScaleDegreeMistake,
+  ])
 
   const handleToggle = () => {
     if (isRunning && mode === 'scaleDegree' && !scaleDegreeGameStarted) {
@@ -528,17 +357,14 @@ export function Trainer() {
       return
     }
 
-    ensureAudioContext(audioContextRef, pianoRef)
-
+    ensureAudioContext()
     void start()
   }
 
   const handleScaleDegreeHome = useCallback(() => {
     setLastScaleDegreeQuiz(null)
-    setSessionStats(EMPTY_SESSION_STATS)
-    sessionStatsRef.current = EMPTY_SESSION_STATS
-    setSessionScaleDegreeMistakes([])
-  }, [])
+    resetSessionState()
+  }, [resetSessionState])
 
   const handleModeChange = (nextMode: AppMode) => {
     setMode(nextMode)
@@ -546,7 +372,7 @@ export function Trainer() {
     setLastScaleDegreeQuiz(null)
     setCurrentKeyLabel(null)
     setScaleDegreeGameStarted(false)
-    setSessionStats(EMPTY_SESSION_STATS)
+    resetSessionState()
     setIntervalSpeedTimedOut(false)
     resetChallengeAnswerState()
   }
@@ -604,6 +430,13 @@ export function Trainer() {
     onApplyPreset: handleApplyPreset,
   }
 
+  const loadStatus = {
+    loadProgress,
+    loadIndeterminate,
+    loadError,
+    onRetry: handleToggle,
+  }
+
   return (
     <>
       <PracticeView
@@ -625,15 +458,12 @@ export function Trainer() {
         rootMax={settings.rootMax}
         intervalSpeedDeadlineMs={intervalSpeedDeadlineMs}
         intervalSpeedTimedOut={intervalSpeedTimedOut}
-        idleTip={idleTip}
+        intervalSpeedEncouragement={intervalSpeedEncouragement}
         scaleDegreeEncouragement={scaleDegreeEncouragement}
-        loadProgress={loadProgress}
-        loadIndeterminate={loadIndeterminate}
-        loadError={loadError}
+        loadStatus={loadStatus}
         onModeChange={handleModeChange}
         onToggle={handleToggle}
         onOpenSettings={() => setDrawerOpen(true)}
-        onRetry={handleToggle}
         onAnswerSelect={handleAnswerSelect}
         replayingQuizKey={replayingQuizKey}
         isReplayBusy={replayingQuizKey !== null}

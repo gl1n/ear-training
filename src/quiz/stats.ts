@@ -10,18 +10,21 @@ export type DegreeCount = {
   count: number
 }
 
-export type IntervalStats = {
+export type AnswerKeyStats = {
   correctCount: number
   totalCount: number
 }
 
+/** @deprecated Use AnswerKeyStats */
+export type IntervalStats = AnswerKeyStats
+
 export type SessionStats = {
-  byInterval: Record<string, IntervalStats>
+  byKey: Record<string, AnswerKeyStats>
   totalScore: number
 }
 
 export const EMPTY_SESSION_STATS: SessionStats = {
-  byInterval: {},
+  byKey: {},
   totalScore: 0,
 }
 
@@ -29,23 +32,23 @@ export type ScaleDegreeQuizResult = QuizResult & {
   reactionMs?: number
 }
 
-const EMPTY_INTERVAL_STATS: IntervalStats = {
+const EMPTY_ANSWER_KEY_STATS: AnswerKeyStats = {
   correctCount: 0,
   totalCount: 0,
 }
 
 export function recordResult(
   stats: SessionStats,
-  intervalId: string,
+  answerKey: string,
   result: QuizResult,
 ): SessionStats {
-  const current = stats.byInterval[intervalId] ?? EMPTY_INTERVAL_STATS
+  const current = stats.byKey[answerKey] ?? EMPTY_ANSWER_KEY_STATS
 
   return {
     ...stats,
-    byInterval: {
-      ...stats.byInterval,
-      [intervalId]: {
+    byKey: {
+      ...stats.byKey,
+      [answerKey]: {
         correctCount: current.correctCount + (result.correct ? 1 : 0),
         totalCount: current.totalCount + 1,
       },
@@ -54,10 +57,7 @@ export function recordResult(
 }
 
 export function getCorrectAnswerCount(stats: SessionStats): number {
-  return Object.values(stats.byInterval).reduce(
-    (sum, interval) => sum + interval.correctCount,
-    0,
-  )
+  return Object.values(stats.byKey).reduce((sum, entry) => sum + entry.correctCount, 0)
 }
 
 export function recordScaleDegreeResult(
@@ -82,7 +82,7 @@ export function getTotalScore(stats: SessionStats): number {
 }
 
 function getTotalAnswerCount(stats: SessionStats): number {
-  return Object.values(stats.byInterval).reduce((sum, interval) => sum + interval.totalCount, 0)
+  return Object.values(stats.byKey).reduce((sum, entry) => sum + entry.totalCount, 0)
 }
 
 export function hasSessionAttempts(stats: SessionStats): boolean {
@@ -92,7 +92,7 @@ export function hasSessionAttempts(stats: SessionStats): boolean {
 export function aggregateSessionDegreeDistribution(stats: SessionStats): DegreeCount[] {
   return DEGREE_OPTION_IDS.map((id) => ({
     degree: Number(id),
-    count: stats.byInterval[id]?.totalCount ?? 0,
+    count: stats.byKey[id]?.totalCount ?? 0,
   }))
 }
 

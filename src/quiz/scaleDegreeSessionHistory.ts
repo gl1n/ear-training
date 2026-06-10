@@ -1,4 +1,6 @@
-const STORAGE_KEY = 'ear-trainer:note-key-session-history'
+import { STORAGE_KEYS } from './storageKeys'
+
+const STORAGE_KEY = STORAGE_KEYS.scaleDegreeSessionHistory
 const MAX_RECORDS = 40
 
 export type ScaleDegreeSessionRecord = {

@@ -6,10 +6,12 @@ import {
   type SessionStats,
 } from '../quiz/stats'
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
+import { ChallengeEndedSection, ChallengeScoreCard } from './practice/ChallengeEndedSection'
 import { MistakeDistributionChart } from './MistakeDistributionChart'
 import { PlayAreaCard } from './PlayAreaCard'
 import { PlayableIntervalCard } from './PlayableIntervalCard'
 import { ResetStatsButton } from './ResetStatsButton'
+
 type IntervalSpeedIdlePanelProps = {
   lastQuiz: Quiz | null
   sessionStats: SessionStats
@@ -19,15 +21,6 @@ type IntervalSpeedIdlePanelProps = {
   replayingQuizKey: string | null
   isReplayBusy: boolean
   onPlayQuiz: (quiz: Quiz) => void
-}
-
-function ScoreCard({ correctCount }: { correctCount: number }) {
-  return (
-    <div className="w-full max-w-sm rounded-xl border border-[var(--border-subtle)] bg-black/20 px-4 py-4 text-center">
-      <p className="text-3xl font-bold tabular-nums">{correctCount}</p>
-      <p className="mt-1 text-xs text-[var(--text-secondary)]">正确答题</p>
-    </div>
-  )
 }
 
 export function IntervalSpeedIdlePanel({
@@ -48,32 +41,14 @@ export function IntervalSpeedIdlePanel({
   if (gameEnded) {
     return (
       <PlayAreaCard className="gap-6">
-        <div className="text-center">
-          <p className="text-xs font-medium uppercase tracking-wider text-red-400/90">挑战结束</p>
-        </div>
-
-        <div className="flex w-full max-w-sm flex-col gap-3">
-          <p className="text-center text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-            本次成绩
-          </p>
-          <ScoreCard correctCount={correctCount} />
-        </div>
-
-        {intervalSpeedBestRecord && (
-          <div className="flex w-full max-w-sm flex-col gap-3">
-            <div className="flex items-center justify-center gap-2">
-              <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-                最佳记录
-              </p>
-              {isNewIntervalSpeedBestRecord && (
-                <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300">
-                  新纪录
-                </span>
-              )}
-            </div>
-            <ScoreCard correctCount={intervalSpeedBestRecord.correctCount} />
-          </div>
-        )}
+        <ChallengeEndedSection
+          accent="amber"
+          isNewBestRecord={isNewIntervalSpeedBestRecord}
+          bestRecord={intervalSpeedBestRecord}
+          bestRecordLabel="正确答题"
+        >
+          <ChallengeScoreCard value={correctCount} label="正确答题" />
+        </ChallengeEndedSection>
 
         <MistakeDistributionChart
           store={mistakeStats}

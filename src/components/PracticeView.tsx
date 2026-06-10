@@ -15,7 +15,8 @@ import type { Quiz } from '../quiz/intervals'
 import type { ScaleDegreeQuiz } from '../quiz/keys'
 import type { ScaleDegreeMistakeStatsStore } from '../quiz/scaleDegreeMistakeStats'
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
-import type { ScaleDegreeEncouragement } from './ScaleDegreeEncouragementToast'
+import type { PracticeEncouragement } from './practice/types'
+import type { LoadStatusProps } from './practice/viewProps'
 
 const MODE_OPTIONS = [
   { value: 'intervalFollow' as const, label: '音程跟听' },
@@ -42,15 +43,12 @@ type PracticeViewProps = {
   rootMax: number
   intervalSpeedDeadlineMs: number | null
   intervalSpeedTimedOut: boolean
-  idleTip: string | null
-  scaleDegreeEncouragement: ScaleDegreeEncouragement | null
-  loadProgress: number | null
-  loadIndeterminate: boolean
-  loadError: string | null
+  intervalSpeedEncouragement: PracticeEncouragement | null
+  scaleDegreeEncouragement: PracticeEncouragement | null
+  loadStatus: LoadStatusProps
   onModeChange: (mode: AppMode) => void
   onToggle: () => void
   onOpenSettings: () => void
-  onRetry: () => void
   onAnswerSelect: (answerId: string) => void
   replayingQuizKey: string | null
   isReplayBusy: boolean
@@ -77,15 +75,12 @@ export function PracticeView({
   rootMax,
   intervalSpeedDeadlineMs,
   intervalSpeedTimedOut,
-  idleTip,
+  intervalSpeedEncouragement,
   scaleDegreeEncouragement,
-  loadProgress,
-  loadIndeterminate,
-  loadError,
+  loadStatus,
   onModeChange,
   onToggle,
   onOpenSettings,
-  onRetry,
   onAnswerSelect,
   replayingQuizKey,
   isReplayBusy,
@@ -93,6 +88,7 @@ export function PracticeView({
   onScaleDegreeHome,
 }: PracticeViewProps) {
   const { enabledIntervalIds } = settingsControls
+  const { loadProgress, loadIndeterminate, loadError, onRetry } = loadStatus
   const canStart =
     mode === 'scaleDegree' ? true : enabledIntervalIds.length > 0
   const showSettingsHint = !canStart && !isRunning && mode !== 'scaleDegree'
@@ -167,7 +163,7 @@ export function PracticeView({
             lastQuiz={lastQuiz}
             intervalSpeedDeadlineMs={intervalSpeedDeadlineMs}
             intervalSpeedTimedOut={intervalSpeedTimedOut}
-            idleTip={idleTip}
+            encouragement={intervalSpeedEncouragement}
             loadProgress={loadProgress}
             loadIndeterminate={loadIndeterminate}
             loadError={loadError}

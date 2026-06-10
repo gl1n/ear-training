@@ -1,5 +1,7 @@
 import { useId, useMemo } from 'react'
 import type { ScaleDegreeSessionRecord } from '../quiz/scaleDegreeSessionHistory'
+import { buildCurvePath } from '../lib/chartUtils'
+import { formatScoreDisplay } from '../lib/formatScore'
 
 type ScaleDegreeCorrectCountChartProps = {
   records: ScaleDegreeSessionRecord[]
@@ -21,14 +23,6 @@ const COUNT_AVG_COLOR = 'rgba(56, 189, 248, 0.35)'
 const SCORE_COLOR = 'rgb(251 191 36)'
 const SCORE_AVG_COLOR = 'rgba(251, 191, 36, 0.35)'
 
-function buildCurvePath(points: { x: number; y: number }[]): string {
-  if (points.length === 0) return ''
-
-  return points
-    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
-    .join(' ')
-}
-
 function getAxisLabelIndexes(length: number): number[] {
   if (length <= 7) {
     return Array.from({ length }, (_, index) => index)
@@ -42,14 +36,6 @@ function getAxisLabelIndexes(length: number): number[] {
   }
 
   return [...indexes].sort((a, b) => a - b)
-}
-
-function formatCount(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1)
-}
-
-function formatScore(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
 function getCountTicks(maxCount: number): number[] {
@@ -197,7 +183,7 @@ function ScaleDegreeCorrectCountSvg({
             textAnchor="end"
             className="fill-[var(--text-secondary)] text-[9px] tabular-nums"
           >
-            {formatCount(tick)}
+            {formatScoreDisplay(tick)}
           </text>
         </g>
       ))}
@@ -211,7 +197,7 @@ function ScaleDegreeCorrectCountSvg({
             textAnchor="start"
             className="fill-amber-200/70 text-[9px] tabular-nums"
           >
-            {formatScore(tick)}
+            {formatScoreDisplay(tick)}
           </text>
         ))}
 
@@ -307,7 +293,7 @@ function ScaleDegreeCorrectCountSvg({
                   textAnchor="middle"
                   className="fill-amber-200 text-[10px] font-medium tabular-nums"
                 >
-                  {formatScore(record.totalScore)}
+                  {formatScoreDisplay(record.totalScore)}
                 </text>
               )}
             </g>
