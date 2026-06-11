@@ -20,6 +20,8 @@ type ScaleDegreePlayfieldProps = {
   currentKeyLabel: string | null
   encouragement: PracticeEncouragement | null
   correctionWrongSelection: string | null
+  melodyEnabled?: boolean
+  melodyCorrectDegrees?: string[]
   loadProgress: number | null
   loadIndeterminate: boolean
   loadError: string | null
@@ -34,21 +36,40 @@ export function ScaleDegreePlayfield({
   currentKeyLabel,
   encouragement,
   correctionWrongSelection,
+  melodyEnabled = false,
+  melodyCorrectDegrees = [],
   loadProgress,
   loadIndeterminate,
   loadError,
   onSelect,
   onRetry,
 }: ScaleDegreePlayfieldProps) {
-  const { canAnswer, isCorrection, isWrong, correctCount, totalScore, currentQuestion, isListening } =
-    usePracticePlayfieldState(state, sessionStats)
+  const {
+    canAnswer: baseCanAnswer,
+    isCorrection,
+    isWrong,
+    correctCount,
+    totalScore,
+    currentQuestion,
+    isListening,
+  } = usePracticePlayfieldState(state, sessionStats)
+  const canAnswer =
+    melodyEnabled
+      ? state === 'playing_note' || state === 'awaiting_answer'
+      : baseCanAnswer
+  const melodyPrompt =
+    melodyEnabled && canAnswer
+      ? `选择第 ${melodyCorrectDegrees.length + 1} 个音的音级`
+      : melodyEnabled
+        ? '聆听旋律'
+        : '选择音级'
 
   const renderDegree = (degree: string) => (
     <ChallengeAnswerButton
       key={degree}
       disabled={!canAnswer}
       isReady={canAnswer}
-      isListening={isListening}
+      isListening={isListening && !canAnswer}
       isCorrectAnswer={isWrong && lastQuiz !== null && String(lastQuiz.degree) === degree}
       isWrongSelection={isCorrection && correctionWrongSelection === degree}
       onClick={() => onSelect(degree)}
@@ -78,7 +99,13 @@ export function ScaleDegreePlayfield({
         correctCount={correctCount}
         totalScore={totalScore}
         leading={currentKeyLabel ? <KeyLabel label={currentKeyLabel} variant="badge" /> : null}
-        trailing={<PracticePhaseIndicator state={state} variant="scaleDegree" />}
+        trailing={
+          <PracticePhaseIndicator
+            state={state}
+            variant="scaleDegree"
+            melodyEnabled={melodyEnabled}
+          />
+        }
       />
 
       <PracticeLoadStatus
@@ -98,8 +125,21 @@ export function ScaleDegreePlayfield({
         aria-live="polite"
       >
         <p className="text-center text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-          选择音级
+          {melodyPrompt}
         </p>
+
+        {melodyEnabled && melodyCorrectDegrees.length > 0 && (
+          <div className="mx-auto flex items-center justify-center gap-2">
+            {melodyCorrectDegrees.map((degree, index) => (
+              <span
+                key={`${degree}-${index}`}
+                className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-sky-400/30 bg-sky-500/10 px-2 text-sm font-semibold text-sky-100"
+              >
+                {degree}
+              </span>
+            ))}
+          </div>
+        )}
 
         <div className="mx-auto flex w-full max-w-md flex-col gap-2 sm:gap-2.5">
           <div className="grid grid-cols-4 gap-2 sm:gap-2.5">

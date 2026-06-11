@@ -7,14 +7,26 @@ export type { PracticePhaseVariant } from './practicePhase'
 type PracticePhaseIndicatorProps = {
   state: TrainerState
   variant: PracticePhaseVariant
+  melodyEnabled?: boolean
 }
 
 function getPhase(state: TrainerState) {
   return getPracticePhase(state)
 }
 
-function getListeningLabel(state: TrainerState, variant: PracticePhaseVariant): string {
+function getListeningLabel(
+  state: TrainerState,
+  variant: PracticePhaseVariant,
+  melodyEnabled: boolean,
+): string {
   if (variant === 'scaleDegree') {
+    if (melodyEnabled) {
+      if (state === 'playing_root') return '第一音'
+      if (state === 'playing_second') return '第二音'
+      if (state === 'playing_note') return '第三音'
+      return '聆听'
+    }
+
     return state === 'playing_note' ? '目标音' : '聆听'
   }
 
@@ -26,6 +38,7 @@ function getListeningLabel(state: TrainerState, variant: PracticePhaseVariant): 
 export function PracticePhaseIndicator({
   state,
   variant,
+  melodyEnabled = false,
 }: PracticePhaseIndicatorProps) {
   const phase = getPhase(state)
 
@@ -39,7 +52,7 @@ export function PracticePhaseIndicator({
   }
 
   if (phase === 'listening') {
-    const label = getListeningLabel(state, variant)
+    const label = getListeningLabel(state, variant, melodyEnabled)
     const listeningTextClass = variant === 'scaleDegree' ? 'text-sky-200' : 'text-sky-300'
     const wrapperClass =
       variant === 'scaleDegree'

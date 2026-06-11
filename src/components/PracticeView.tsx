@@ -14,6 +14,7 @@ import { SegmentedControl } from './ui/SegmentedControl'
 import type { Quiz } from '../quiz/intervals'
 import type { ScaleDegreeQuiz } from '../quiz/keys'
 import type { ScaleDegreeMistakeStatsStore } from '../quiz/scaleDegreeMistakeStats'
+import type { ScaleDegreeMelodyMistakeStatsStore } from '../quiz/scaleDegreeMelodyMistakeStats'
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
 import type { PracticeEncouragement } from './practice/types'
 import type { LoadStatusProps } from './practice/viewProps'
@@ -35,8 +36,12 @@ type PracticeViewProps = {
   currentKeyLabel: string | null
   scaleDegreeGameStarted: boolean
   sessionScaleDegreeMistakes: ScaleDegreeMistakeStatsStore
+  sessionScaleDegreeMelodyMistakes: ScaleDegreeMelodyMistakeStatsStore
   scaleDegreeReviewEnabled: boolean
   onScaleDegreeReviewChange: (enabled: boolean) => void
+  scaleDegreeMelodyEnabled: boolean
+  onScaleDegreeMelodyChange: (enabled: boolean) => void
+  melodyCorrectDegrees: string[]
   sessionStats: SessionStats
   trainingStats: TrainingStatsViewModel
   rootMin: number
@@ -65,8 +70,12 @@ export function PracticeView({
   currentKeyLabel,
   scaleDegreeGameStarted,
   sessionScaleDegreeMistakes,
+  sessionScaleDegreeMelodyMistakes,
   scaleDegreeReviewEnabled,
   onScaleDegreeReviewChange,
+  scaleDegreeMelodyEnabled,
+  onScaleDegreeMelodyChange,
+  melodyCorrectDegrees,
   sessionStats,
   trainingStats,
   rootMin,
@@ -186,6 +195,8 @@ export function PracticeView({
             currentKeyLabel={currentKeyLabel}
             encouragement={challengeEncouragement}
             correctionWrongSelection={correctionWrongSelection}
+            melodyEnabled={scaleDegreeMelodyEnabled}
+            melodyCorrectDegrees={melodyCorrectDegrees}
             loadProgress={loadProgress}
             loadIndeterminate={loadIndeterminate}
             loadError={loadError}
@@ -206,10 +217,13 @@ export function PracticeView({
             lastQuiz={lastScaleDegreeQuiz}
             sessionStats={sessionStats}
             sessionMistakes={sessionScaleDegreeMistakes}
+            sessionMelodyMistakes={sessionScaleDegreeMelodyMistakes}
             trainingStats={trainingStats}
             scaleDegreeReviewEnabled={scaleDegreeReviewEnabled}
+            scaleDegreeMelodyEnabled={scaleDegreeMelodyEnabled}
             isRunning={isRunning}
             onScaleDegreeReviewChange={onScaleDegreeReviewChange}
+            onScaleDegreeMelodyChange={onScaleDegreeMelodyChange}
             onHome={onScaleDegreeHome}
           />
         )

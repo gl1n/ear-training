@@ -61,6 +61,7 @@ export function clearChallengeBestRecord(variant?: ChallengeBestVariant): void {
 
     localStorage.removeItem(STORAGE_KEYS.challengeBest.intervalSpeed)
     localStorage.removeItem(STORAGE_KEYS.challengeBest.scaleDegree)
+    localStorage.removeItem(STORAGE_KEYS.challengeBest.scaleDegreeMelody)
   } catch {
     // Ignore private mode errors.
   }

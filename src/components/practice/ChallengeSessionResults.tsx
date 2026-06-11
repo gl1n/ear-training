@@ -13,6 +13,7 @@ type ChallengeSessionResultsProps = {
   subtitle?: string
   isNewBestRecord: boolean
   bestRecord: ChallengeBestRecord | null
+  scoreLabel?: string
 }
 
 export function ChallengeSessionResults({
@@ -21,6 +22,7 @@ export function ChallengeSessionResults({
   subtitle,
   isNewBestRecord,
   bestRecord,
+  scoreLabel = '加权总分',
 }: ChallengeSessionResultsProps) {
   const correctCount = getCorrectAnswerCount(sessionStats)
   const totalScore = getTotalScore(sessionStats)
@@ -35,7 +37,7 @@ export function ChallengeSessionResults({
       <ChallengeScoreCard value={correctCount} label="连对题数" highlight />
       <ChallengeScoreCard
         value={formatScoreDisplay(totalScore)}
-        label="加权总分"
+        label={scoreLabel}
         highlight
         variant="score"
       />

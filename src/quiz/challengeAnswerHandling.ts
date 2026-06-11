@@ -1,6 +1,11 @@
 import type { MutableRefObject } from 'react'
 import { getEncouragementForReactionMs } from './challengeScoring'
-import { recordChallengeResult, type ChallengeQuizResult, type SessionStats } from './stats'
+import {
+  recordChallengeResult,
+  recordChallengeResultNoBonus,
+  type ChallengeQuizResult,
+  type SessionStats,
+} from './stats'
 
 export type ChallengeEncouragement = {
   message: string
@@ -33,6 +38,8 @@ export function updateChallengeSessionStats(
   updateSessionStats: (updater: (current: SessionStats) => SessionStats) => void,
   answerKey: string,
   result: ChallengeQuizResult,
+  options?: { noBonus?: boolean },
 ): void {
-  updateSessionStats((current) => recordChallengeResult(current, answerKey, result))
+  const record = options?.noBonus ? recordChallengeResultNoBonus : recordChallengeResult
+  updateSessionStats((current) => record(current, answerKey, result))
 }

@@ -25,7 +25,16 @@ import {
   type ScaleDegreeMistakeStatsStore,
 } from '../quiz/scaleDegreeMistakeStats'
 import {
+  loadScaleDegreeMelodyMistakeStats,
+  recordScaleDegreeMelodyMistake,
+  saveScaleDegreeMelodyMistakeStats,
+  type ScaleDegreeMelodyMistakeRecord,
+  type ScaleDegreeMelodyMistakeStatsStore,
+} from '../quiz/scaleDegreeMelodyMistakeStats'
+import {
+  appendScaleDegreeMelodySessionRecord,
   appendScaleDegreeSessionRecord,
+  loadScaleDegreeMelodySessionHistory,
   loadScaleDegreeSessionHistory,
   type ScaleDegreeSessionRecord,
 } from '../quiz/scaleDegreeSessionHistory'
@@ -36,11 +45,15 @@ import { usePersistedRecentStore } from './usePersistedRecentStore'
 export type TrainingStatsViewModel = {
   mistakeStats: MistakeStatsStore
   scaleDegreeMistakeStats: ScaleDegreeMistakeStatsStore
+  scaleDegreeMelodyMistakeStats: ScaleDegreeMelodyMistakeStatsStore
   scaleDegreeSessionHistory: ScaleDegreeSessionRecord[]
+  scaleDegreeMelodySessionHistory: ScaleDegreeSessionRecord[]
   intervalSpeedBestRecord: ChallengeBestRecord | null
   isNewIntervalSpeedBestRecord: boolean
   scaleDegreeBestRecord: ChallengeBestRecord | null
   isNewScaleDegreeBestRecord: boolean
+  scaleDegreeMelodyBestRecord: ChallengeBestRecord | null
+  isNewScaleDegreeMelodyBestRecord: boolean
   canReset: boolean
   reset: () => void
 }
@@ -50,12 +63,17 @@ type BestRecordState = {
   isNew: boolean
 }
 
-const CHALLENGE_VARIANTS: ChallengeBestVariant[] = ['intervalSpeed', 'scaleDegree']
+const CHALLENGE_VARIANTS: ChallengeBestVariant[] = [
+  'intervalSpeed',
+  'scaleDegree',
+  'scaleDegreeMelody',
+]
 
 function createInitialBestRecordState(): Record<ChallengeBestVariant, BestRecordState> {
   return {
     intervalSpeed: { record: loadChallengeBestRecord('intervalSpeed'), isNew: false },
     scaleDegree: { record: loadChallengeBestRecord('scaleDegree'), isNew: false },
+    scaleDegreeMelody: { record: loadChallengeBestRecord('scaleDegreeMelody'), isNew: false },
   }
 }
 
@@ -74,10 +92,23 @@ export function useTrainingStats() {
     reset: resetScaleDegreeMistakeStore,
   } = usePersistedRecentStore(loadScaleDegreeMistakeStats, saveScaleDegreeMistakeStats)
 
+  const {
+    storeRef: scaleDegreeMelodyMistakeStoreRef,
+    snapshot: scaleDegreeMelodyMistakeStats,
+    bump: bumpScaleDegreeMelodyMistakeVersion,
+    reset: resetScaleDegreeMelodyMistakeStore,
+  } = usePersistedRecentStore(
+    loadScaleDegreeMelodyMistakeStats,
+    saveScaleDegreeMelodyMistakeStats,
+  )
+
   const [bestRecordState, setBestRecordState] = useState(createInitialBestRecordState)
   const [scaleDegreeSessionHistory, setScaleDegreeSessionHistory] = useState<
     ScaleDegreeSessionRecord[]
   >(() => loadScaleDegreeSessionHistory())
+  const [scaleDegreeMelodySessionHistory, setScaleDegreeMelodySessionHistory] = useState<
+    ScaleDegreeSessionRecord[]
+  >(() => loadScaleDegreeMelodySessionHistory())
 
   const recordQuizMistake = useCallback(
     (quiz: Quiz) => {
@@ -93,6 +124,14 @@ export function useTrainingStats() {
       bumpScaleDegreeMistakeVersion()
     },
     [bumpScaleDegreeMistakeVersion, scaleDegreeMistakeStoreRef],
+  )
+
+  const recordScaleDegreeMelodyQuizMistake = useCallback(
+    (record: ScaleDegreeMelodyMistakeRecord) => {
+      recordScaleDegreeMelodyMistake(scaleDegreeMelodyMistakeStoreRef.current, record)
+      bumpScaleDegreeMelodyMistakeVersion()
+    },
+    [bumpScaleDegreeMelodyMistakeVersion, scaleDegreeMelodyMistakeStoreRef],
   )
 
   const clearNewBestRecord = useCallback((variant: ChallengeBestVariant = 'intervalSpeed') => {
@@ -116,11 +155,22 @@ export function useTrainingStats() {
         [variant]: { record, isNew },
       }))
 
+      const sessionRecord = {
+        correctCount: getCorrectAnswerCount(sessionStats),
+        totalScore: getTotalScore(sessionStats),
+      }
+
       if (variant === 'scaleDegree') {
         setScaleDegreeSessionHistory(
-          appendScaleDegreeSessionRecord(
-            getCorrectAnswerCount(sessionStats),
-            getTotalScore(sessionStats),
+          appendScaleDegreeSessionRecord(sessionRecord.correctCount, sessionRecord.totalScore),
+        )
+      }
+
+      if (variant === 'scaleDegreeMelody') {
+        setScaleDegreeMelodySessionHistory(
+          appendScaleDegreeMelodySessionRecord(
+            sessionRecord.correctCount,
+            sessionRecord.totalScore,
           ),
         )
       }
@@ -131,6 +181,7 @@ export function useTrainingStats() {
   const reset = useCallback(() => {
     resetMistakeStore()
     resetScaleDegreeMistakeStore()
+    resetScaleDegreeMelodyMistakeStore()
     clearAllTrainingStats()
     setBestRecordState(
       Object.fromEntries(
@@ -138,30 +189,40 @@ export function useTrainingStats() {
       ) as Record<ChallengeBestVariant, BestRecordState>,
     )
     setScaleDegreeSessionHistory([])
-  }, [resetMistakeStore, resetScaleDegreeMistakeStore])
+    setScaleDegreeMelodySessionHistory([])
+  }, [resetMistakeStore, resetScaleDegreeMistakeStore, resetScaleDegreeMelodyMistakeStore])
 
   const viewModel = useMemo<TrainingStatsViewModel>(
     () => ({
       mistakeStats,
       scaleDegreeMistakeStats,
+      scaleDegreeMelodyMistakeStats,
       scaleDegreeSessionHistory,
+      scaleDegreeMelodySessionHistory,
       intervalSpeedBestRecord: bestRecordState.intervalSpeed.record,
       isNewIntervalSpeedBestRecord: bestRecordState.intervalSpeed.isNew,
       scaleDegreeBestRecord: bestRecordState.scaleDegree.record,
       isNewScaleDegreeBestRecord: bestRecordState.scaleDegree.isNew,
+      scaleDegreeMelodyBestRecord: bestRecordState.scaleDegreeMelody.record,
+      isNewScaleDegreeMelodyBestRecord: bestRecordState.scaleDegreeMelody.isNew,
       canReset: hasPersistedTrainingStats(
         mistakeStats,
         bestRecordState.intervalSpeed.record,
         bestRecordState.scaleDegree.record,
         scaleDegreeMistakeStats,
         scaleDegreeSessionHistory,
+        scaleDegreeMelodyMistakeStats,
+        bestRecordState.scaleDegreeMelody.record,
+        scaleDegreeMelodySessionHistory,
       ),
       reset,
     }),
     [
       mistakeStats,
       scaleDegreeMistakeStats,
+      scaleDegreeMelodyMistakeStats,
       scaleDegreeSessionHistory,
+      scaleDegreeMelodySessionHistory,
       bestRecordState,
       reset,
     ],
@@ -170,9 +231,11 @@ export function useTrainingStats() {
   return {
     mistakeStoreRef,
     scaleDegreeMistakeStoreRef,
+    scaleDegreeMelodyMistakeStoreRef,
     viewModel,
     recordQuizMistake,
     recordScaleDegreeQuizMistake,
+    recordScaleDegreeMelodyQuizMistake,
     clearNewBestRecord,
     finalizeChallengeSession,
   }

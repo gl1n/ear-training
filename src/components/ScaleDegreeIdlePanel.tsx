@@ -1,9 +1,15 @@
-import type { ScaleDegreeQuiz } from '../quiz/keys'
+import {
+  formatMelodyDegrees,
+  isMelodyScaleDegreeQuiz,
+  type ScaleDegreeQuiz,
+} from '../quiz/keys'
 import type { ScaleDegreeMistakeStatsStore } from '../quiz/scaleDegreeMistakeStats'
+import type { ScaleDegreeMelodyMistakeStatsStore } from '../quiz/scaleDegreeMelodyMistakeStats'
 import { hasSessionAttempts, type SessionStats } from '../quiz/stats'
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
 import { ChallengeSessionResults } from './practice/ChallengeSessionResults'
 import { ScaleDegreeCorrectCountChart } from './ScaleDegreeCorrectCountChart'
+import { ScaleDegreeMelodyMistakeSummary } from './ScaleDegreeMelodyMistakeSummary'
 import { ScaleDegreeMistakeSummary } from './ScaleDegreeMistakeSummary'
 import { PlayAreaCard } from './PlayAreaCard'
 import { ResetStatsButton } from './ResetStatsButton'
@@ -13,25 +19,35 @@ type ScaleDegreeIdlePanelProps = {
   lastQuiz: ScaleDegreeQuiz | null
   sessionStats: SessionStats
   sessionMistakes: ScaleDegreeMistakeStatsStore
+  sessionMelodyMistakes: ScaleDegreeMelodyMistakeStatsStore
   trainingStats: TrainingStatsViewModel
   scaleDegreeReviewEnabled: boolean
+  scaleDegreeMelodyEnabled: boolean
   isRunning: boolean
   onScaleDegreeReviewChange: (enabled: boolean) => void
+  onScaleDegreeMelodyChange: (enabled: boolean) => void
   onHome: () => void
 }
 
-const HOW_TO_STEPS = [
+const SINGLE_NOTE_HOW_TO_STEPS = [
   { step: '1', title: '定调', desc: '播放 I 级大三和弦' },
   { step: '2', title: '听音', desc: '辨认调内单音' },
   { step: '3', title: '选级', desc: '点选 1–7 音级' },
 ] as const
 
-function HowToPlay() {
+const MELODY_HOW_TO_STEPS = [
+  { step: '1', title: '定调', desc: '播放 I 级大三和弦' },
+  { step: '2', title: '听旋律', desc: '一次顺序播放 3 个音' },
+  { step: '3', title: '选级', desc: '第三音起逐音选级，选错即结束' },
+] as const
+
+function HowToPlay({ melodyEnabled }: { melodyEnabled: boolean }) {
+  const steps = melodyEnabled ? MELODY_HOW_TO_STEPS : SINGLE_NOTE_HOW_TO_STEPS
   return (
     <div className="grid w-full max-w-md grid-cols-3 gap-2 sm:gap-3">
-      {HOW_TO_STEPS.map(({ step, title, desc }, index) => (
+      {steps.map(({ step, title, desc }, index) => (
         <div key={step} className="relative flex flex-col items-center">
-          {index < HOW_TO_STEPS.length - 1 && (
+          {index < steps.length - 1 && (
             <span
               className="absolute left-[calc(50%+1.25rem)] top-5 hidden h-px w-[calc(100%-2.5rem)] bg-sky-400/20 sm:block"
               aria-hidden="true"
@@ -48,26 +64,52 @@ function HowToPlay() {
   )
 }
 
+function formatLastAnswerLabel(lastQuiz: ScaleDegreeQuiz, melodyEnabled: boolean): string {
+  if (melodyEnabled && isMelodyScaleDegreeQuiz(lastQuiz)) {
+    return `旋律 ${formatMelodyDegrees(lastQuiz.degrees)}`
+  }
+
+  return `音级 ${lastQuiz.degree}`
+}
+
 export function ScaleDegreeIdlePanel({
   lastQuiz,
   sessionStats,
   sessionMistakes,
+  sessionMelodyMistakes,
   trainingStats,
   scaleDegreeReviewEnabled,
+  scaleDegreeMelodyEnabled,
   isRunning,
   onScaleDegreeReviewChange,
+  onScaleDegreeMelodyChange,
   onHome,
 }: ScaleDegreeIdlePanelProps) {
   const {
     scaleDegreeMistakeStats,
+    scaleDegreeMelodyMistakeStats,
     scaleDegreeSessionHistory,
+    scaleDegreeMelodySessionHistory,
     scaleDegreeBestRecord,
     isNewScaleDegreeBestRecord,
+    scaleDegreeMelodyBestRecord,
+    isNewScaleDegreeMelodyBestRecord,
     canReset,
     reset,
   } = trainingStats
+  const sessionHistory = scaleDegreeMelodyEnabled
+    ? scaleDegreeMelodySessionHistory
+    : scaleDegreeSessionHistory
+  const bestRecord = scaleDegreeMelodyEnabled ? scaleDegreeMelodyBestRecord : scaleDegreeBestRecord
+  const isNewBestRecord = scaleDegreeMelodyEnabled
+    ? isNewScaleDegreeMelodyBestRecord
+    : isNewScaleDegreeBestRecord
+  const modeLabel = scaleDegreeMelodyEnabled ? '三音旋律' : '单音'
   const gameEnded = lastQuiz !== null && hasSessionAttempts(sessionStats)
-  const hasHistoricalMistakes = scaleDegreeMistakeStats.length > 0
+  const historicalMistakeStats = scaleDegreeMelodyEnabled
+    ? scaleDegreeMelodyMistakeStats
+    : scaleDegreeMistakeStats
+  const hasHistoricalMistakes = historicalMistakeStats.length > 0
 
   if (gameEnded) {
     return (
@@ -75,20 +117,21 @@ export function ScaleDegreeIdlePanel({
         <ChallengeSessionResults
           accent="sky"
           sessionStats={sessionStats}
-          subtitle={lastQuiz?.keyLabel}
-          isNewBestRecord={isNewScaleDegreeBestRecord}
-          bestRecord={scaleDegreeBestRecord}
+          subtitle={`${modeLabel} · ${lastQuiz?.keyLabel ?? ''}`}
+          isNewBestRecord={isNewBestRecord}
+          bestRecord={bestRecord}
+          scoreLabel={scaleDegreeMelodyEnabled ? '总分' : '加权总分'}
         />
 
-        {scaleDegreeSessionHistory.length >= 2 && (
-          <ScaleDegreeCorrectCountChart records={scaleDegreeSessionHistory} highlightLast />
+        {sessionHistory.length >= 2 && (
+          <ScaleDegreeCorrectCountChart records={sessionHistory} highlightLast />
         )}
 
         {lastQuiz && (
           <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 text-center">
             <p className="text-xs text-[var(--text-secondary)]">正确答案</p>
             <p className="mt-1 text-lg font-semibold text-emerald-200">
-              音级 {lastQuiz.degree}
+              {formatLastAnswerLabel(lastQuiz, scaleDegreeMelodyEnabled)}
               <span className="ml-2 text-sm font-normal text-[var(--text-secondary)]">
                 ({lastQuiz.keyLabel})
               </span>
@@ -96,11 +139,19 @@ export function ScaleDegreeIdlePanel({
           </div>
         )}
 
-        <ScaleDegreeMistakeSummary
-          store={sessionMistakes}
-          sessionStats={sessionStats}
-          title="本局音级分布"
-        />
+        {scaleDegreeMelodyEnabled ? (
+          <ScaleDegreeMelodyMistakeSummary
+            store={sessionMelodyMistakes}
+            sessionStats={sessionStats}
+            title="本局旋律统计"
+          />
+        ) : (
+          <ScaleDegreeMistakeSummary
+            store={sessionMistakes}
+            sessionStats={sessionStats}
+            title="本局音级分布"
+          />
+        )}
 
         {canReset && <ResetStatsButton onReset={reset} />}
 
@@ -118,20 +169,60 @@ export function ScaleDegreeIdlePanel({
           音级辨识
         </span>
         <p className="max-w-sm text-base font-medium leading-relaxed text-[var(--text-primary)]">
-          随机大调 · 听音选级 · 连对挑战
+          {scaleDegreeMelodyEnabled
+            ? '随机大调 · 三音旋律 · 连对挑战'
+            : '随机大调 · 听音选级 · 连对挑战'}
         </p>
         <p className="max-w-md text-sm leading-relaxed text-[var(--text-secondary)]">
           答错即结束，尽可能连对更多题
         </p>
       </div>
 
-      <HowToPlay />
+      <HowToPlay melodyEnabled={scaleDegreeMelodyEnabled} />
 
-      {scaleDegreeSessionHistory.length >= 2 && (
-        <ScaleDegreeCorrectCountChart records={scaleDegreeSessionHistory} />
+      {sessionHistory.length >= 2 && (
+        <ScaleDegreeCorrectCountChart records={sessionHistory} />
       )}
 
-      <ScaleDegreeMistakeSummary store={scaleDegreeMistakeStats} title="历史错题统计" />
+      {bestRecord && (
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 text-center">
+          <p className="text-xs text-[var(--text-secondary)]">{modeLabel}最佳连对</p>
+          <p className="mt-1 text-lg font-semibold text-sky-200">{bestRecord.correctCount} 题</p>
+        </div>
+      )}
+
+      {scaleDegreeMelodyEnabled ? (
+        <ScaleDegreeMelodyMistakeSummary
+          store={scaleDegreeMelodyMistakeStats}
+          title="历史错题统计"
+        />
+      ) : (
+        <ScaleDegreeMistakeSummary store={scaleDegreeMistakeStats} title="历史错题统计" />
+      )}
+
+      <label
+        className={[
+          'flex w-full max-w-sm cursor-pointer items-start gap-3 rounded-xl border px-4 py-3.5 transition-colors',
+          scaleDegreeMelodyEnabled
+            ? 'border-sky-400/35 bg-sky-500/10'
+            : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] hover:border-sky-400/20',
+          isRunning ? 'cursor-not-allowed opacity-60' : '',
+        ].join(' ')}
+      >
+        <input
+          type="checkbox"
+          className="mt-0.5 accent-sky-500"
+          checked={scaleDegreeMelodyEnabled}
+          disabled={isRunning}
+          onChange={(event) => onScaleDegreeMelodyChange(event.target.checked)}
+        />
+        <span className="flex flex-col gap-1 text-left">
+          <span className="text-sm font-medium">三音旋律</span>
+          <span className="text-xs text-[var(--text-secondary)]">
+            一次播放 3 个音，第三音起逐音选级
+          </span>
+        </span>
+      </label>
 
       <label
         className={[
@@ -153,13 +244,19 @@ export function ScaleDegreeIdlePanel({
           <span className="text-sm font-medium">复习模式</span>
           <span className="text-xs text-[var(--text-secondary)]">
             {hasHistoricalMistakes
-              ? '优先出历史错题，加强薄弱音级'
+              ? scaleDegreeMelodyEnabled
+                ? '优先出历史易错旋律'
+                : '优先出历史错题，加强薄弱音级'
               : '暂无错题可复习'}
           </span>
         </span>
       </label>
 
       {canReset && <ResetStatsButton onReset={reset} />}
+
+      <Button onClick={onHome} variant="ghost" className="w-full max-w-sm py-3">
+        回到首页
+      </Button>
     </PlayAreaCard>
   )
 }

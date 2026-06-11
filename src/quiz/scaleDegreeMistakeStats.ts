@@ -157,6 +157,7 @@ export function weightedRandomScaleDegreeQuizFromMistakes(
   rootMin: number,
   rootMax: number,
   previousNoteMidi?: number | null,
+  quizFromMistake: typeof scaleDegreeQuizFromMistake = scaleDegreeQuizFromMistake,
 ): ScaleDegreeQuiz | null {
   const maxAttempts = Math.min(store.length, 8)
 
@@ -164,13 +165,7 @@ export function weightedRandomScaleDegreeQuizFromMistakes(
     const record = pickWeightedMistakeRecord(store)
     if (!record) return null
 
-    const quiz = scaleDegreeQuizFromMistake(
-      session,
-      record,
-      rootMin,
-      rootMax,
-      previousNoteMidi,
-    )
+    const quiz = quizFromMistake(session, record, rootMin, rootMax, previousNoteMidi)
     if (quiz) return quiz
   }
 

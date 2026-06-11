@@ -77,6 +77,85 @@ export function recordChallengeResult(
   }
 }
 
+/** 与单音相同的速度档位，但最高 1 分（无 Excellent/Great 加成）。 */
+export function getScoreForReactionMsNoBonus(ms: number): number {
+  return Math.min(1, getScoreForReactionMs(ms))
+}
+
+export function recordChallengeResultNoBonus(
+  stats: SessionStats,
+  answerKey: string,
+  result: ChallengeQuizResult,
+): SessionStats {
+  const next = recordResult(stats, answerKey, result)
+
+  if (!result.correct) {
+    return next
+  }
+
+  const points =
+    result.reactionMs !== undefined ? getScoreForReactionMsNoBonus(result.reactionMs) : 1
+
+  return {
+    ...next,
+    totalScore: next.totalScore + points,
+  }
+}
+
+/** 三音旋律：一组全对得 1 分，无反应时间加成。 */
+export function recordMelodyGroupResult(
+  stats: SessionStats,
+  patternKey: string,
+  correct: boolean,
+): SessionStats {
+  const next = recordResult(stats, patternKey, { correct })
+
+  if (!correct) {
+    return next
+  }
+
+  return {
+    ...next,
+    totalScore: next.totalScore + 1,
+  }
+}
+
+export function aggregateMelodySessionDegreeDistribution(stats: SessionStats): DegreeCount[] {
+  const counts = new Map<number, number>()
+
+  for (const [key, entry] of Object.entries(stats.byKey)) {
+    if (!key.includes('-')) continue
+
+    for (const id of key.split('-')) {
+      const degree = Number(id)
+      counts.set(degree, (counts.get(degree) ?? 0) + entry.totalCount)
+    }
+  }
+
+  return DEGREE_OPTION_IDS.map((id) => ({
+    degree: Number(id),
+    count: counts.get(Number(id)) ?? 0,
+  }))
+}
+
+export function getMelodySessionDegreeWeights(stats: SessionStats): SessionDegreeWeights {
+  const distribution = aggregateMelodySessionDegreeDistribution(stats)
+  const maxCount = Math.max(...distribution.map((item) => item.count), 0)
+
+  return Object.fromEntries(
+    distribution.map(({ degree, count }) => [degree, maxCount - count + 1]),
+  )
+}
+
+export function aggregateSessionPatternDistribution(
+  stats: SessionStats,
+): { pattern: string; count: number }[] {
+  return Object.entries(stats.byKey)
+    .filter(([key]) => key.includes('-'))
+    .map(([pattern, entry]) => ({ pattern, count: entry.totalCount }))
+    .sort((a, b) => b.count - a.count || a.pattern.localeCompare(b.pattern))
+}
+
 export function getTotalScore(stats: SessionStats): number {
   return stats.totalScore
 }

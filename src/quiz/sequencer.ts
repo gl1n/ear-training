@@ -1,11 +1,14 @@
 import { cancelSpeech, speak } from '../audio/speech'
 import type { Piano } from '../audio/piano'
-import { delay } from '../utils/abort'
+import { delay, isAbortError } from '../utils/abort'
 import {
   createMajorKeySession,
   getTonicMajorTriadMidis,
+  isMelodyScaleDegreeQuiz,
+  randomMelodyScaleDegreeQuiz,
   randomScaleDegreeQuiz,
   type MajorKeySession,
+  type MelodyScaleDegreeQuiz,
   type ScaleDegreeQuiz,
 } from './keys'
 import { ALL_INTERVAL_IDS, randomQuiz, type IntervalDirection, type Quiz } from './intervals'
@@ -17,7 +20,11 @@ import {
   weightedRandomScaleDegreeQuizFromMistakes,
   type ScaleDegreeMistakeStatsStore,
 } from './scaleDegreeMistakeStats'
-import { getSessionDegreeWeights, type SessionStats } from './stats'
+import {
+  weightedRandomMelodyQuizFromMistakes,
+  type ScaleDegreeMelodyMistakeStatsStore,
+} from './scaleDegreeMelodyMistakeStats'
+import { getMelodySessionDegreeWeights, getSessionDegreeWeights, type SessionStats } from './stats'
 import {
   finishChallengeOnIncorrect,
   raceAnswerAgainstAudio,
@@ -164,6 +171,12 @@ export type ScaleDegreeCallbacks = {
   waitForGameStart: (signal: AbortSignal) => Promise<void>
   waitForAnswer: (signal: AbortSignal) => Promise<ScaleDegreeAnswer>
   onAnswerCorrectionStart?: (wrongSelection: string) => void
+  onMelodyNoteResolved?: (noteIndex: number, degree: number, correct: boolean) => void
+  onMelodyGroupSubmitted?: (
+    quiz: MelodyScaleDegreeQuiz,
+    correct: boolean,
+    reactionMs?: number,
+  ) => void
   onAnswerSubmitted: (
     quiz: ScaleDegreeQuiz,
     answer: ScaleDegreeAnswer,
@@ -317,14 +330,114 @@ export async function runIntervalSpeedLoop(
   }
 }
 
-/** 音级辨识：定调后听辨调内单音并选择音级 */
+function buildMelodyNoteQuiz(
+  quiz: MelodyScaleDegreeQuiz,
+  noteIndex: number,
+): ScaleDegreeQuiz {
+  return {
+    tonicMidi: quiz.tonicMidi,
+    noteMidi: quiz.noteMidis[noteIndex]!,
+    degree: quiz.degrees[noteIndex]!,
+    keyLabel: quiz.keyLabel,
+    previousNoteMidi: noteIndex > 0 ? quiz.noteMidis[noteIndex - 1]! : quiz.previousNoteMidi,
+  }
+}
+
+async function runMelodyScaleDegreeQuestion(
+  piano: Piano,
+  quiz: MelodyScaleDegreeQuiz,
+  settings: Settings,
+  callbacks: ScaleDegreeCallbacks,
+  signal: AbortSignal,
+): Promise<boolean> {
+  callbacks.onStateChange('playing_root')
+  await playNote(piano, quiz.noteMidis[0]!, settings.noteDurationMs, signal)
+  await delay(settings.gapMs, signal)
+
+  callbacks.onStateChange('playing_second')
+  await playNote(piano, quiz.noteMidis[1]!, settings.noteDurationMs, signal)
+  await delay(settings.gapMs, signal)
+
+  const audioAbort = new AbortController()
+  const onSessionAbort = () => audioAbort.abort()
+  signal.addEventListener('abort', onSessionAbort)
+
+  callbacks.onStateChange('playing_note')
+  const answerReadyAtMs = performance.now()
+
+  const note3Playback = playNote(
+    piano,
+    quiz.noteMidis[2]!,
+    settings.noteDurationMs,
+    audioAbort.signal,
+  )
+    .then(() => {
+      if (!audioAbort.signal.aborted) {
+        callbacks.onStateChange('awaiting_answer')
+      }
+    })
+    .catch((error) => {
+      if (!isAbortError(error)) {
+        throw error
+      }
+    })
+
+  try {
+    let firstNoteReactionMs: number | undefined
+
+    for (let noteIndex = 0; noteIndex < quiz.noteMidis.length; noteIndex++) {
+      const noteQuiz = buildMelodyNoteQuiz(quiz, noteIndex)
+      const answer =
+        noteIndex === 0
+          ? withReactionMs(await callbacks.waitForAnswer(signal), answerReadyAtMs)
+          : await callbacks.waitForAnswer(signal)
+
+      if (noteIndex === 0) {
+        firstNoteReactionMs = answer.reactionMs
+      }
+
+      const correct =
+        answer.selectedDegree !== '' && answer.selectedDegree === String(noteQuiz.degree)
+
+      callbacks.onMelodyNoteResolved?.(noteIndex, noteQuiz.degree, correct)
+      callbacks.onAnswerSubmitted(noteQuiz, answer, correct)
+
+      if (!correct) {
+        audioAbort.abort()
+        piano.stop()
+        callbacks.onMelodyGroupSubmitted?.(quiz, false)
+        await finishChallengeOnIncorrect(signal, () =>
+          callbacks.onStateChange('feedback_incorrect'),
+        )
+        return false
+      }
+    }
+
+    callbacks.onMelodyGroupSubmitted?.(quiz, true, firstNoteReactionMs)
+  } finally {
+    audioAbort.abort()
+    piano.stop()
+    signal.removeEventListener('abort', onSessionAbort)
+    try {
+      await note3Playback
+    } catch {
+      // Note 3 stopped after the player answered or the session ended.
+    }
+  }
+
+  return true
+}
+
+/** 音级辨识：定调后听辨调内单音或三音旋律并选择音级 */
 export async function runScaleDegreeLoop(
   piano: Piano,
   settings: Settings,
   callbacks: ScaleDegreeCallbacks,
   signal: AbortSignal,
   mistakeStore: ScaleDegreeMistakeStatsStore = [],
+  melodyMistakeStore: ScaleDegreeMelodyMistakeStatsStore = [],
   reviewEnabled = false,
+  melodyEnabled = false,
 ): Promise<void> {
   const session = createMajorKeySession(settings.rootMin, settings.rootMax)
   callbacks.onSessionStart(session)
@@ -345,26 +458,62 @@ export async function runScaleDegreeLoop(
 
   while (!signal.aborted) {
     // 音级辨识：复习模式开启时优先历史错题；关闭时用本局均衡权重随机。
+    const sessionDegreeWeights = callbacks.getSessionStats
+      ? melodyEnabled
+        ? getMelodySessionDegreeWeights(callbacks.getSessionStats())
+        : getSessionDegreeWeights(callbacks.getSessionStats())
+      : undefined
     let quiz: ScaleDegreeQuiz
-    if (reviewEnabled && mistakeStore.length > 0) {
+    if (reviewEnabled && melodyEnabled && melodyMistakeStore.length > 0) {
       quiz =
-        weightedRandomScaleDegreeQuizFromMistakes(
-          mistakeStore,
+        weightedRandomMelodyQuizFromMistakes(
+          melodyMistakeStore,
           session,
           settings.rootMin,
           settings.rootMax,
           previousNoteMidi,
         ) ??
-        randomScaleDegreeQuiz(
+        randomMelodyScaleDegreeQuiz(
           session,
           settings.rootMin,
           settings.rootMax,
           previousNoteMidi,
+          sessionDegreeWeights,
         )
+    } else if (reviewEnabled && mistakeStore.length > 0) {
+      if (melodyEnabled) {
+        quiz = randomMelodyScaleDegreeQuiz(
+          session,
+          settings.rootMin,
+          settings.rootMax,
+          previousNoteMidi,
+          sessionDegreeWeights,
+        )
+      } else {
+        quiz =
+          weightedRandomScaleDegreeQuizFromMistakes(
+            mistakeStore,
+            session,
+            settings.rootMin,
+            settings.rootMax,
+            previousNoteMidi,
+          ) ??
+          randomScaleDegreeQuiz(
+            session,
+            settings.rootMin,
+            settings.rootMax,
+            previousNoteMidi,
+          )
+      }
+    } else if (melodyEnabled) {
+      quiz = randomMelodyScaleDegreeQuiz(
+        session,
+        settings.rootMin,
+        settings.rootMax,
+        previousNoteMidi,
+        sessionDegreeWeights,
+      )
     } else {
-      const sessionDegreeWeights = callbacks.getSessionStats
-        ? getSessionDegreeWeights(callbacks.getSessionStats())
-        : undefined
       quiz = randomScaleDegreeQuiz(
         session,
         settings.rootMin,
@@ -374,6 +523,20 @@ export async function runScaleDegreeLoop(
       )
     }
     previousNoteMidi = quiz.noteMidi
+
+    if (melodyEnabled && isMelodyScaleDegreeQuiz(quiz)) {
+      const completed = await runMelodyScaleDegreeQuestion(
+        piano,
+        quiz,
+        settings,
+        callbacks,
+        signal,
+      )
+      if (!completed) {
+        return
+      }
+      continue
+    }
 
     let notePlayStartMs: number | null = null
     const firstAnswer = withReactionMs(

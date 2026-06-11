@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import type { ScaleDegreeMistakeRecord } from '../quiz/scaleDegreeMistakeStats'
+import type { ScaleDegreeMelodyMistakeRecord } from '../quiz/scaleDegreeMelodyMistakeStats'
 import { EMPTY_SESSION_STATS, type SessionStats } from '../quiz/stats'
 
 export function useChallengeSession() {
@@ -8,6 +9,9 @@ export function useChallengeSession() {
   const [sessionScaleDegreeMistakes, setSessionScaleDegreeMistakes] = useState<
     ScaleDegreeMistakeRecord[]
   >([])
+  const [sessionScaleDegreeMelodyMistakes, setSessionScaleDegreeMelodyMistakes] = useState<
+    ScaleDegreeMelodyMistakeRecord[]
+  >([])
 
   const getSessionStats = useCallback(() => sessionStatsRef.current, [])
 
@@ -15,6 +19,7 @@ export function useChallengeSession() {
     setSessionStats(EMPTY_SESSION_STATS)
     sessionStatsRef.current = EMPTY_SESSION_STATS
     setSessionScaleDegreeMistakes([])
+    setSessionScaleDegreeMelodyMistakes([])
   }, [])
 
   const updateSessionStats = useCallback((updater: (current: SessionStats) => SessionStats) => {
@@ -29,14 +34,23 @@ export function useChallengeSession() {
     setSessionScaleDegreeMistakes((current) => [...current, record])
   }, [])
 
+  const appendSessionScaleDegreeMelodyMistake = useCallback(
+    (record: ScaleDegreeMelodyMistakeRecord) => {
+      setSessionScaleDegreeMelodyMistakes((current) => [...current, record])
+    },
+    [],
+  )
+
   return {
     sessionStats,
     sessionStatsRef,
     sessionScaleDegreeMistakes,
+    sessionScaleDegreeMelodyMistakes,
     getSessionStats,
     resetSessionState,
     updateSessionStats,
     setSessionStats,
     appendSessionScaleDegreeMistake,
+    appendSessionScaleDegreeMelodyMistake,
   }
 }

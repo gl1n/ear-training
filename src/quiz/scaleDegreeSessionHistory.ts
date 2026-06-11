@@ -1,6 +1,7 @@
 import { STORAGE_KEYS } from './storageKeys'
 
 const STORAGE_KEY = STORAGE_KEYS.scaleDegreeSessionHistory
+const MELODY_STORAGE_KEY = STORAGE_KEYS.scaleDegreeMelodySessionHistory
 const MAX_RECORDS = 40
 
 export type ScaleDegreeSessionRecord = {
@@ -22,9 +23,9 @@ function isScaleDegreeSessionRecord(value: unknown): value is ScaleDegreeSession
   )
 }
 
-export function loadScaleDegreeSessionHistory(): ScaleDegreeSessionRecord[] {
+function loadSessionHistory(storageKey: string): ScaleDegreeSessionRecord[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(storageKey)
     if (!raw) return []
 
     const parsed: unknown = JSON.parse(raw)
@@ -36,11 +37,12 @@ export function loadScaleDegreeSessionHistory(): ScaleDegreeSessionRecord[] {
   }
 }
 
-function saveScaleDegreeSessionHistory(records: ScaleDegreeSessionRecord[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
+function saveSessionHistory(storageKey: string, records: ScaleDegreeSessionRecord[]): void {
+  localStorage.setItem(storageKey, JSON.stringify(records))
 }
 
-export function appendScaleDegreeSessionRecord(
+function appendSessionRecord(
+  storageKey: string,
   correctCount: number,
   totalScore?: number,
 ): ScaleDegreeSessionRecord[] {
@@ -49,15 +51,45 @@ export function appendScaleDegreeSessionRecord(
     ...(totalScore !== undefined ? { totalScore } : {}),
     at: Date.now(),
   }
-  const records = [...loadScaleDegreeSessionHistory(), nextRecord].slice(-MAX_RECORDS)
-  saveScaleDegreeSessionHistory(records)
+  const records = [...loadSessionHistory(storageKey), nextRecord].slice(-MAX_RECORDS)
+  saveSessionHistory(storageKey, records)
   return records
 }
 
-export function clearScaleDegreeSessionHistory(): void {
+function clearSessionHistory(storageKey: string): void {
   try {
-    localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(storageKey)
   } catch {
     // Ignore private mode errors.
   }
+}
+
+export function loadScaleDegreeSessionHistory(): ScaleDegreeSessionRecord[] {
+  return loadSessionHistory(STORAGE_KEY)
+}
+
+export function appendScaleDegreeSessionRecord(
+  correctCount: number,
+  totalScore?: number,
+): ScaleDegreeSessionRecord[] {
+  return appendSessionRecord(STORAGE_KEY, correctCount, totalScore)
+}
+
+export function clearScaleDegreeSessionHistory(): void {
+  clearSessionHistory(STORAGE_KEY)
+}
+
+export function loadScaleDegreeMelodySessionHistory(): ScaleDegreeSessionRecord[] {
+  return loadSessionHistory(MELODY_STORAGE_KEY)
+}
+
+export function appendScaleDegreeMelodySessionRecord(
+  correctCount: number,
+  totalScore?: number,
+): ScaleDegreeSessionRecord[] {
+  return appendSessionRecord(MELODY_STORAGE_KEY, correctCount, totalScore)
+}
+
+export function clearScaleDegreeMelodySessionHistory(): void {
+  clearSessionHistory(MELODY_STORAGE_KEY)
 }

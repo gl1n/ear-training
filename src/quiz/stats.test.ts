@@ -10,6 +10,9 @@ import {
   populationVariance,
   recordResult,
   recordChallengeResult,
+  recordChallengeResultNoBonus,
+  recordMelodyGroupResult,
+  getMelodySessionDegreeWeights,
 } from './stats'
 import { randomScaleDegreeQuiz } from './keys'
 
@@ -123,6 +126,48 @@ function simulateBalancedSessionDegreeCounts(
 
   return aggregateSessionDegreeDistribution(stats).map((item) => item.count)
 }
+
+describe('recordChallengeResultNoBonus', () => {
+  it('caps fast reaction bonus at 1 point', () => {
+    let stats = EMPTY_SESSION_STATS
+    stats = recordChallengeResultNoBonus(stats, '3', { correct: true, reactionMs: 500 })
+    stats = recordChallengeResultNoBonus(stats, '5', { correct: true })
+    stats = recordChallengeResultNoBonus(stats, '1', { correct: true, reactionMs: 2_500 })
+
+    expect(getTotalScore(stats)).toBe(2)
+  })
+})
+
+describe('recordMelodyGroupResult', () => {
+  it('awards 1 point per fully correct group with no reaction bonus', () => {
+    let stats = EMPTY_SESSION_STATS
+    stats = recordMelodyGroupResult(stats, '1-3-5', true)
+    stats = recordMelodyGroupResult(stats, '2-4-6', true)
+    stats = recordMelodyGroupResult(stats, '3-5-7', false)
+
+    expect(getCorrectAnswerCount(stats)).toBe(2)
+    expect(getTotalScore(stats)).toBe(2)
+  })
+})
+
+describe('getMelodySessionDegreeWeights', () => {
+  it('derives degree weights from melody pattern keys', () => {
+    let stats = EMPTY_SESSION_STATS
+    stats = recordMelodyGroupResult(stats, '1-3-5', true)
+    stats = recordMelodyGroupResult(stats, '1-3-5', true)
+    stats = recordMelodyGroupResult(stats, '2-4-6', false)
+
+    expect(getMelodySessionDegreeWeights(stats)).toEqual({
+      1: 1,
+      2: 2,
+      3: 1,
+      4: 2,
+      5: 1,
+      6: 2,
+      7: 3,
+    })
+  })
+})
 
 describe('recordChallengeResult', () => {
   it('adds weighted score for correct answers with reaction time', () => {

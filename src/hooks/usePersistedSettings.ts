@@ -17,6 +17,7 @@ type PersistedSettings = {
   direction: IntervalDirection
   mode?: AppMode
   scaleDegreeReviewEnabled?: boolean
+  scaleDegreeMelodyEnabled?: boolean
 }
 
 function isSpeedPreset(value: unknown): value is SpeedPreset {
@@ -37,6 +38,10 @@ function parseDirection(parsed: Record<string, unknown>): IntervalDirection | nu
 
 function parseScaleDegreeReviewEnabled(record: Record<string, unknown>): boolean {
   return record.scaleDegreeReviewEnabled === true
+}
+
+function parseScaleDegreeMelodyEnabled(record: Record<string, unknown>): boolean {
+  return record.scaleDegreeMelodyEnabled === true
 }
 
 function loadPersistedSettings(): PersistedSettings | null {
@@ -68,8 +73,16 @@ function loadPersistedSettings(): PersistedSettings | null {
     const mode =
       'mode' in record ? normalizeAppMode(record.mode) ?? 'scaleDegree' : 'scaleDegree'
     const scaleDegreeReviewEnabled = parseScaleDegreeReviewEnabled(record)
+    const scaleDegreeMelodyEnabled = parseScaleDegreeMelodyEnabled(record)
 
-    return { speedPreset, enabledIntervalIds, direction, mode, scaleDegreeReviewEnabled }
+    return {
+      speedPreset,
+      enabledIntervalIds,
+      direction,
+      mode,
+      scaleDegreeReviewEnabled,
+      scaleDegreeMelodyEnabled,
+    }
   } catch {
     return null
   }
@@ -79,12 +92,14 @@ export function getInitialSettings(): {
   speedPreset: SpeedPreset
   mode: AppMode
   scaleDegreeReviewEnabled: boolean
+  scaleDegreeMelodyEnabled: boolean
   settings: ReturnType<typeof createDefaultSettings>
 } {
   const persisted = loadPersistedSettings()
   const speedPreset = persisted?.speedPreset ?? 'medium'
   const mode = persisted?.mode ?? 'scaleDegree'
   const scaleDegreeReviewEnabled = persisted?.scaleDegreeReviewEnabled ?? false
+  const scaleDegreeMelodyEnabled = persisted?.scaleDegreeMelodyEnabled ?? false
   const defaults = createDefaultSettings(speedPreset)
 
   if (persisted && persisted.enabledIntervalIds.length > 0) {
@@ -92,6 +107,7 @@ export function getInitialSettings(): {
       speedPreset,
       mode,
       scaleDegreeReviewEnabled,
+      scaleDegreeMelodyEnabled,
       settings: {
         ...defaults,
         enabledIntervalIds: persisted.enabledIntervalIds,
@@ -100,7 +116,7 @@ export function getInitialSettings(): {
     }
   }
 
-  return { speedPreset, mode, scaleDegreeReviewEnabled, settings: defaults }
+  return { speedPreset, mode, scaleDegreeReviewEnabled, scaleDegreeMelodyEnabled, settings: defaults }
 }
 
 export function usePersistedSettings(
@@ -109,6 +125,7 @@ export function usePersistedSettings(
   direction: IntervalDirection,
   mode: AppMode,
   scaleDegreeReviewEnabled: boolean,
+  scaleDegreeMelodyEnabled: boolean,
 ) {
   useDebouncedPersist(() => {
     const data: PersistedSettings = {
@@ -117,7 +134,15 @@ export function usePersistedSettings(
       direction,
       mode,
       scaleDegreeReviewEnabled,
+      scaleDegreeMelodyEnabled,
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-  }, [speedPreset, enabledIntervalIds, direction, mode, scaleDegreeReviewEnabled])
+  }, [
+    speedPreset,
+    enabledIntervalIds,
+    direction,
+    mode,
+    scaleDegreeReviewEnabled,
+    scaleDegreeMelodyEnabled,
+  ])
 }

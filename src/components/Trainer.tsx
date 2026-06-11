@@ -43,6 +43,10 @@ export function Trainer() {
   const [scaleDegreeReviewEnabled, setScaleDegreeReviewEnabled] = useState(
     initial.scaleDegreeReviewEnabled,
   )
+  const [scaleDegreeMelodyEnabled, setScaleDegreeMelodyEnabled] = useState(
+    initial.scaleDegreeMelodyEnabled,
+  )
+  const [melodyCorrectDegrees, setMelodyCorrectDegrees] = useState<string[]>([])
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const abortRef = useRef<AbortController | null>(null)
@@ -76,17 +80,21 @@ export function Trainer() {
     sessionStats,
     sessionStatsRef,
     sessionScaleDegreeMistakes,
+    sessionScaleDegreeMelodyMistakes,
     resetSessionState,
     updateSessionStats,
     appendSessionScaleDegreeMistake,
+    appendSessionScaleDegreeMelodyMistake,
   } = useChallengeSession()
 
   const {
     mistakeStoreRef,
     scaleDegreeMistakeStoreRef,
+    scaleDegreeMelodyMistakeStoreRef,
     viewModel: trainingStats,
     recordQuizMistake,
     recordScaleDegreeQuizMistake,
+    recordScaleDegreeMelodyQuizMistake,
     clearNewBestRecord,
     finalizeChallengeSession,
   } = useTrainingStats()
@@ -114,7 +122,12 @@ export function Trainer() {
     settings.direction,
     mode,
     scaleDegreeReviewEnabled,
+    scaleDegreeMelodyEnabled,
   )
+
+  const resetMelodyProgress = useCallback(() => {
+    setMelodyCorrectDegrees([])
+  }, [])
 
   const resetChallengeAnswerState = useCallback(() => {
     answerResolverRef.current = null
@@ -124,7 +137,8 @@ export function Trainer() {
     gameStartCleanupRef.current?.()
     gameStartCleanupRef.current = null
     setCorrectionWrongSelection(null)
-  }, [])
+    resetMelodyProgress()
+  }, [resetMelodyProgress])
 
   const abortSession = useCallback(() => {
     abortRef.current?.abort()
@@ -153,12 +167,25 @@ export function Trainer() {
     }
   }, [abortSession])
 
-  const handleTrainerStateChange = useCallback((nextState: TrainerState) => {
-    if (LISTENING_STATES.includes(nextState)) {
-      setChallengeEncouragement(null)
-      setCorrectionWrongSelection(null)
+  const handleTrainerStateChange = useCallback(
+    (nextState: TrainerState) => {
+      if (LISTENING_STATES.includes(nextState)) {
+        setChallengeEncouragement(null)
+        setCorrectionWrongSelection(null)
+        if (mode === 'scaleDegree' && scaleDegreeMelodyEnabled && nextState === 'playing_root') {
+          resetMelodyProgress()
+        }
+      }
+      setState(nextState)
+    },
+    [mode, scaleDegreeMelodyEnabled, resetMelodyProgress],
+  )
+
+  const handleMelodyNoteResolved = useCallback((noteIndex: number, degree: number, correct: boolean) => {
+    if (correct) {
+      setMelodyCorrectDegrees((current) => [...current, String(degree)])
     }
-    setState(nextState)
+    void noteIndex
   }, [])
 
   const handleAnswerCorrectionStart = useCallback((wrongSelection: string) => {
@@ -209,7 +236,7 @@ export function Trainer() {
       setLastScaleDegreeQuiz(null)
       setCurrentKeyLabel(null)
       setScaleDegreeGameStarted(false)
-      clearNewBestRecord('scaleDegree')
+      clearNewBestRecord(scaleDegreeMelodyEnabled ? 'scaleDegreeMelody' : 'scaleDegree')
     }
 
     try {
@@ -250,9 +277,13 @@ export function Trainer() {
                 selectedDegree: answer,
               })),
             onAnswerCorrectionStart: handleAnswerCorrectionStart,
+            onMelodyNoteResolved: handleMelodyNoteResolved,
+            melodyEnabled: scaleDegreeMelodyEnabled,
             setLastScaleDegreeQuiz,
             recordScaleDegreeQuizMistake,
             appendSessionScaleDegreeMistake,
+            recordScaleDegreeMelodyQuizMistake,
+            appendSessionScaleDegreeMelodyMistake,
             setEncouragement: setChallengeEncouragement,
             encouragementKeyRef: challengeEncouragementKeyRef,
             updateSessionStats,
@@ -260,7 +291,9 @@ export function Trainer() {
           }),
           controller.signal,
           scaleDegreeMistakeStoreRef.current,
+          scaleDegreeMelodyMistakeStoreRef.current,
           scaleDegreeReviewEnabled,
+          scaleDegreeMelodyEnabled,
         )
       } else {
         await runIntervalFollowLoop(
@@ -286,7 +319,10 @@ export function Trainer() {
           finalizeChallengeSession(sessionStatsRef.current, 'intervalSpeed')
         }
         if (mode === 'scaleDegree') {
-          finalizeChallengeSession(sessionStatsRef.current, 'scaleDegree')
+          finalizeChallengeSession(
+            sessionStatsRef.current,
+            scaleDegreeMelodyEnabled ? 'scaleDegreeMelody' : 'scaleDegree',
+          )
         }
 
         setIsRunning(false)
@@ -299,13 +335,16 @@ export function Trainer() {
   }, [
     mode,
     scaleDegreeReviewEnabled,
+    scaleDegreeMelodyEnabled,
     resetChallengeAnswerState,
     resetSessionState,
     settings,
     handleTrainerStateChange,
     handleAnswerCorrectionStart,
+    handleMelodyNoteResolved,
     recordQuizMistake,
     recordScaleDegreeQuizMistake,
+    recordScaleDegreeMelodyQuizMistake,
     finalizeChallengeSession,
     clearNewBestRecord,
     ensureAudioContext,
@@ -317,9 +356,11 @@ export function Trainer() {
     setLoadIndeterminate,
     mistakeStoreRef,
     scaleDegreeMistakeStoreRef,
+    scaleDegreeMelodyMistakeStoreRef,
     sessionStatsRef,
     updateSessionStats,
     appendSessionScaleDegreeMistake,
+    appendSessionScaleDegreeMelodyMistake,
   ])
 
   const handleToggle = () => {
@@ -425,8 +466,12 @@ export function Trainer() {
         currentKeyLabel={currentKeyLabel}
         scaleDegreeGameStarted={scaleDegreeGameStarted}
         sessionScaleDegreeMistakes={sessionScaleDegreeMistakes}
+        sessionScaleDegreeMelodyMistakes={sessionScaleDegreeMelodyMistakes}
         scaleDegreeReviewEnabled={scaleDegreeReviewEnabled}
         onScaleDegreeReviewChange={setScaleDegreeReviewEnabled}
+        scaleDegreeMelodyEnabled={scaleDegreeMelodyEnabled}
+        onScaleDegreeMelodyChange={setScaleDegreeMelodyEnabled}
+        melodyCorrectDegrees={melodyCorrectDegrees}
         sessionStats={sessionStats}
         trainingStats={trainingStats}
         rootMin={settings.rootMin}

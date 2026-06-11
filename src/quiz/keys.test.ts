@@ -15,7 +15,12 @@ import {
   midiToDegree,
   scaleDegreeQuizFromMistake,
   randomScaleDegreeQuiz,
+  randomMelodyScaleDegreeQuiz,
+  melodyScaleDegreeQuizFromMistake,
+  formatMelodyDegrees,
   formatMajorKeyLabel,
+  isMelodyScaleDegreeQuiz,
+  MELODY_NOTE_COUNT,
 } from './keys'
 
 describe('getTonicChordRootRange', () => {
@@ -193,6 +198,44 @@ describe('randomScaleDegreeQuiz', () => {
     expect(gaussianAverageDistance).toBeLessThan(uniformAverageDistance)
     expect(gaussianAverageDistance).toBeGreaterThan(2)
     expect(gaussianAverageDistance).toBeLessThan(10)
+  })
+})
+
+describe('randomMelodyScaleDegreeQuiz', () => {
+  it('produces three valid diatonic degrees in sequence', () => {
+    const session = { tonicMidi: 67, tonicPitchClass: 7, label: 'G 大调' }
+
+    for (let i = 0; i < 20; i++) {
+      const quiz = randomMelodyScaleDegreeQuiz(session, 60, 72)
+      expect(isMelodyScaleDegreeQuiz(quiz)).toBe(true)
+      expect(quiz.noteMidis).toHaveLength(MELODY_NOTE_COUNT)
+      expect(quiz.degrees).toHaveLength(MELODY_NOTE_COUNT)
+      expect(quiz.noteMidi).toBe(quiz.noteMidis[MELODY_NOTE_COUNT - 1])
+      expect(quiz.degree).toBe(quiz.degrees[MELODY_NOTE_COUNT - 1])
+      expect(formatMelodyDegrees(quiz.degrees)).toBe(quiz.degrees.join('-'))
+
+      for (let noteIndex = 0; noteIndex < MELODY_NOTE_COUNT; noteIndex++) {
+        expect(midiToDegree(session.tonicPitchClass, quiz.noteMidis[noteIndex]!)).toBe(
+          quiz.degrees[noteIndex],
+        )
+      }
+    }
+  })
+})
+
+describe('melodyScaleDegreeQuizFromMistake', () => {
+  it('includes the requested degree somewhere in the melody', () => {
+    const session = { tonicMidi: 67, tonicPitchClass: 7, label: 'G 大调' }
+    const quiz = melodyScaleDegreeQuizFromMistake(
+      session,
+      { correctDegree: 5 },
+      60,
+      72,
+      67,
+    )
+
+    expect(quiz).not.toBeNull()
+    expect(quiz!.degrees).toContain(5)
   })
 })
 
