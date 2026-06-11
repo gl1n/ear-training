@@ -34,7 +34,7 @@ const SCHEMA_STORAGE_KEY = STORAGE_KEYS.scaleDegreeMistakeStatsSchema
 /** Bump when mistake record shape changes. On mismatch, stored stats are cleared. */
 export const SCALE_DEGREE_MISTAKE_STATS_SCHEMA_VERSION = 1
 
-export const MAX_RECENT_MISTAKES = 100
+export const MAX_RECENT_MISTAKES = 500
 
 function isScaleDegreeMistakeRecord(value: unknown): value is ScaleDegreeMistakeRecord {
   if (typeof value !== 'object' || value === null) return false

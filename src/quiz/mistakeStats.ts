@@ -27,7 +27,7 @@ const SCHEMA_STORAGE_KEY = STORAGE_KEYS.mistakeStatsSchema
  */
 export const MISTAKE_STATS_SCHEMA_VERSION = 2
 
-export const MAX_RECENT_MISTAKES = 100
+export const MAX_RECENT_MISTAKES = 500
 
 /** When mistakes exist: 35% weighted by distribution, 65% fully random. */
 export const MISTAKE_FOCUSED_RATE = 0.35
