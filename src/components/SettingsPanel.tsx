@@ -1,4 +1,3 @@
-import { formatGitCommitDate, gitCommit, gitCommitDate } from '../lib/buildInfo'
 import type { IntervalDirection } from '../quiz/intervals'
 import { SPEED_OPTIONS, type AppMode, type SpeedPreset } from '../quiz/sequencer'
 import { DirectionSelector } from './DirectionSelector'
@@ -65,11 +64,6 @@ export function SettingsPanel({
           />
         </>
       )}
-
-      <div className="text-center text-xs text-[var(--text-secondary)]">
-        <p>版本 {gitCommit}</p>
-        <p className="mt-0.5">提交于 {formatGitCommitDate(gitCommitDate)}</p>
-      </div>
     </div>
   )
 }

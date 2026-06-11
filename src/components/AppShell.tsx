@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { AppMode } from '../quiz/sequencer'
+import { VersionInfo } from './VersionInfo'
 
 type AppShellProps = {
   mode: AppMode
@@ -45,6 +46,7 @@ export function AppShell({
           <main className="flex flex-1 flex-col gap-4">{children}</main>
           <footer className="sticky bottom-0 z-10 -mx-4 flex flex-col items-center gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-base)]/90 px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {footer}
+            <VersionInfo />
           </footer>
         </div>
 
