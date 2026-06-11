@@ -1,5 +1,4 @@
-import { DEGREE_OPTION_IDS, DEGREE_SOLFEGE_LABELS } from '../quiz/keys'
-import type { ScaleDegreeQuiz } from '../quiz/keys'
+import { DEGREE_OPTION_IDS, DEGREE_SOLFEGE_LABELS, type ScaleDegreeQuiz } from '../quiz/keys'
 import { type TrainerState } from '../quiz/sequencer'
 import { type SessionStats } from '../quiz/stats'
 import { usePracticePlayfieldState } from '../hooks/usePracticePlayfieldState'
@@ -70,8 +69,16 @@ export function ScaleDegreePlayfield({
       disabled={!canAnswer}
       isReady={canAnswer}
       isListening={isListening && !canAnswer}
-      isCorrectAnswer={isWrong && lastQuiz !== null && String(lastQuiz.degree) === degree}
-      isWrongSelection={isCorrection && correctionWrongSelection === degree}
+      isCorrectAnswer={
+        isWrong &&
+        !melodyEnabled &&
+        lastQuiz !== null &&
+        String(lastQuiz.degree) === degree
+      }
+      isWrongSelection={
+        (isCorrection || (isWrong && melodyEnabled)) &&
+        correctionWrongSelection === degree
+      }
       onClick={() => onSelect(degree)}
       className="min-h-[56px] sm:min-h-[64px]"
       primaryLabel={<span className="text-xl font-bold leading-none sm:text-2xl">{degree}</span>}

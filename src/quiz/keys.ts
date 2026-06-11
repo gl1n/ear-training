@@ -53,6 +53,16 @@ export function formatMelodyDegrees(degrees: readonly number[]): string {
   return degrees.join('-')
 }
 
+export function formatMelodySolfege(degrees: readonly number[]): string {
+  return degrees
+    .map((degree) => DEGREE_SOLFEGE_LABELS[String(degree) as (typeof DEGREE_OPTION_IDS)[number]])
+    .join(' · ')
+}
+
+export function getMelodyScaleDegreeQuizKey(quiz: MelodyScaleDegreeQuiz): string {
+  return `melody:${quiz.tonicMidi}:${quiz.noteMidis.join('-')}`
+}
+
 export function formatMajorKeyLabel(tonicMidi: number): string {
   const pitchName = midiToNoteName(tonicMidi).replace(/\d+$/, '')
   return `${pitchName} 大调`

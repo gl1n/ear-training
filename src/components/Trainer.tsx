@@ -5,7 +5,7 @@ import { useChallengeSession } from '../hooks/useChallengeSession'
 import { getInitialSettings, usePersistedSettings } from '../hooks/usePersistedSettings'
 import { useTrainingStats } from '../hooks/useTrainingStats'
 import { ALL_INTERVAL_IDS, type IntervalDirection, type Quiz } from '../quiz/intervals'
-import type { ScaleDegreeQuiz } from '../quiz/keys'
+import type { ScaleDegreeQuiz, MelodyScaleDegreeQuiz } from '../quiz/keys'
 import {
   buildIntervalSpeedLoopCallbacks,
   buildScaleDegreeLoopCallbacks,
@@ -71,6 +71,7 @@ export function Trainer() {
     resetLoadingState,
     ensurePiano,
     handlePlayQuiz: replayQuizAudio,
+    handlePlayMelodyQuiz: replayMelodyQuizAudio,
     handleLoadFailure,
     setLoadProgress,
     setLoadIndeterminate,
@@ -206,11 +207,20 @@ export function Trainer() {
     answerResolverRef.current?.(answer)
   }, [])
 
+  const replayBlocked = isRunning && state !== 'feedback_incorrect'
+
   const handlePlayQuiz = useCallback(
     (quiz: Quiz) => {
-      void replayQuizAudio(quiz, settings, isRunning)
+      void replayQuizAudio(quiz, settings, replayBlocked)
     },
-    [replayQuizAudio, isRunning, settings],
+    [replayQuizAudio, replayBlocked, settings],
+  )
+
+  const handlePlayMelodyQuiz = useCallback(
+    (quiz: MelodyScaleDegreeQuiz) => {
+      void replayMelodyQuizAudio(quiz, settings, replayBlocked)
+    },
+    [replayMelodyQuizAudio, replayBlocked, settings],
   )
 
   const start = useCallback(async () => {
@@ -486,6 +496,7 @@ export function Trainer() {
         replayingQuizKey={replayingQuizKey}
         isReplayBusy={replayingQuizKey !== null}
         onPlayQuiz={handlePlayQuiz}
+        onPlayMelodyQuiz={handlePlayMelodyQuiz}
         onScaleDegreeHome={handleScaleDegreeHome}
       />
 

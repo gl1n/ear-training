@@ -597,3 +597,22 @@ export async function replayQuiz(
 ): Promise<void> {
   await playQuizAudio(piano, quiz, settings, { onStateChange: () => {} }, signal)
 }
+
+export async function replayMelodyScaleDegreeQuiz(
+  piano: Piano,
+  quiz: MelodyScaleDegreeQuiz,
+  settings: Pick<Settings, 'noteDurationMs' | 'gapMs'>,
+  signal: AbortSignal,
+): Promise<void> {
+  for (let index = 0; index < quiz.noteMidis.length; index++) {
+    if (signal.aborted) {
+      return
+    }
+
+    await playNote(piano, quiz.noteMidis[index]!, settings.noteDurationMs, signal)
+
+    if (index < quiz.noteMidis.length - 1) {
+      await delay(settings.gapMs, signal)
+    }
+  }
+}

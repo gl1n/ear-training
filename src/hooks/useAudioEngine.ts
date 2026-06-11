@@ -2,7 +2,8 @@ import { useCallback, useRef, useState } from 'react'
 import { createAudioContext, unlockAudioContextSync } from '../audio/context'
 import { createPiano, type Piano } from '../audio/piano'
 import { getQuizPitchKey, type Quiz } from '../quiz/intervals'
-import { replayQuiz, stopPlayback, type Settings } from '../quiz/sequencer'
+import { getMelodyScaleDegreeQuizKey, type MelodyScaleDegreeQuiz } from '../quiz/keys'
+import { replayMelodyScaleDegreeQuiz, replayQuiz, stopPlayback, type Settings } from '../quiz/sequencer'
 import { isAbortError } from '../utils/abort'
 
 export function useAudioEngine() {
@@ -70,8 +71,8 @@ export function useAudioEngine() {
   )
 
   const handlePlayQuiz = useCallback(
-    async (quiz: Quiz, settings: Settings, isRunning: boolean) => {
-      if (isRunning || replayingQuizKey !== null) {
+    async (quiz: Quiz, settings: Settings, replayBlocked: boolean) => {
+      if (replayBlocked || replayingQuizKey !== null) {
         return
       }
 
@@ -108,6 +109,45 @@ export function useAudioEngine() {
     [ensureAudioContext, replayingQuizKey, stopReplay],
   )
 
+  const handlePlayMelodyQuiz = useCallback(
+    async (quiz: MelodyScaleDegreeQuiz, settings: Settings, replayBlocked: boolean) => {
+      if (replayBlocked || replayingQuizKey !== null) {
+        return
+      }
+
+      ensureAudioContext()
+      stopReplay()
+
+      const controller = new AbortController()
+      replayAbortRef.current = controller
+      const pitchKey = getMelodyScaleDegreeQuizKey(quiz)
+      setReplayingQuizKey(pitchKey)
+
+      try {
+        if (!pianoRef.current) {
+          pianoRef.current = await createPiano(audioContextRef.current!, {
+            rootMin: settings.rootMin,
+            rootMax: settings.rootMax,
+            signal: controller.signal,
+          })
+        }
+
+        await replayMelodyScaleDegreeQuiz(pianoRef.current, quiz, settings, controller.signal)
+      } catch (error) {
+        if (isAbortError(error)) {
+          return
+        }
+        console.error(error)
+      } finally {
+        if (replayAbortRef.current === controller) {
+          setReplayingQuizKey(null)
+          replayAbortRef.current = null
+        }
+      }
+    },
+    [ensureAudioContext, replayingQuizKey, stopReplay],
+  )
+
   const handleLoadFailure = useCallback((error: unknown) => {
     pianoRef.current = null
     setLoadError(error instanceof Error ? error.message : '钢琴音色加载失败')
@@ -127,6 +167,7 @@ export function useAudioEngine() {
     dispose,
     ensurePiano,
     handlePlayQuiz,
+    handlePlayMelodyQuiz,
     handleLoadFailure,
     setLoadProgress,
     setLoadIndeterminate,

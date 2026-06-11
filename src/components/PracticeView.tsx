@@ -12,7 +12,7 @@ import { StatusHero } from './StatusHero'
 import { Button } from './ui/Button'
 import { SegmentedControl } from './ui/SegmentedControl'
 import type { Quiz } from '../quiz/intervals'
-import type { ScaleDegreeQuiz } from '../quiz/keys'
+import type { ScaleDegreeQuiz, MelodyScaleDegreeQuiz } from '../quiz/keys'
 import type { ScaleDegreeMistakeStatsStore } from '../quiz/scaleDegreeMistakeStats'
 import type { ScaleDegreeMelodyMistakeStatsStore } from '../quiz/scaleDegreeMelodyMistakeStats'
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
@@ -56,6 +56,7 @@ type PracticeViewProps = {
   replayingQuizKey: string | null
   isReplayBusy: boolean
   onPlayQuiz: (quiz: Quiz) => void
+  onPlayMelodyQuiz: (quiz: MelodyScaleDegreeQuiz) => void
   onScaleDegreeHome: () => void
 }
 
@@ -90,6 +91,7 @@ export function PracticeView({
   replayingQuizKey,
   isReplayBusy,
   onPlayQuiz,
+  onPlayMelodyQuiz,
   onScaleDegreeHome,
 }: PracticeViewProps) {
   const { enabledIntervalIds } = settingsControls
@@ -222,6 +224,9 @@ export function PracticeView({
             scaleDegreeReviewEnabled={scaleDegreeReviewEnabled}
             scaleDegreeMelodyEnabled={scaleDegreeMelodyEnabled}
             isRunning={isRunning}
+            replayingQuizKey={replayingQuizKey}
+            isReplayBusy={isReplayBusy}
+            onPlayMelodyQuiz={onPlayMelodyQuiz}
             onScaleDegreeReviewChange={onScaleDegreeReviewChange}
             onScaleDegreeMelodyChange={onScaleDegreeMelodyChange}
             onHome={onScaleDegreeHome}

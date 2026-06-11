@@ -1,6 +1,8 @@
 import {
   formatMelodyDegrees,
+  getMelodyScaleDegreeQuizKey,
   isMelodyScaleDegreeQuiz,
+  type MelodyScaleDegreeQuiz,
   type ScaleDegreeQuiz,
 } from '../quiz/keys'
 import type { ScaleDegreeMistakeStatsStore } from '../quiz/scaleDegreeMistakeStats'
@@ -12,6 +14,7 @@ import { ScaleDegreeCorrectCountChart } from './ScaleDegreeCorrectCountChart'
 import { ScaleDegreeMelodyMistakeSummary } from './ScaleDegreeMelodyMistakeSummary'
 import { ScaleDegreeMistakeSummary } from './ScaleDegreeMistakeSummary'
 import { PlayAreaCard } from './PlayAreaCard'
+import { PlayableMelodyAnswerCard } from './PlayableMelodyAnswerCard'
 import { ResetStatsButton } from './ResetStatsButton'
 import { Button } from './ui/Button'
 
@@ -24,6 +27,9 @@ type ScaleDegreeIdlePanelProps = {
   scaleDegreeReviewEnabled: boolean
   scaleDegreeMelodyEnabled: boolean
   isRunning: boolean
+  replayingQuizKey: string | null
+  isReplayBusy: boolean
+  onPlayMelodyQuiz: (quiz: MelodyScaleDegreeQuiz) => void
   onScaleDegreeReviewChange: (enabled: boolean) => void
   onScaleDegreeMelodyChange: (enabled: boolean) => void
   onHome: () => void
@@ -81,6 +87,9 @@ export function ScaleDegreeIdlePanel({
   scaleDegreeReviewEnabled,
   scaleDegreeMelodyEnabled,
   isRunning,
+  replayingQuizKey,
+  isReplayBusy,
+  onPlayMelodyQuiz,
   onScaleDegreeReviewChange,
   onScaleDegreeMelodyChange,
   onHome,
@@ -106,6 +115,8 @@ export function ScaleDegreeIdlePanel({
     : isNewScaleDegreeBestRecord
   const modeLabel = scaleDegreeMelodyEnabled ? '三音旋律' : '单音'
   const gameEnded = lastQuiz !== null && hasSessionAttempts(sessionStats)
+  const melodyLastQuiz =
+    lastQuiz && scaleDegreeMelodyEnabled && isMelodyScaleDegreeQuiz(lastQuiz) ? lastQuiz : null
   const historicalMistakeStats = scaleDegreeMelodyEnabled
     ? scaleDegreeMelodyMistakeStats
     : scaleDegreeMistakeStats
@@ -114,6 +125,15 @@ export function ScaleDegreeIdlePanel({
   if (gameEnded) {
     return (
       <PlayAreaCard className="gap-7">
+        {melodyLastQuiz && (
+          <PlayableMelodyAnswerCard
+            quiz={melodyLastQuiz}
+            isPlaying={replayingQuizKey === getMelodyScaleDegreeQuizKey(melodyLastQuiz)}
+            disabled={isReplayBusy && replayingQuizKey !== getMelodyScaleDegreeQuizKey(melodyLastQuiz)}
+            onPlay={() => onPlayMelodyQuiz(melodyLastQuiz)}
+          />
+        )}
+
         <ChallengeSessionResults
           accent="sky"
           sessionStats={sessionStats}
@@ -127,7 +147,7 @@ export function ScaleDegreeIdlePanel({
           <ScaleDegreeCorrectCountChart records={sessionHistory} highlightLast />
         )}
 
-        {lastQuiz && (
+        {lastQuiz && !melodyLastQuiz && (
           <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 text-center">
             <p className="text-xs text-[var(--text-secondary)]">正确答案</p>
             <p className="mt-1 text-lg font-semibold text-emerald-200">

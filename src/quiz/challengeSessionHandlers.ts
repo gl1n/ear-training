@@ -126,6 +126,9 @@ export function buildScaleDegreeLoopCallbacks({
       setLastScaleDegreeQuiz(quiz)
 
       if (melodyEnabled) {
+        if (!correct && answer.selectedDegree !== '') {
+          onAnswerCorrectionStart?.(answer.selectedDegree)
+        }
         return
       }
 
