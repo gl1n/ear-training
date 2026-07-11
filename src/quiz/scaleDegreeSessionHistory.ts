@@ -1,4 +1,5 @@
 import { STORAGE_KEYS } from './storageKeys'
+import { readStorage, removeStorage, writeStorage } from '../utils/storage'
 
 const STORAGE_KEY = STORAGE_KEYS.scaleDegreeSessionHistory
 const MELODY_STORAGE_KEY = STORAGE_KEYS.scaleDegreeMelodySessionHistory
@@ -25,7 +26,7 @@ function isScaleDegreeSessionRecord(value: unknown): value is ScaleDegreeSession
 
 function loadSessionHistory(storageKey: string): ScaleDegreeSessionRecord[] {
   try {
-    const raw = localStorage.getItem(storageKey)
+    const raw = readStorage(storageKey)
     if (!raw) return []
 
     const parsed: unknown = JSON.parse(raw)
@@ -38,7 +39,7 @@ function loadSessionHistory(storageKey: string): ScaleDegreeSessionRecord[] {
 }
 
 function saveSessionHistory(storageKey: string, records: ScaleDegreeSessionRecord[]): void {
-  localStorage.setItem(storageKey, JSON.stringify(records))
+  writeStorage(storageKey, JSON.stringify(records))
 }
 
 function appendSessionRecord(
@@ -58,7 +59,7 @@ function appendSessionRecord(
 
 function clearSessionHistory(storageKey: string): void {
   try {
-    localStorage.removeItem(storageKey)
+    removeStorage(storageKey)
   } catch {
     // Ignore private mode errors.
   }

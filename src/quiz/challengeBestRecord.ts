@@ -1,4 +1,5 @@
 import { STORAGE_KEYS, type ChallengeBestVariant } from './storageKeys'
+import { readStorage, removeStorage, writeStorage } from '../utils/storage'
 
 export type { ChallengeBestVariant }
 
@@ -23,7 +24,7 @@ export function loadChallengeBestRecord(
   variant: ChallengeBestVariant = 'intervalSpeed',
 ): ChallengeBestRecord | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.challengeBest[variant])
+    const raw = readStorage(STORAGE_KEYS.challengeBest[variant])
     if (!raw) return null
 
     const parsed: unknown = JSON.parse(raw)
@@ -34,7 +35,7 @@ export function loadChallengeBestRecord(
 }
 
 function saveChallengeBestRecord(record: ChallengeBestRecord, variant: ChallengeBestVariant): void {
-  localStorage.setItem(STORAGE_KEYS.challengeBest[variant], JSON.stringify(record))
+  writeStorage(STORAGE_KEYS.challengeBest[variant], JSON.stringify(record))
 }
 
 export function tryUpdateChallengeBestRecord(
@@ -55,13 +56,13 @@ export function tryUpdateChallengeBestRecord(
 export function clearChallengeBestRecord(variant?: ChallengeBestVariant): void {
   try {
     if (variant) {
-      localStorage.removeItem(STORAGE_KEYS.challengeBest[variant])
+      removeStorage(STORAGE_KEYS.challengeBest[variant])
       return
     }
 
-    localStorage.removeItem(STORAGE_KEYS.challengeBest.intervalSpeed)
-    localStorage.removeItem(STORAGE_KEYS.challengeBest.scaleDegree)
-    localStorage.removeItem(STORAGE_KEYS.challengeBest.scaleDegreeMelody)
+    removeStorage(STORAGE_KEYS.challengeBest.intervalSpeed)
+    removeStorage(STORAGE_KEYS.challengeBest.scaleDegree)
+    removeStorage(STORAGE_KEYS.challengeBest.scaleDegreeMelody)
   } catch {
     // Ignore private mode errors.
   }

@@ -8,6 +8,7 @@ import type { IntervalDirection } from '../quiz/intervals'
 import { useDebouncedPersist } from './useDebouncedPersist'
 
 import { STORAGE_KEYS } from '../quiz/storageKeys'
+import { readStorage, writeStorage } from '../utils/storage'
 
 const STORAGE_KEY = STORAGE_KEYS.settings
 
@@ -46,7 +47,7 @@ function parseScaleDegreeMelodyEnabled(record: Record<string, unknown>): boolean
 
 function loadPersistedSettings(): PersistedSettings | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = readStorage(STORAGE_KEY)
     if (!raw) return null
 
     const parsed: unknown = JSON.parse(raw)
@@ -136,7 +137,7 @@ export function usePersistedSettings(
       scaleDegreeReviewEnabled,
       scaleDegreeMelodyEnabled,
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+    writeStorage(STORAGE_KEY, JSON.stringify(data))
   }, [
     speedPreset,
     enabledIntervalIds,

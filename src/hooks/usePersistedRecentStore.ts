@@ -5,8 +5,9 @@ export function usePersistedRecentStore<T>(
   load: () => T[],
   save: (store: T[]) => void,
 ) {
-  const storeRef = useRef<T[]>(load())
-  const [snapshot, setSnapshot] = useState<T[]>(() => load())
+  const [initialStore] = useState<T[]>(load)
+  const storeRef = useRef<T[]>(initialStore)
+  const [snapshot, setSnapshot] = useState<T[]>(() => [...initialStore])
 
   useDebouncedPersist(() => {
     save(storeRef.current)

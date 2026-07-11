@@ -16,7 +16,6 @@ import {
   runIntervalFollowLoop,
   runIntervalSpeedLoop,
   runScaleDegreeLoop,
-  stopPlayback,
   LISTENING_STATES,
   type AppMode,
   type Settings,
@@ -67,9 +66,6 @@ export function Trainer() {
   const [correctionWrongSelection, setCorrectionWrongSelection] = useState<string | null>(null)
 
   const {
-    pianoRef,
-    replayAbortRef,
-    audioContextRef,
     loadProgress,
     loadIndeterminate,
     loadError,
@@ -80,6 +76,8 @@ export function Trainer() {
     handlePlayQuiz: replayQuizAudio,
     handlePlayMelodyQuiz: replayMelodyQuizAudio,
     handleLoadFailure,
+    stopReplay,
+    dispose: disposeAudio,
     setLoadProgress,
     setLoadIndeterminate,
     setLoadError,
@@ -151,11 +149,9 @@ export function Trainer() {
   const abortSession = useCallback(() => {
     abortRef.current?.abort()
     abortRef.current = null
-    replayAbortRef.current?.abort()
-    replayAbortRef.current = null
+    stopReplay()
     resetChallengeAnswerState()
-    stopPlayback(pianoRef.current)
-  }, [resetChallengeAnswerState])
+  }, [resetChallengeAnswerState, stopReplay])
 
   const stop = useCallback(() => {
     abortSession()
@@ -169,11 +165,9 @@ export function Trainer() {
   useEffect(() => {
     return () => {
       abortSession()
-      pianoRef.current = null
-      void audioContextRef.current?.close()
-      audioContextRef.current = null
+      disposeAudio()
     }
-  }, [abortSession])
+  }, [abortSession, disposeAudio])
 
   const handleTrainerStateChange = useCallback(
     (nextState: TrainerState) => {

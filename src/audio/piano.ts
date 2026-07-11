@@ -37,8 +37,9 @@ function mapLoadProgress(onLoadProgress?: (loaded: number, total: number) => voi
 }
 
 function waitWithTimeout<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  let timeoutId: number | undefined
   const timeout = new Promise<never>((_, reject) => {
-    window.setTimeout(() => {
+    timeoutId = window.setTimeout(() => {
       reject(new Error('钢琴音色加载超时，请检查网络后重试'))
     }, LOAD_TIMEOUT_MS)
   })
@@ -48,7 +49,9 @@ function waitWithTimeout<T>(promise: Promise<T>, signal?: AbortSignal): Promise<
     racers.push(waitForAbort(signal))
   }
 
-  return Promise.race(racers)
+  return Promise.race(racers).finally(() => {
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId)
+  })
 }
 
 function wrapInstrument(ctx: AudioContext, piano: Smplr): Piano {

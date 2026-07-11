@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createAudioContext, unlockAudioContextSync } from '../audio/context'
 import { createPiano, type Piano } from '../audio/piano'
 import { getQuizPitchKey, type Quiz } from '../quiz/intervals'
@@ -9,6 +9,7 @@ import { isAbortError } from '../utils/abort'
 export function useAudioEngine() {
   const audioContextRef = useRef<AudioContext | null>(null)
   const pianoRef = useRef<Piano | null>(null)
+  const pianoLoadRef = useRef<Promise<Piano> | null>(null)
   const replayAbortRef = useRef<AbortController | null>(null)
 
   const [loadProgress, setLoadProgress] = useState<number | null>(null)
@@ -20,6 +21,7 @@ export function useAudioEngine() {
     if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
       audioContextRef.current = createAudioContext()
       pianoRef.current = null
+      pianoLoadRef.current = null
     }
     unlockAudioContextSync(audioContextRef.current)
     return audioContextRef.current
@@ -40,16 +42,21 @@ export function useAudioEngine() {
   const dispose = useCallback(() => {
     stopReplay()
     pianoRef.current = null
+    pianoLoadRef.current = null
     void audioContextRef.current?.close()
     audioContextRef.current = null
   }, [stopReplay])
+
+  useEffect(() => dispose, [dispose])
 
   const ensurePiano = useCallback(
     async (settings: Settings, signal: AbortSignal) => {
       ensureAudioContext()
 
-      if (!pianoRef.current) {
-        pianoRef.current = await createPiano(audioContextRef.current!, {
+      if (pianoRef.current) return pianoRef.current
+      if (pianoLoadRef.current) return await pianoLoadRef.current
+      if (!pianoLoadRef.current) {
+        const loading = createPiano(audioContextRef.current!, {
           rootMin: settings.rootMin,
           rootMax: settings.rootMax,
           onLoadProgress: (loaded, total) => {
@@ -63,9 +70,16 @@ export function useAudioEngine() {
           },
           signal,
         })
+        pianoLoadRef.current = loading
+        try {
+          const piano = await loading
+          pianoRef.current = piano
+          return piano
+        } finally {
+          if (pianoLoadRef.current === loading) pianoLoadRef.current = null
+        }
       }
-
-      return pianoRef.current
+      throw new Error('钢琴音色加载失败')
     },
     [ensureAudioContext],
   )
@@ -99,6 +113,7 @@ export function useAudioEngine() {
           return
         }
         console.error(error)
+        setLoadError(error instanceof Error ? error.message : '播放失败，请重试')
       } finally {
         if (replayAbortRef.current === controller) {
           setReplayingQuizKey(null)
@@ -138,6 +153,7 @@ export function useAudioEngine() {
           return
         }
         console.error(error)
+        setLoadError(error instanceof Error ? error.message : '播放失败，请重试')
       } finally {
         if (replayAbortRef.current === controller) {
           setReplayingQuizKey(null)
@@ -150,6 +166,7 @@ export function useAudioEngine() {
 
   const handleLoadFailure = useCallback((error: unknown) => {
     pianoRef.current = null
+    pianoLoadRef.current = null
     setLoadError(error instanceof Error ? error.message : '钢琴音色加载失败')
   }, [])
 

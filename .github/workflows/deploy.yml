@@ -27,9 +27,15 @@ jobs:
 
       - run: npm ci
 
+      - run: npm run lint
+
+      - run: npm test
+
       - run: npm run build
         env:
           BASE_PATH: /ear-training/
+
+      - run: npm run check:bundle
 
       - uses: actions/upload-pages-artifact@v3
         with:
