@@ -156,7 +156,7 @@ export type IntervalSpeedCallbacks = {
     quiz: Quiz,
     answer: IntervalSpeedAnswer,
     correct: boolean,
-  ) => void
+  ) => boolean
 }
 
 export type ScaleDegreeAnswer = ChallengeAnswer & {
@@ -176,12 +176,12 @@ export type ScaleDegreeCallbacks = {
     quiz: MelodyScaleDegreeQuiz,
     correct: boolean,
     reactionMs?: number,
-  ) => void
+  ) => boolean
   onAnswerSubmitted: (
     quiz: ScaleDegreeQuiz,
     answer: ScaleDegreeAnswer,
     correct: boolean,
-  ) => void
+  ) => boolean
   getSessionStats?: () => SessionStats
 }
 
@@ -319,14 +319,17 @@ export async function runIntervalSpeedLoop(
       },
     })
 
-    callbacks.onAnswerSubmitted(quiz, answer, correct)
+    const sessionComplete = callbacks.onAnswerSubmitted(quiz, answer, correct)
 
     if (!correct) {
       await finishChallengeOnIncorrect(signal, () =>
         callbacks.onStateChange('feedback_incorrect'),
       )
-      return
+      if (sessionComplete) return
+      continue
     }
+
+    if (sessionComplete) return
   }
 }
 
@@ -405,15 +408,16 @@ async function runMelodyScaleDegreeQuestion(
       if (!correct) {
         audioAbort.abort()
         piano.stop()
-        callbacks.onMelodyGroupSubmitted?.(quiz, false)
+        const sessionComplete = callbacks.onMelodyGroupSubmitted?.(quiz, false) ?? false
         await finishChallengeOnIncorrect(signal, () =>
           callbacks.onStateChange('feedback_incorrect'),
         )
-        return false
+        return sessionComplete ? false : true
       }
     }
 
-    callbacks.onMelodyGroupSubmitted?.(quiz, true, firstNoteReactionMs)
+    const sessionComplete = callbacks.onMelodyGroupSubmitted?.(quiz, true, firstNoteReactionMs) ?? false
+    if (sessionComplete) return false
   } finally {
     audioAbort.abort()
     piano.stop()
@@ -573,14 +577,17 @@ export async function runScaleDegreeLoop(
       },
     })
 
-    callbacks.onAnswerSubmitted(quiz, answer, correct)
+    const sessionComplete = callbacks.onAnswerSubmitted(quiz, answer, correct)
 
     if (!correct) {
       await finishChallengeOnIncorrect(signal, () =>
         callbacks.onStateChange('feedback_incorrect'),
       )
-      return
+      if (sessionComplete) return
+      continue
     }
+
+    if (sessionComplete) return
   }
 }
 

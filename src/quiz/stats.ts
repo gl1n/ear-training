@@ -160,7 +160,7 @@ export function getTotalScore(stats: SessionStats): number {
   return stats.totalScore
 }
 
-function getTotalAnswerCount(stats: SessionStats): number {
+export function getTotalAnswerCount(stats: SessionStats): number {
   return Object.values(stats.byKey).reduce((sum, entry) => sum + entry.totalCount, 0)
 }
 

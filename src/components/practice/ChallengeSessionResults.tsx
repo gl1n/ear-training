@@ -1,6 +1,7 @@
 import type { ChallengeBestRecord } from '../../quiz/challengeBestRecord'
 import {
   getCorrectAnswerCount,
+  getTotalAnswerCount,
   getTotalScore,
   type SessionStats,
 } from '../../quiz/stats'
@@ -26,6 +27,8 @@ export function ChallengeSessionResults({
 }: ChallengeSessionResultsProps) {
   const correctCount = getCorrectAnswerCount(sessionStats)
   const totalScore = getTotalScore(sessionStats)
+  const totalCount = getTotalAnswerCount(sessionStats)
+  const accuracy = totalCount > 0 ? Math.round(correctCount / totalCount * 100) : 0
 
   return (
     <ChallengeEndedSection
@@ -34,7 +37,7 @@ export function ChallengeSessionResults({
       isNewBestRecord={isNewBestRecord}
       bestRecord={bestRecord}
     >
-      <ChallengeScoreCard value={correctCount} label="连对题数" highlight />
+      <ChallengeScoreCard value={`${correctCount} / ${totalCount}`} label={`答对题数 · 正确率 ${accuracy}%`} highlight />
       <ChallengeScoreCard
         value={formatScoreDisplay(totalScore)}
         label={scoreLabel}

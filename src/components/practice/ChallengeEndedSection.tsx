@@ -74,10 +74,10 @@ export function ChallengeEndedSection({
       <div className={`flex flex-col items-center gap-2 text-center ${subtitle ? '' : ''}`}>
         {accent === 'sky' ? (
           <span className="inline-flex items-center gap-2 rounded-full bg-red-500/10 px-3 py-1 text-xs font-medium uppercase tracking-wider text-red-300 ring-1 ring-red-400/20">
-            挑战结束
+            训练报告
           </span>
         ) : (
-          <p className="text-xs font-medium uppercase tracking-wider text-red-400/90">挑战结束</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-emerald-300">训练报告</p>
         )}
         {subtitle ? <p className="text-sm text-[var(--text-secondary)]">{subtitle}</p> : null}
       </div>

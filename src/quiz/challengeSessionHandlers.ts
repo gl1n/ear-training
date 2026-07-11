@@ -20,6 +20,7 @@ type ChallengeHandlerDeps = {
   setEncouragement: (encouragement: ChallengeEncouragement) => void
   encouragementKeyRef: MutableRefObject<number>
   updateSessionStats: (updater: (current: SessionStats) => SessionStats) => void
+  onQuestionCompleted?: () => boolean
 }
 
 function handleChallengeAnswerResult(
@@ -49,6 +50,7 @@ export function buildIntervalSpeedLoopCallbacks({
   setEncouragement,
   encouragementKeyRef,
   updateSessionStats,
+  onQuestionCompleted,
 }: IntervalSpeedHandlerDeps): IntervalSpeedCallbacks {
   return {
     onStateChange,
@@ -65,6 +67,7 @@ export function buildIntervalSpeedLoopCallbacks({
         correct,
         answer.reactionMs,
       )
+      return onQuestionCompleted?.() ?? false
     },
   }
 }
@@ -102,6 +105,7 @@ export function buildScaleDegreeLoopCallbacks({
   encouragementKeyRef,
   updateSessionStats,
   getSessionStats,
+  onQuestionCompleted,
 }: ScaleDegreeHandlerDeps): ScaleDegreeCallbacks {
   return {
     onStateChange,
@@ -121,6 +125,7 @@ export function buildScaleDegreeLoopCallbacks({
       }
 
       updateSessionStats((current) => recordMelodyGroupResult(current, pattern, correct))
+      return onQuestionCompleted?.() ?? false
     },
     onAnswerSubmitted: (quiz, answer, correct) => {
       setLastScaleDegreeQuiz(quiz)
@@ -129,7 +134,7 @@ export function buildScaleDegreeLoopCallbacks({
         if (!correct && answer.selectedDegree !== '') {
           onAnswerCorrectionStart?.(answer.selectedDegree)
         }
-        return
+        return false
       }
 
       if (
@@ -152,6 +157,7 @@ export function buildScaleDegreeLoopCallbacks({
         correct,
         answer.reactionMs,
       )
+      return onQuestionCompleted?.() ?? false
     },
     getSessionStats,
   }

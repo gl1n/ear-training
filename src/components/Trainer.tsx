@@ -4,8 +4,10 @@ import { useAutoDismiss } from '../hooks/useAutoDismiss'
 import { useChallengeSession } from '../hooks/useChallengeSession'
 import { getInitialSettings, usePersistedSettings } from '../hooks/usePersistedSettings'
 import { useTrainingStats } from '../hooks/useTrainingStats'
+import { useSessionGoal } from '../hooks/useSessionGoal'
 import { ALL_INTERVAL_IDS, type IntervalDirection, type Quiz } from '../quiz/intervals'
 import type { ScaleDegreeQuiz, MelodyScaleDegreeQuiz } from '../quiz/keys'
+import { getTotalAnswerCount } from '../quiz/stats'
 import {
   buildIntervalSpeedLoopCallbacks,
   buildScaleDegreeLoopCallbacks,
@@ -48,6 +50,7 @@ export function Trainer() {
   )
   const [melodyCorrectDegrees, setMelodyCorrectDegrees] = useState<string[]>([])
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const { sessionSize, setSessionSize, sessionCompleted, beginSession, completeQuestion, finishSession, clearSessionGoal } = useSessionGoal(initial.sessionSize)
   const [chordDegrees, setChordDegrees] = useState<ChordDegree[]>([1, 6, 4, 5])
   const [currentChord, setCurrentChord] = useState<PlayedChord | null>(null)
   const [currentChordPosition, setCurrentChordPosition] = useState(-1)
@@ -129,6 +132,7 @@ export function Trainer() {
     mode,
     scaleDegreeReviewEnabled,
     scaleDegreeMelodyEnabled,
+    sessionSize,
   )
 
   const resetMelodyProgress = useCallback(() => {
@@ -237,6 +241,7 @@ export function Trainer() {
     setLoadIndeterminate(false)
     setLoadError(null)
     resetSessionState()
+    beginSession()
     resetChallengeAnswerState()
 
     if (mode === 'intervalSpeed') {
@@ -284,6 +289,7 @@ export function Trainer() {
             setEncouragement: setChallengeEncouragement,
             encouragementKeyRef: challengeEncouragementKeyRef,
             updateSessionStats,
+            onQuestionCompleted: completeQuestion,
           }),
           controller.signal,
           mistakeStoreRef.current,
@@ -312,6 +318,7 @@ export function Trainer() {
             encouragementKeyRef: challengeEncouragementKeyRef,
             updateSessionStats,
             getSessionStats: () => sessionStatsRef.current,
+            onQuestionCompleted: completeQuestion,
           }),
           controller.signal,
           scaleDegreeMistakeStoreRef.current,
@@ -350,6 +357,7 @@ export function Trainer() {
         }
 
         setIsRunning(false)
+        if (mode === 'intervalSpeed' || mode === 'scaleDegree') finishSession()
         setState('idle')
         setScaleDegreeGameStarted(false)
         abortRef.current = null
@@ -384,12 +392,15 @@ export function Trainer() {
     scaleDegreeMistakeStoreRef,
     scaleDegreeMelodyMistakeStoreRef,
     sessionStatsRef,
+    beginSession,
+    completeQuestion,
+    finishSession,
     updateSessionStats,
     appendSessionScaleDegreeMistake,
     appendSessionScaleDegreeMelodyMistake,
   ])
 
-  const handleToggle = () => {
+  const handleToggle = useCallback(() => {
     if (isRunning && mode === 'scaleDegree' && !scaleDegreeGameStarted) {
       stop()
       return
@@ -402,12 +413,50 @@ export function Trainer() {
 
     ensureAudioContext()
     void start()
-  }
+  }, [ensureAudioContext, isRunning, mode, scaleDegreeGameStarted, start, stop])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target?.matches('input, select, textarea, button, [contenteditable="true"]')) return
+      if (event.code === 'Space') {
+        event.preventDefault()
+        handleToggle()
+        return
+      }
+      if (!isRunning || !/^Digit[1-9]$/.test(event.code)) return
+      const digit = Number(event.code.slice(-1))
+      if (mode === 'scaleDegree' && digit <= 7) handleAnswerSelect(String(digit))
+      if (mode === 'intervalSpeed') {
+        const answer = settings.enabledIntervalIds[digit - 1]
+        if (answer) handleAnswerSelect(answer)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [handleAnswerSelect, handleToggle, isRunning, mode, settings.enabledIntervalIds])
 
   const handleScaleDegreeHome = useCallback(() => {
     setLastScaleDegreeQuiz(null)
     resetSessionState()
-  }, [resetSessionState])
+    clearSessionGoal()
+  }, [clearSessionGoal, resetSessionState])
+
+  const handlePracticeWeakest = useCallback(() => {
+    const weakest = Object.entries(sessionStatsRef.current.byKey)
+      .filter(([, value]) => value.totalCount > 0)
+      .sort(([, a], [, b]) => a.correctCount / a.totalCount - b.correctCount / b.totalCount)
+      .slice(0, 3)
+      .map(([key]) => key)
+
+    if (mode === 'intervalSpeed' && weakest.length > 0) {
+      setSettings((current) => ({ ...current, enabledIntervalIds: weakest }))
+    } else if (mode === 'scaleDegree') {
+      setScaleDegreeReviewEnabled(true)
+    }
+    resetSessionState()
+    clearSessionGoal()
+  }, [clearSessionGoal, mode, resetSessionState, sessionStatsRef])
 
   const handleModeChange = (nextMode: AppMode) => {
     setMode(nextMode)
@@ -416,6 +465,7 @@ export function Trainer() {
     setCurrentKeyLabel(null)
     setScaleDegreeGameStarted(false)
     resetSessionState()
+    clearSessionGoal()
     resetChallengeAnswerState()
     setCurrentChord(null)
     setCurrentChordPosition(-1)
@@ -503,6 +553,9 @@ export function Trainer() {
         onScaleDegreeMelodyChange={setScaleDegreeMelodyEnabled}
         melodyCorrectDegrees={melodyCorrectDegrees}
         sessionStats={sessionStats}
+        sessionSize={sessionSize}
+        sessionCompleted={sessionCompleted}
+        completedQuestions={getTotalAnswerCount(sessionStats)}
         trainingStats={trainingStats}
         rootMin={settings.rootMin}
         rootMax={settings.rootMax}
@@ -511,6 +564,8 @@ export function Trainer() {
         loadStatus={loadStatus}
         onModeChange={handleModeChange}
         onToggle={handleToggle}
+        onSessionSizeChange={setSessionSize}
+        onPracticeWeakest={handlePracticeWeakest}
         onOpenSettings={() => setDrawerOpen(true)}
         onAnswerSelect={handleAnswerSelect}
         replayingQuizKey={replayingQuizKey}

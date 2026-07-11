@@ -20,6 +20,7 @@ import type { PracticeEncouragement } from './practice/types'
 import type { LoadStatusProps } from './practice/viewProps'
 import type { ChordDegree, ChordRhythm, PlayedChord } from '../quiz/chordProgression'
 import { ChordProgressionPanel } from './ChordProgressionPanel'
+import { SessionGoalControl } from './practice/SessionGoalControl'
 
 const MODE_OPTIONS = [
   { value: 'intervalFollow' as const, label: '跟听' },
@@ -46,6 +47,9 @@ type PracticeViewProps = {
   onScaleDegreeMelodyChange: (enabled: boolean) => void
   melodyCorrectDegrees: string[]
   sessionStats: SessionStats
+  sessionSize: 10 | 20 | 30
+  sessionCompleted: boolean
+  completedQuestions: number
   trainingStats: TrainingStatsViewModel
   rootMin: number
   rootMax: number
@@ -54,6 +58,8 @@ type PracticeViewProps = {
   loadStatus: LoadStatusProps
   onModeChange: (mode: AppMode) => void
   onToggle: () => void
+  onSessionSizeChange: (size: 10 | 20 | 30) => void
+  onPracticeWeakest: () => void
   onOpenSettings: () => void
   onAnswerSelect: (answerId: string) => void
   replayingQuizKey: string | null
@@ -90,6 +96,9 @@ export function PracticeView({
   onScaleDegreeMelodyChange,
   melodyCorrectDegrees,
   sessionStats,
+  sessionSize,
+  sessionCompleted,
+  completedQuestions,
   trainingStats,
   rootMin,
   rootMax,
@@ -98,6 +107,8 @@ export function PracticeView({
   loadStatus,
   onModeChange,
   onToggle,
+  onSessionSizeChange,
+  onPracticeWeakest,
   onOpenSettings,
   onAnswerSelect,
   replayingQuizKey,
@@ -145,10 +156,14 @@ export function PracticeView({
   return (
     <AppShell
       mode={mode}
+      focused={isRunning}
       modeSwitch={
         <nav aria-label="训练类型">
           <p className="mb-2 text-xs font-medium text-[var(--text-secondary)]">选择训练</p>
           <SegmentedControl options={MODE_OPTIONS} value={mode} onChange={onModeChange} disabled={isRunning} />
+          {isChallengeMode && !isRunning && !sessionCompleted && (
+            <SessionGoalControl value={sessionSize} onChange={onSessionSizeChange} />
+          )}
         </nav>
       }
       settingsSummary={
@@ -166,6 +181,16 @@ export function PracticeView({
       }
       footer={
         <>
+          {isChallengeMode && isRunning && (
+            <div className="w-full max-w-xs" aria-live="polite">
+              <div className="mb-1.5 flex justify-between text-xs text-[var(--text-secondary)]">
+                <span>本轮进度</span><span>{Math.min(completedQuestions, sessionSize)} / {sessionSize}</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                <div className="h-full rounded-full bg-sky-400 transition-[width]" style={{ width: `${Math.min(100, completedQuestions / sessionSize * 100)}%` }} />
+              </div>
+            </div>
+          )}
           <Button
             onClick={onToggle}
             disabled={footerButtonDisabled}
@@ -201,6 +226,8 @@ export function PracticeView({
           <IntervalSpeedIdlePanel
             lastQuiz={lastQuiz}
             sessionStats={sessionStats}
+            sessionCompleted={sessionCompleted}
+            onPracticeWeakest={onPracticeWeakest}
             trainingStats={trainingStats}
             rootMin={rootMin}
             rootMax={rootMax}
@@ -251,6 +278,8 @@ export function PracticeView({
             onScaleDegreeReviewChange={onScaleDegreeReviewChange}
             onScaleDegreeMelodyChange={onScaleDegreeMelodyChange}
             onHome={onScaleDegreeHome}
+            sessionCompleted={sessionCompleted}
+            onPracticeWeakest={onPracticeWeakest}
           />
         )
       ) : (

@@ -32,6 +32,29 @@ body {
   color: var(--text-primary);
 }
 
+.training-shell[data-training-mode="scaleDegree"] { --mode-accent: #a78bfa; }
+.training-shell[data-training-mode="chordProgression"] { --mode-accent: #fbbf24; }
+.training-shell[data-training-mode="intervalFollow"],
+.training-shell[data-training-mode="intervalSpeed"] { --mode-accent: #38bdf8; }
+
+.training-shell h1 {
+  text-shadow: 0 0 28px color-mix(in srgb, var(--mode-accent) 22%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--mode-accent, var(--accent));
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @keyframes pulse-ring {
   0% {
     transform: scale(1);

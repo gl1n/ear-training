@@ -33,6 +33,8 @@ type ScaleDegreeIdlePanelProps = {
   onScaleDegreeReviewChange: (enabled: boolean) => void
   onScaleDegreeMelodyChange: (enabled: boolean) => void
   onHome: () => void
+  sessionCompleted: boolean
+  onPracticeWeakest: () => void
 }
 
 function formatLastAnswerLabel(lastQuiz: ScaleDegreeQuiz, melodyEnabled: boolean): string {
@@ -58,6 +60,8 @@ export function ScaleDegreeIdlePanel({
   onScaleDegreeReviewChange,
   onScaleDegreeMelodyChange,
   onHome,
+  sessionCompleted,
+  onPracticeWeakest,
 }: ScaleDegreeIdlePanelProps) {
   const {
     scaleDegreeMistakeStats,
@@ -108,6 +112,14 @@ export function ScaleDegreeIdlePanel({
           scoreLabel={scaleDegreeMelodyEnabled ? '总分' : '加权总分'}
         />
 
+        {sessionCompleted && (
+          <div className="rounded-xl border border-sky-400/25 bg-sky-400/8 p-4 text-center">
+            <p className="font-medium text-sky-200">本轮目标已完成</p>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">已根据本轮表现准备错题优先训练。</p>
+            <Button onClick={onPracticeWeakest} className="mt-3 min-h-11">练习薄弱音级</Button>
+          </div>
+        )}
+
         {sessionHistory.length >= 2 && (
           <ScaleDegreeCorrectCountChart records={sessionHistory} highlightLast />
         )}
@@ -152,7 +164,7 @@ export function ScaleDegreeIdlePanel({
       <div>
         <p className="text-xs font-semibold tracking-[0.16em] text-sky-300">训练方式</p>
         <h2 className="mt-2 text-2xl font-bold tracking-tight">你想练什么？</h2>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">两种训练共享同一套大调音级体系，答错即结束本轮。</p>
+        <p className="mt-1 text-sm text-[var(--text-secondary)]">两种训练共享同一套大调音级体系，答错纠正后继续完成本轮。</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="音级训练方式">

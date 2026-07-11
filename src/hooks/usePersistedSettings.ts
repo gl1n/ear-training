@@ -6,6 +6,7 @@ import {
 } from '../quiz/sequencer'
 import type { IntervalDirection } from '../quiz/intervals'
 import { useDebouncedPersist } from './useDebouncedPersist'
+import type { SessionSize } from './useSessionGoal'
 
 import { STORAGE_KEYS } from '../quiz/storageKeys'
 import { readStorage, writeStorage } from '../utils/storage'
@@ -19,6 +20,7 @@ type PersistedSettings = {
   mode?: AppMode
   scaleDegreeReviewEnabled?: boolean
   scaleDegreeMelodyEnabled?: boolean
+  sessionSize?: SessionSize
 }
 
 function isSpeedPreset(value: unknown): value is SpeedPreset {
@@ -75,6 +77,7 @@ function loadPersistedSettings(): PersistedSettings | null {
       'mode' in record ? normalizeAppMode(record.mode) ?? 'scaleDegree' : 'scaleDegree'
     const scaleDegreeReviewEnabled = parseScaleDegreeReviewEnabled(record)
     const scaleDegreeMelodyEnabled = parseScaleDegreeMelodyEnabled(record)
+    const sessionSize = record.sessionSize === 20 || record.sessionSize === 30 ? record.sessionSize : 10
 
     return {
       speedPreset,
@@ -83,6 +86,7 @@ function loadPersistedSettings(): PersistedSettings | null {
       mode,
       scaleDegreeReviewEnabled,
       scaleDegreeMelodyEnabled,
+      sessionSize,
     }
   } catch {
     return null
@@ -94,6 +98,7 @@ export function getInitialSettings(): {
   mode: AppMode
   scaleDegreeReviewEnabled: boolean
   scaleDegreeMelodyEnabled: boolean
+  sessionSize: SessionSize
   settings: ReturnType<typeof createDefaultSettings>
 } {
   const persisted = loadPersistedSettings()
@@ -101,6 +106,7 @@ export function getInitialSettings(): {
   const mode = persisted?.mode ?? 'scaleDegree'
   const scaleDegreeReviewEnabled = persisted?.scaleDegreeReviewEnabled ?? false
   const scaleDegreeMelodyEnabled = persisted?.scaleDegreeMelodyEnabled ?? false
+  const sessionSize = persisted?.sessionSize ?? 10
   const defaults = createDefaultSettings(speedPreset)
 
   if (persisted && persisted.enabledIntervalIds.length > 0) {
@@ -109,6 +115,7 @@ export function getInitialSettings(): {
       mode,
       scaleDegreeReviewEnabled,
       scaleDegreeMelodyEnabled,
+      sessionSize,
       settings: {
         ...defaults,
         enabledIntervalIds: persisted.enabledIntervalIds,
@@ -117,7 +124,7 @@ export function getInitialSettings(): {
     }
   }
 
-  return { speedPreset, mode, scaleDegreeReviewEnabled, scaleDegreeMelodyEnabled, settings: defaults }
+  return { speedPreset, mode, scaleDegreeReviewEnabled, scaleDegreeMelodyEnabled, sessionSize, settings: defaults }
 }
 
 export function usePersistedSettings(
@@ -127,6 +134,7 @@ export function usePersistedSettings(
   mode: AppMode,
   scaleDegreeReviewEnabled: boolean,
   scaleDegreeMelodyEnabled: boolean,
+  sessionSize: SessionSize,
 ) {
   useDebouncedPersist(() => {
     const data: PersistedSettings = {
@@ -136,6 +144,7 @@ export function usePersistedSettings(
       mode,
       scaleDegreeReviewEnabled,
       scaleDegreeMelodyEnabled,
+      sessionSize,
     }
     writeStorage(STORAGE_KEY, JSON.stringify(data))
   }, [
@@ -145,5 +154,6 @@ export function usePersistedSettings(
     mode,
     scaleDegreeReviewEnabled,
     scaleDegreeMelodyEnabled,
+    sessionSize,
   ])
 }
