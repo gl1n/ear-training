@@ -18,7 +18,7 @@ import type { ScaleDegreeMelodyMistakeStatsStore } from '../quiz/scaleDegreeMelo
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
 import type { PracticeEncouragement } from './practice/types'
 import type { LoadStatusProps } from './practice/viewProps'
-import type { ChordDegree, ChordRhythm, PlayedChord } from '../quiz/chordProgression'
+import type { ChordDegree, ChordKey, ChordRhythm, PlayedChord } from '../quiz/chordProgression'
 import { ChordProgressionPanel } from './ChordProgressionPanel'
 import { SessionGoalControl } from './practice/SessionGoalControl'
 
@@ -76,6 +76,9 @@ type PracticeViewProps = {
   currentChordBeat: number
   chordCountIn: boolean
   onChordRhythmChange: (rhythm: ChordRhythm) => void
+  chordKey: ChordKey
+  activeChordKeyLabel: string | null
+  onChordKeyChange: (key: ChordKey) => void
 }
 
 export function PracticeView({
@@ -123,6 +126,9 @@ export function PracticeView({
   onChordDegreesChange,
   chordRhythm,
   currentChordBeat,
+  chordKey,
+  activeChordKeyLabel,
+  onChordKeyChange,
   chordCountIn,
   onChordRhythmChange,
 }: PracticeViewProps) {
@@ -206,7 +212,7 @@ export function PracticeView({
       }
     >
       {mode === 'chordProgression' ? (
-        <ChordProgressionPanel degrees={chordDegrees} currentChord={currentChord} currentPosition={currentChordPosition} state={state} isRunning={isRunning} onDegreeChange={onChordDegreeChange} onDegreesChange={onChordDegreesChange} rhythm={chordRhythm} currentBeat={currentChordBeat} isCountIn={chordCountIn} onRhythmChange={onChordRhythmChange} />
+        <ChordProgressionPanel degrees={chordDegrees} currentChord={currentChord} currentPosition={currentChordPosition} state={state} isRunning={isRunning} onDegreeChange={onChordDegreeChange} onDegreesChange={onChordDegreesChange} rhythm={chordRhythm} currentBeat={currentChordBeat} isCountIn={chordCountIn} onRhythmChange={onChordRhythmChange} selectedKey={chordKey} activeKeyLabel={activeChordKeyLabel} onKeyChange={onChordKeyChange} />
       ) : mode === 'intervalSpeed' ? (
         isRunning && enabledIntervalIds.length > 0 ? (
           <IntervalSpeedPlayfield

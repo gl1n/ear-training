@@ -2,6 +2,18 @@ import type { Piano } from '../audio/piano'
 import { delay } from '../utils/abort'
 
 export type ChordDegree = 1 | 2 | 3 | 4 | 5 | 6 | 7
+export type ChordKey = 'random' | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11
+
+export const CHORD_KEY_OPTIONS: { value: ChordKey; label: string }[] = [
+  { value: 'random', label: '随机（每次开始）' },
+  ...['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B♭', 'B'].map(
+    (name, value) => ({ value: value as ChordKey, label: `${name} 大调` }),
+  ),
+]
+
+export function chordKeyLabel(pitchClass: number) {
+  return CHORD_KEY_OPTIONS.find((option) => option.value === pitchClass)?.label ?? ''
+}
 
 export type PlayedChord = {
   degree: ChordDegree
@@ -31,7 +43,9 @@ export function randomChordForDegree(degree: ChordDegree, tonic = 48): PlayedCho
   const index = degree - 1
   const root = tonic + ROOT_OFFSETS[index]
   const triad = TRIADS[index]
-  const choices = degree === 7 ? ['triad', 'seventh', 'inversion'] : ['triad', 'seventh', 'add9', 'inversion']
+  const choices = degree === 3 || degree === 7
+    ? ['triad', 'seventh', 'inversion']
+    : ['triad', 'seventh', 'add9', 'inversion']
   const choice = choices[Math.floor(Math.random() * choices.length)]
   let intervals = [...triad]
   let suffix = ''
@@ -60,6 +74,7 @@ export async function runChordProgressionLoop(
     onBeat: (beat: number, isCountIn: boolean) => void
   },
   signal: AbortSignal,
+  tonic = 48,
 ) {
   const beatMs = 60_000 / rhythm.bpm
   for (let beat = 1; beat <= rhythm.countInBeats; beat += 1) {
@@ -69,7 +84,7 @@ export async function runChordProgressionLoop(
 
   let position = 0
   while (!signal.aborted) {
-    const chord = randomChordForDegree(degrees[position])
+    const chord = randomChordForDegree(degrees[position], tonic)
     callbacks.onChord(chord, position)
     callbacks.onBeat(1, false)
     const breathing = rhythm.feel === 'breathe' && rhythm.beatsPerChord >= 4

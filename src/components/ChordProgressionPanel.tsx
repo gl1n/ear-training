@@ -1,4 +1,4 @@
-import type { ChordDegree, ChordRhythm, PlayedChord } from '../quiz/chordProgression'
+import { CHORD_KEY_OPTIONS, type ChordDegree, type ChordKey, type ChordRhythm, type PlayedChord } from '../quiz/chordProgression'
 import type { TrainerState } from '../quiz/sequencer'
 import { Card } from './ui/Card'
 
@@ -14,6 +14,9 @@ type Props = {
   currentBeat: number
   isCountIn: boolean
   onRhythmChange: (rhythm: ChordRhythm) => void
+  selectedKey: ChordKey
+  activeKeyLabel: string | null
+  onKeyChange: (key: ChordKey) => void
 }
 
 const PROGRESSION_PRESETS: { name: string; description: string; degrees: ChordDegree[] }[] = [
@@ -25,11 +28,11 @@ const PROGRESSION_PRESETS: { name: string; description: string; degrees: ChordDe
   { name: '爵士流行', description: 'ii–V–I–vi', degrees: [2, 5, 1, 6] },
 ]
 
-export function ChordProgressionPanel({ degrees, currentChord, currentPosition, state, isRunning, onDegreeChange, onDegreesChange, rhythm, currentBeat, isCountIn, onRhythmChange }: Props) {
+export function ChordProgressionPanel({ degrees, currentChord, currentPosition, state, isRunning, onDegreeChange, onDegreesChange, rhythm, currentBeat, isCountIn, onRhythmChange, selectedKey, activeKeyLabel, onKeyChange }: Props) {
   return (
     <Card>
       <div className="text-center">
-        <p className="text-sm text-[var(--text-secondary)]">四和弦循环 · 每次随机色彩与转位</p>
+        <p className="text-sm text-[var(--text-secondary)]">{activeKeyLabel ? `${activeKeyLabel} · ` : ''}循环进行 · 仅使用调内音</p>
         <h2 className="mt-2 text-3xl font-bold">{isCountIn ? `预备 ${currentBeat} / 4` : isRunning && currentChord ? currentChord.name : '选择和弦级数'}</h2>
         <div className="mt-4 flex justify-center gap-2" aria-label="当前拍">
           {Array.from({ length: isCountIn ? 4 : rhythm.beatsPerChord }, (_, index) => <span key={index} className={`h-2.5 w-8 rounded-full transition ${isRunning && currentBeat === index + 1 ? 'bg-sky-400' : 'bg-[var(--bg-elevated)]'}`} />)}
@@ -60,6 +63,7 @@ export function ChordProgressionPanel({ degrees, currentChord, currentPosition, 
         </div>
       </div>
       <div className="mt-6 grid gap-5 border-t border-[var(--border-subtle)] pt-6 sm:grid-cols-2">
+        <label className="text-sm text-[var(--text-secondary)]">调性<select className="mt-2 w-full rounded-lg bg-[var(--bg-elevated)] p-2 text-[var(--text-primary)]" value={selectedKey} disabled={isRunning} onChange={(event) => onKeyChange(event.target.value === 'random' ? 'random' : Number(event.target.value) as ChordKey)}>{CHORD_KEY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
         <label className="text-sm text-[var(--text-secondary)]">速度 <strong className="ml-1 text-[var(--text-primary)]">{rhythm.bpm} BPM</strong><input className="mt-2 w-full accent-sky-400" type="range" min="40" max="160" step="5" value={rhythm.bpm} disabled={isRunning} onChange={(event) => onRhythmChange({ ...rhythm, bpm: Number(event.target.value) })} /></label>
         <label className="text-sm text-[var(--text-secondary)]">每个和弦<select className="mt-2 w-full rounded-lg bg-[var(--bg-elevated)] p-2 text-[var(--text-primary)]" value={rhythm.beatsPerChord} disabled={isRunning} onChange={(event) => onRhythmChange({ ...rhythm, beatsPerChord: Number(event.target.value) as 1 | 2 | 4 })}><option value="1">1 拍</option><option value="2">2 拍</option><option value="4">4 拍（1 小节）</option></select></label>
       </div>

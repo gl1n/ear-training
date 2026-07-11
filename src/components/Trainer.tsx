@@ -29,7 +29,7 @@ import type { SettingsPanelProps } from './SettingsPanel'
 import { PracticeView } from './PracticeView'
 import type { PracticeEncouragement } from './practice/types'
 import { SettingsDrawer } from './SettingsDrawer'
-import { runChordProgressionLoop, type ChordDegree, type ChordRhythm, type PlayedChord } from '../quiz/chordProgression'
+import { chordKeyLabel, runChordProgressionLoop, type ChordDegree, type ChordKey, type ChordRhythm, type PlayedChord } from '../quiz/chordProgression'
 
 export function Trainer() {
   const initial = getInitialSettings()
@@ -57,6 +57,8 @@ export function Trainer() {
   const [chordRhythm, setChordRhythm] = useState<ChordRhythm>({ bpm: 80, beatsPerChord: 4, countInBeats: 4, feel: 'breathe' })
   const [currentChordBeat, setCurrentChordBeat] = useState(0)
   const [chordCountIn, setChordCountIn] = useState(false)
+  const [chordKey, setChordKey] = useState<ChordKey>('random')
+  const [activeChordKeyLabel, setActiveChordKeyLabel] = useState<string | null>(null)
 
   const abortRef = useRef<AbortController | null>(null)
   const answerResolverRef = useRef<((answer: string) => void) | null>(null)
@@ -261,6 +263,8 @@ export function Trainer() {
       resetLoadingState()
 
       if (mode === 'chordProgression') {
+        const pitchClass = chordKey === 'random' ? Math.floor(Math.random() * 12) : chordKey
+        setActiveChordKeyLabel(chordKeyLabel(pitchClass))
         await runChordProgressionLoop(piano, chordDegrees, chordRhythm, {
           onChord: (chord, position) => {
             setChordCountIn(false)
@@ -272,7 +276,7 @@ export function Trainer() {
             setCurrentChordBeat(beat)
             setChordCountIn(isCountIn)
           },
-        }, controller.signal)
+        }, controller.signal, 48 + pitchClass)
       } else if (mode === 'intervalSpeed') {
         await runIntervalSpeedLoop(
           piano,
@@ -368,6 +372,7 @@ export function Trainer() {
     mode,
     chordDegrees,
     chordRhythm,
+    chordKey,
     scaleDegreeReviewEnabled,
     scaleDegreeMelodyEnabled,
     resetChallengeAnswerState,
@@ -582,6 +587,9 @@ export function Trainer() {
         currentChordBeat={currentChordBeat}
         chordCountIn={chordCountIn}
         onChordRhythmChange={setChordRhythm}
+        chordKey={chordKey}
+        activeChordKeyLabel={activeChordKeyLabel}
+        onChordKeyChange={setChordKey}
       />
 
       {mode !== 'scaleDegree' && mode !== 'chordProgression' && (
