@@ -47,7 +47,7 @@ export function SettingsPanel({
         )}
       </Card>
 
-      {mode !== 'scaleDegree' && (
+      {mode !== 'scaleDegree' && mode !== 'chordProgression' && (
         <>
           <DirectionSelector
             direction={direction}

@@ -28,6 +28,7 @@ import type { SettingsPanelProps } from './SettingsPanel'
 import { PracticeView } from './PracticeView'
 import type { PracticeEncouragement } from './practice/types'
 import { SettingsDrawer } from './SettingsDrawer'
+import { runChordProgressionLoop, type ChordDegree, type ChordRhythm, type PlayedChord } from '../quiz/chordProgression'
 
 export function Trainer() {
   const initial = getInitialSettings()
@@ -48,6 +49,12 @@ export function Trainer() {
   )
   const [melodyCorrectDegrees, setMelodyCorrectDegrees] = useState<string[]>([])
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [chordDegrees, setChordDegrees] = useState<ChordDegree[]>([1, 6, 4, 5])
+  const [currentChord, setCurrentChord] = useState<PlayedChord | null>(null)
+  const [currentChordPosition, setCurrentChordPosition] = useState(-1)
+  const [chordRhythm, setChordRhythm] = useState<ChordRhythm>({ bpm: 80, beatsPerChord: 4, countInBeats: 4, feel: 'breathe' })
+  const [currentChordBeat, setCurrentChordBeat] = useState(0)
+  const [chordCountIn, setChordCountIn] = useState(false)
 
   const abortRef = useRef<AbortController | null>(null)
   const answerResolverRef = useRef<((answer: string) => void) | null>(null)
@@ -224,7 +231,7 @@ export function Trainer() {
   )
 
   const start = useCallback(async () => {
-    if (mode !== 'scaleDegree' && settings.enabledIntervalIds.length === 0) {
+    if (mode !== 'scaleDegree' && mode !== 'chordProgression' && settings.enabledIntervalIds.length === 0) {
       return
     }
 
@@ -254,7 +261,20 @@ export function Trainer() {
       const piano = await ensurePiano(settings, controller.signal)
       resetLoadingState()
 
-      if (mode === 'intervalSpeed') {
+      if (mode === 'chordProgression') {
+        await runChordProgressionLoop(piano, chordDegrees, chordRhythm, {
+          onChord: (chord, position) => {
+            setChordCountIn(false)
+            setCurrentChord(chord)
+            setCurrentChordPosition(position)
+            handleTrainerStateChange('playing_harmonic')
+          },
+          onBeat: (beat, isCountIn) => {
+            setCurrentChordBeat(beat)
+            setChordCountIn(isCountIn)
+          },
+        }, controller.signal)
+      } else if (mode === 'intervalSpeed') {
         await runIntervalSpeedLoop(
           piano,
           settings,
@@ -344,6 +364,8 @@ export function Trainer() {
     }
   }, [
     mode,
+    chordDegrees,
+    chordRhythm,
     scaleDegreeReviewEnabled,
     scaleDegreeMelodyEnabled,
     resetChallengeAnswerState,
@@ -401,6 +423,10 @@ export function Trainer() {
     setScaleDegreeGameStarted(false)
     resetSessionState()
     resetChallengeAnswerState()
+    setCurrentChord(null)
+    setCurrentChordPosition(-1)
+    setCurrentChordBeat(0)
+    setChordCountIn(false)
   }
 
   const handleSpeedChange = (preset: SpeedPreset) => {
@@ -498,9 +524,18 @@ export function Trainer() {
         onPlayQuiz={handlePlayQuiz}
         onPlayMelodyQuiz={handlePlayMelodyQuiz}
         onScaleDegreeHome={handleScaleDegreeHome}
+        chordDegrees={chordDegrees}
+        currentChord={currentChord}
+        currentChordPosition={currentChordPosition}
+        onChordDegreeChange={(position, degree) => setChordDegrees((current) => current.map((value, index) => index === position ? degree : value))}
+        onChordDegreesChange={setChordDegrees}
+        chordRhythm={chordRhythm}
+        currentChordBeat={currentChordBeat}
+        chordCountIn={chordCountIn}
+        onChordRhythmChange={setChordRhythm}
       />
 
-      {mode !== 'scaleDegree' && (
+      {mode !== 'scaleDegree' && mode !== 'chordProgression' && (
         <SettingsDrawer
           open={drawerOpen}
           onClose={() => setDrawerOpen(false)}

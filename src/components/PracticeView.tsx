@@ -18,11 +18,14 @@ import type { ScaleDegreeMelodyMistakeStatsStore } from '../quiz/scaleDegreeMelo
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
 import type { PracticeEncouragement } from './practice/types'
 import type { LoadStatusProps } from './practice/viewProps'
+import type { ChordDegree, ChordRhythm, PlayedChord } from '../quiz/chordProgression'
+import { ChordProgressionPanel } from './ChordProgressionPanel'
 
 const MODE_OPTIONS = [
   { value: 'intervalFollow' as const, label: '音程跟听' },
   { value: 'scaleDegree' as const, label: '音级辨识' },
   { value: 'intervalSpeed' as const, label: '音程辨认' },
+  { value: 'chordProgression' as const, label: '和弦进行' },
 ]
 
 type PracticeViewProps = {
@@ -58,6 +61,15 @@ type PracticeViewProps = {
   onPlayQuiz: (quiz: Quiz) => void
   onPlayMelodyQuiz: (quiz: MelodyScaleDegreeQuiz) => void
   onScaleDegreeHome: () => void
+  chordDegrees: ChordDegree[]
+  currentChord: PlayedChord | null
+  currentChordPosition: number
+  onChordDegreeChange: (position: number, degree: ChordDegree) => void
+  onChordDegreesChange: (degrees: ChordDegree[]) => void
+  chordRhythm: ChordRhythm
+  currentChordBeat: number
+  chordCountIn: boolean
+  onChordRhythmChange: (rhythm: ChordRhythm) => void
 }
 
 export function PracticeView({
@@ -93,11 +105,20 @@ export function PracticeView({
   onPlayQuiz,
   onPlayMelodyQuiz,
   onScaleDegreeHome,
+  chordDegrees,
+  currentChord,
+  currentChordPosition,
+  onChordDegreeChange,
+  onChordDegreesChange,
+  chordRhythm,
+  currentChordBeat,
+  chordCountIn,
+  onChordRhythmChange,
 }: PracticeViewProps) {
   const { enabledIntervalIds } = settingsControls
   const { loadProgress, loadIndeterminate, loadError, onRetry } = loadStatus
   const canStart =
-    mode === 'scaleDegree' ? true : enabledIntervalIds.length > 0
+    mode === 'scaleDegree' || mode === 'chordProgression' ? true : enabledIntervalIds.length > 0
   const showSettingsHint = !canStart && !isRunning && mode !== 'scaleDegree'
   const isChallengeMode = mode === 'intervalSpeed' || mode === 'scaleDegree'
   const scaleDegreeEstablishing =
@@ -112,6 +133,7 @@ export function PracticeView({
       return state === 'loading' ? '加载钢琴音色…' : '取消'
     }
     if (isRunning) return '暂停'
+    if (mode === 'chordProgression') return '开始循环'
     if (isChallengeMode) return '开始挑战'
     return '开始跟听'
   })()
@@ -132,7 +154,7 @@ export function PracticeView({
         />
       }
       settingsSummary={
-        mode !== 'scaleDegree' ? (
+        mode !== 'scaleDegree' && mode !== 'chordProgression' ? (
           <SettingsSummary
             mode={mode}
             speedPreset={settingsControls.speedPreset}
@@ -161,7 +183,9 @@ export function PracticeView({
         </>
       }
     >
-      {mode === 'intervalSpeed' ? (
+      {mode === 'chordProgression' ? (
+        <ChordProgressionPanel degrees={chordDegrees} currentChord={currentChord} currentPosition={currentChordPosition} state={state} isRunning={isRunning} onDegreeChange={onChordDegreeChange} onDegreesChange={onChordDegreesChange} rhythm={chordRhythm} currentBeat={currentChordBeat} isCountIn={chordCountIn} onRhythmChange={onChordRhythmChange} />
+      ) : mode === 'intervalSpeed' ? (
         isRunning && enabledIntervalIds.length > 0 ? (
           <IntervalSpeedPlayfield
             optionIds={enabledIntervalIds}

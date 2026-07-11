@@ -9,8 +9,8 @@ const LOAD_TIMEOUT_MS = 60_000
 const MAX_INTERVAL_SEMITONES = 12
 
 export type Piano = {
-  playNote: (midi: number, durationSec: number) => Promise<void>
-  playNotes: (midis: number[], durationSec: number) => Promise<void>
+  playNote: (midi: number, durationSec: number, velocity?: number) => Promise<void>
+  playNotes: (midis: number[], durationSec: number, velocity?: number) => Promise<void>
   stop: () => void
 }
 
@@ -53,14 +53,14 @@ function waitWithTimeout<T>(promise: Promise<T>, signal?: AbortSignal): Promise<
 
 function wrapInstrument(ctx: AudioContext, piano: Smplr): Piano {
   return {
-    async playNote(midi: number, durationSec: number) {
+    async playNote(midi: number, durationSec: number, velocity = 80) {
       await unlockAudioContext(ctx)
-      piano.start({ note: midi, velocity: 80, duration: durationSec })
+      piano.start({ note: midi, velocity, duration: durationSec })
     },
-    async playNotes(midis: number[], durationSec: number) {
+    async playNotes(midis: number[], durationSec: number, velocity = 80) {
       await unlockAudioContext(ctx)
       for (const midi of midis) {
-        piano.start({ note: midi, velocity: 80, duration: durationSec })
+        piano.start({ note: midi, velocity, duration: durationSec })
       }
     },
     stop() {

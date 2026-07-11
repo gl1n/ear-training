@@ -20,7 +20,9 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const subtitle =
-    mode === 'intervalSpeed'
+    mode === 'chordProgression'
+      ? '四级循环 · 随机色彩 · 随机转位'
+      : mode === 'intervalSpeed'
       ? '听音辨程 · 即时作答 · 加权计分'
       : mode === 'scaleDegree'
         ? '随机大调 · 听音选级 · 连对挑战'
@@ -29,13 +31,13 @@ export function AppShell({
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col px-4 py-6 sm:px-6 sm:py-8">
       <header className="mb-5 flex flex-col items-center text-center">
-        <h1 className="text-xl font-bold sm:text-2xl">音程练耳</h1>
+        <h1 className="text-xl font-bold sm:text-2xl">{mode === 'chordProgression' ? '和弦进行练耳' : '音程练耳'}</h1>
         <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{subtitle}</p>
       </header>
 
       <div
         className={
-          mode === 'scaleDegree'
+          mode === 'scaleDegree' || mode === 'chordProgression'
             ? 'flex flex-1 flex-col gap-5'
             : 'flex flex-1 flex-col gap-5 lg:grid lg:grid-cols-[1fr_300px] lg:items-start lg:gap-8'
         }
@@ -50,7 +52,7 @@ export function AppShell({
           </footer>
         </div>
 
-        {mode !== 'scaleDegree' && (
+        {mode !== 'scaleDegree' && mode !== 'chordProgression' && (
           <aside className="hidden lg:block">
             <div className="sticky top-6">
               <h2 className="mb-4 text-sm font-medium text-[var(--text-secondary)]">训练设置</h2>
