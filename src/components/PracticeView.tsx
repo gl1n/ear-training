@@ -6,7 +6,7 @@ import { AppShell } from './AppShell'
 import { ScaleDegreeIdlePanel } from './ScaleDegreeIdlePanel'
 import { ScaleDegreePlayfield } from './ScaleDegreePlayfield'
 import { ScaleDegreeReadyPanel } from './ScaleDegreeReadyPanel'
-import { SettingsPanel, type SettingsPanelProps } from './SettingsPanel'
+import type { SettingsPanelProps } from './SettingsPanel'
 import { SettingsSummary } from './SettingsSummary'
 import { StatusHero } from './StatusHero'
 import { Button } from './ui/Button'
@@ -22,10 +22,10 @@ import type { ChordDegree, ChordRhythm, PlayedChord } from '../quiz/chordProgres
 import { ChordProgressionPanel } from './ChordProgressionPanel'
 
 const MODE_OPTIONS = [
-  { value: 'intervalFollow' as const, label: '音程跟听' },
-  { value: 'scaleDegree' as const, label: '音级辨识' },
-  { value: 'intervalSpeed' as const, label: '音程辨认' },
-  { value: 'chordProgression' as const, label: '和弦进行' },
+  { value: 'intervalFollow' as const, label: '跟听' },
+  { value: 'intervalSpeed' as const, label: '辨认' },
+  { value: 'scaleDegree' as const, label: '音级' },
+  { value: 'chordProgression' as const, label: '和弦' },
 ]
 
 type PracticeViewProps = {
@@ -146,12 +146,10 @@ export function PracticeView({
     <AppShell
       mode={mode}
       modeSwitch={
-        <SegmentedControl
-          options={MODE_OPTIONS}
-          value={mode}
-          onChange={onModeChange}
-          disabled={isRunning}
-        />
+        <nav aria-label="训练类型">
+          <p className="mb-2 text-xs font-medium text-[var(--text-secondary)]">选择训练</p>
+          <SegmentedControl options={MODE_OPTIONS} value={mode} onChange={onModeChange} disabled={isRunning} />
+        </nav>
       }
       settingsSummary={
         mode !== 'scaleDegree' && mode !== 'chordProgression' ? (
@@ -166,7 +164,6 @@ export function PracticeView({
           />
         ) : null
       }
-      settingsPanel={<SettingsPanel {...settingsControls} />}
       footer={
         <>
           <Button

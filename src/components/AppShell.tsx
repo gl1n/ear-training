@@ -6,7 +6,6 @@ type AppShellProps = {
   mode: AppMode
   modeSwitch: ReactNode
   settingsSummary: ReactNode
-  settingsPanel: ReactNode
   footer: ReactNode
   children: ReactNode
 }
@@ -15,51 +14,42 @@ export function AppShell({
   mode,
   modeSwitch,
   settingsSummary,
-  settingsPanel,
   footer,
   children,
 }: AppShellProps) {
-  const subtitle =
+  const meta =
     mode === 'chordProgression'
-      ? '四级循环 · 随机色彩 · 随机转位'
+      ? { eyebrow: '和声训练', title: '和弦进行', subtitle: '在循环中建立级数走向与和声色彩的听感' }
       : mode === 'intervalSpeed'
-      ? '听音辨程 · 即时作答 · 加权计分'
+      ? { eyebrow: '辨认挑战', title: '音程辨认', subtitle: '听到音程后立即作答，训练反应速度与准确度' }
       : mode === 'scaleDegree'
-        ? '随机大调 · 听音选级 · 连对挑战'
-        : '循环播放 · 语音播报 · 无需作答'
+        ? { eyebrow: '调性感知', title: '音级辨识', subtitle: '先建立调性，再辨认音在调内的位置' }
+        : { eyebrow: '基础训练', title: '音程跟听', subtitle: '循环聆听并跟随播报，建立音程声音记忆' }
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col px-4 py-6 sm:px-6 sm:py-8">
-      <header className="mb-5 flex flex-col items-center text-center">
-        <h1 className="text-xl font-bold sm:text-2xl">{mode === 'chordProgression' ? '和弦进行练耳' : '音程练耳'}</h1>
-        <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{subtitle}</p>
+    <div className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 py-5 sm:px-6 sm:py-7">
+      <header className="mb-5">
+        <div className="mx-auto flex w-full max-w-3xl items-end justify-between gap-4 border-b border-[var(--border-subtle)] pb-5">
+          <div>
+            <p className="mb-1 text-xs font-semibold tracking-[0.18em] text-sky-300">{meta.eyebrow}</p>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{meta.title}</h1>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">{meta.subtitle}</p>
+          </div>
+          <span className="hidden rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs text-[var(--text-secondary)] sm:block">听感实验室</span>
+        </div>
       </header>
 
-      <div
-        className={
-          mode === 'scaleDegree' || mode === 'chordProgression'
-            ? 'flex flex-1 flex-col gap-5'
-            : 'flex flex-1 flex-col gap-5 lg:grid lg:grid-cols-[1fr_300px] lg:items-start lg:gap-8'
-        }
-      >
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5">
         <div className="flex min-w-0 flex-1 flex-col gap-5">
           {modeSwitch}
           {settingsSummary}
           <main className="flex flex-1 flex-col gap-4">{children}</main>
-          <footer className="sticky bottom-0 z-10 -mx-4 flex flex-col items-center gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-base)]/90 px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <footer className="sticky bottom-0 z-10 -mx-4 flex flex-col items-center gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-base)]/90 px-4 py-4 backdrop-blur-xl sm:-mx-6 sm:px-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {footer}
             <VersionInfo />
           </footer>
         </div>
 
-        {mode !== 'scaleDegree' && mode !== 'chordProgression' && (
-          <aside className="hidden lg:block">
-            <div className="sticky top-6">
-              <h2 className="mb-4 text-sm font-medium text-[var(--text-secondary)]">训练设置</h2>
-              {settingsPanel}
-            </div>
-          </aside>
-        )}
       </div>
     </div>
   )

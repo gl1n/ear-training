@@ -36,7 +36,7 @@ export function SettingsSummary({
       className={cardClasses(
         'compact',
         [
-          'lg:hidden flex w-full flex-col gap-3 text-left transition hover:border-white/20 disabled:cursor-not-allowed disabled:opacity-50',
+          'flex w-full flex-col gap-3 text-left transition hover:border-white/20 disabled:cursor-not-allowed disabled:opacity-50',
           showHint ? 'ring-2 ring-sky-400/50' : '',
         ]
           .filter(Boolean)

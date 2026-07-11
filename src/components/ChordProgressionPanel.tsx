@@ -59,13 +59,11 @@ export function ChordProgressionPanel({ degrees, currentChord, currentPosition, 
           })}
         </div>
       </div>
-      <div className="mt-6 grid gap-4 border-t border-[var(--border-subtle)] pt-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid gap-5 border-t border-[var(--border-subtle)] pt-6 sm:grid-cols-2">
         <label className="text-sm text-[var(--text-secondary)]">速度 <strong className="ml-1 text-[var(--text-primary)]">{rhythm.bpm} BPM</strong><input className="mt-2 w-full accent-sky-400" type="range" min="40" max="160" step="5" value={rhythm.bpm} disabled={isRunning} onChange={(event) => onRhythmChange({ ...rhythm, bpm: Number(event.target.value) })} /></label>
         <label className="text-sm text-[var(--text-secondary)]">每个和弦<select className="mt-2 w-full rounded-lg bg-[var(--bg-elevated)] p-2 text-[var(--text-primary)]" value={rhythm.beatsPerChord} disabled={isRunning} onChange={(event) => onRhythmChange({ ...rhythm, beatsPerChord: Number(event.target.value) as 1 | 2 | 4 })}><option value="1">1 拍</option><option value="2">2 拍</option><option value="4">4 拍（1 小节）</option></select></label>
-        <label className="text-sm text-[var(--text-secondary)]">开始方式<select className="mt-2 w-full rounded-lg bg-[var(--bg-elevated)] p-2 text-[var(--text-primary)]" value={rhythm.countInBeats} disabled={isRunning} onChange={(event) => onRhythmChange({ ...rhythm, countInBeats: Number(event.target.value) as 0 | 4 })}><option value="4">4 拍预备</option><option value="0">直接开始</option></select></label>
-        <label className="text-sm text-[var(--text-secondary)]">演奏感觉<select className="mt-2 w-full rounded-lg bg-[var(--bg-elevated)] p-2 text-[var(--text-primary)]" value={rhythm.feel} disabled={isRunning} onChange={(event) => onRhythmChange({ ...rhythm, feel: event.target.value as ChordRhythm['feel'] })}><option value="breathe">呼吸（1、3 拍）</option><option value="sustain">平稳延音</option></select></label>
       </div>
-      <p className="mt-5 text-center text-sm leading-6 text-[var(--text-secondary)]">每组支持 4–8 个和弦；“呼吸”会在第 1 拍完整落下和弦，第 3 拍轻触上方声部。</p>
+      <p className="mt-5 text-center text-sm leading-6 text-[var(--text-secondary)]">每组支持 4–8 个和弦；开始时会有一小节预备拍，演奏使用自然呼吸节奏。</p>
     </Card>
   )
 }

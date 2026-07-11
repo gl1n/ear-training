@@ -35,41 +35,6 @@ type ScaleDegreeIdlePanelProps = {
   onHome: () => void
 }
 
-const SINGLE_NOTE_HOW_TO_STEPS = [
-  { step: '1', title: '定调', desc: '播放 I 级大三和弦' },
-  { step: '2', title: '听音', desc: '辨认调内单音' },
-  { step: '3', title: '选级', desc: '点选 1–7 音级' },
-] as const
-
-const MELODY_HOW_TO_STEPS = [
-  { step: '1', title: '定调', desc: '播放 I 级大三和弦' },
-  { step: '2', title: '听旋律', desc: '一次顺序播放 3 个音' },
-  { step: '3', title: '选级', desc: '第三音起逐音选级，选错即结束' },
-] as const
-
-function HowToPlay({ melodyEnabled }: { melodyEnabled: boolean }) {
-  const steps = melodyEnabled ? MELODY_HOW_TO_STEPS : SINGLE_NOTE_HOW_TO_STEPS
-  return (
-    <div className="grid w-full max-w-md grid-cols-3 gap-2 sm:gap-3">
-      {steps.map(({ step, title, desc }, index) => (
-        <div key={step} className="relative flex flex-col items-center">
-          {index < steps.length - 1 && (
-            <span
-              className="absolute left-[calc(50%+1.25rem)] top-5 hidden h-px w-[calc(100%-2.5rem)] bg-sky-400/20 sm:block"
-              aria-hidden="true"
-            />
-          )}
-          <span className="flex h-10 w-10 items-center justify-center rounded-full border border-sky-400/30 bg-sky-500/10 text-sm font-bold text-sky-200">
-            {step}
-          </span>
-          <p className="mt-2 text-sm font-medium text-[var(--text-primary)]">{title}</p>
-          <p className="mt-0.5 text-[11px] leading-snug text-[var(--text-secondary)]">{desc}</p>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 function formatLastAnswerLabel(lastQuiz: ScaleDegreeQuiz, melodyEnabled: boolean): string {
   if (melodyEnabled && isMelodyScaleDegreeQuiz(lastQuiz)) {
     return `旋律 ${formatMelodyDegrees(lastQuiz.degrees)}`
@@ -183,85 +148,54 @@ export function ScaleDegreeIdlePanel({
   }
 
   return (
-    <PlayAreaCard className="gap-7">
-      <div className="flex flex-col items-center gap-3 text-center">
-        <span className="inline-flex items-center gap-2 rounded-full border border-sky-400/25 bg-sky-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-sky-200">
-          音级辨识
-        </span>
-        <p className="max-w-sm text-base font-medium leading-relaxed text-[var(--text-primary)]">
-          {scaleDegreeMelodyEnabled
-            ? '随机大调 · 三音旋律 · 连对挑战'
-            : '随机大调 · 听音选级 · 连对挑战'}
-        </p>
-        <p className="max-w-md text-sm leading-relaxed text-[var(--text-secondary)]">
-          答错即结束，尽可能连对更多题
-        </p>
+    <PlayAreaCard centered={false} className="gap-7">
+      <div>
+        <p className="text-xs font-semibold tracking-[0.16em] text-sky-300">训练方式</p>
+        <h2 className="mt-2 text-2xl font-bold tracking-tight">你想练什么？</h2>
+        <p className="mt-1 text-sm text-[var(--text-secondary)]">两种训练共享同一套大调音级体系，答错即结束本轮。</p>
       </div>
 
-      <HowToPlay melodyEnabled={scaleDegreeMelodyEnabled} />
+      <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="音级训练方式">
+        <button type="button" role="radio" aria-checked={!scaleDegreeMelodyEnabled} disabled={isRunning} onClick={() => onScaleDegreeMelodyChange(false)} className={`rounded-2xl border p-5 text-left transition ${!scaleDegreeMelodyEnabled ? 'border-sky-400 bg-sky-400/10 ring-1 ring-sky-400/20' : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-white/20'}`}>
+          <span className="flex items-center justify-between"><strong className="text-lg">单音定位</strong><span className={`h-3 w-3 rounded-full ${!scaleDegreeMelodyEnabled ? 'bg-sky-400 shadow-[0_0_0_4px_rgba(56,189,248,.15)]' : 'bg-white/15'}`} /></span>
+          <span className="mt-2 block text-sm leading-6 text-[var(--text-secondary)]">听一个音，判断它是当前调性的第几级。适合建立稳定的调性感。</span>
+          <span className="mt-4 block text-xs font-medium text-sky-300">推荐从这里开始</span>
+        </button>
+        <button type="button" role="radio" aria-checked={scaleDegreeMelodyEnabled} disabled={isRunning} onClick={() => onScaleDegreeMelodyChange(true)} className={`rounded-2xl border p-5 text-left transition ${scaleDegreeMelodyEnabled ? 'border-sky-400 bg-sky-400/10 ring-1 ring-sky-400/20' : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-white/20'}`}>
+          <span className="flex items-center justify-between"><strong className="text-lg">旋律追踪</strong><span className={`h-3 w-3 rounded-full ${scaleDegreeMelodyEnabled ? 'bg-sky-400 shadow-[0_0_0_4px_rgba(56,189,248,.15)]' : 'bg-white/15'}`} /></span>
+          <span className="mt-2 block text-sm leading-6 text-[var(--text-secondary)]">聆听三音短句，依次判断音级。适合进阶到真实旋律听辨。</span>
+          <span className="mt-4 block text-xs font-medium text-[var(--text-secondary)]">进阶训练</span>
+        </button>
+      </div>
 
       {sessionHistory.length >= 2 && (
-        <ScaleDegreeCorrectCountChart records={sessionHistory} />
+        <div className="flex w-full justify-center"><ScaleDegreeCorrectCountChart records={sessionHistory} /></div>
       )}
 
       {bestRecord && (
-        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 text-center">
+        <div className="mx-auto w-full max-w-sm rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 text-center">
           <p className="text-xs text-[var(--text-secondary)]">{modeLabel}最佳连对</p>
           <p className="mt-1 text-lg font-semibold text-sky-200">{bestRecord.correctCount} 题</p>
         </div>
       )}
 
       {scaleDegreeMelodyEnabled ? (
-        <ScaleDegreeMelodyMistakeSummary
-          store={scaleDegreeMelodyMistakeStats}
-          title="历史错题统计"
-        />
+        <div className="flex w-full justify-center"><ScaleDegreeMelodyMistakeSummary store={scaleDegreeMelodyMistakeStats} title="历史错题统计" /></div>
       ) : (
-        <ScaleDegreeMistakeSummary store={scaleDegreeMistakeStats} title="历史错题统计" />
+        <div className="flex w-full justify-center"><ScaleDegreeMistakeSummary store={scaleDegreeMistakeStats} title="历史错题统计" /></div>
       )}
 
       <label
         className={[
-          'flex w-full max-w-sm cursor-pointer items-start gap-3 rounded-xl border px-4 py-3.5 transition-colors',
-          scaleDegreeMelodyEnabled
-            ? 'border-sky-400/35 bg-sky-500/10'
-            : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] hover:border-sky-400/20',
-          isRunning ? 'cursor-not-allowed opacity-60' : '',
-        ].join(' ')}
-      >
-        <input
-          type="checkbox"
-          className="mt-0.5 accent-sky-500"
-          checked={scaleDegreeMelodyEnabled}
-          disabled={isRunning}
-          onChange={(event) => onScaleDegreeMelodyChange(event.target.checked)}
-        />
-        <span className="flex flex-col gap-1 text-left">
-          <span className="text-sm font-medium">三音旋律</span>
-          <span className="text-xs text-[var(--text-secondary)]">
-            一次播放 3 个音，第三音起逐音选级
-          </span>
-        </span>
-      </label>
-
-      <label
-        className={[
-          'flex w-full max-w-sm cursor-pointer items-start gap-3 rounded-xl border px-4 py-3.5 transition-colors',
+          'flex w-full cursor-pointer items-center justify-between gap-4 rounded-xl border px-4 py-3.5 transition-colors',
           scaleDegreeReviewEnabled
             ? 'border-sky-400/35 bg-sky-500/10'
             : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] hover:border-sky-400/20',
           !hasHistoricalMistakes || isRunning ? 'cursor-not-allowed opacity-60' : '',
         ].join(' ')}
       >
-        <input
-          type="checkbox"
-          className="mt-0.5 accent-sky-500"
-          checked={scaleDegreeReviewEnabled}
-          disabled={!hasHistoricalMistakes || isRunning}
-          onChange={(event) => onScaleDegreeReviewChange(event.target.checked)}
-        />
         <span className="flex flex-col gap-1 text-left">
-          <span className="text-sm font-medium">复习模式</span>
+          <span className="text-sm font-medium">优先练习错题</span>
           <span className="text-xs text-[var(--text-secondary)]">
             {hasHistoricalMistakes
               ? scaleDegreeMelodyEnabled
@@ -270,13 +204,11 @@ export function ScaleDegreeIdlePanel({
               : '暂无错题可复习'}
           </span>
         </span>
+        <input type="checkbox" className="h-5 w-5 shrink-0 accent-sky-500" checked={scaleDegreeReviewEnabled} disabled={!hasHistoricalMistakes || isRunning} onChange={(event) => onScaleDegreeReviewChange(event.target.checked)} />
       </label>
 
-      {canReset && <ResetStatsButton onReset={reset} />}
+      {canReset && <div className="flex w-full justify-center"><ResetStatsButton onReset={reset} /></div>}
 
-      <Button onClick={onHome} variant="ghost" className="w-full max-w-sm py-3">
-        回到首页
-      </Button>
     </PlayAreaCard>
   )
 }
