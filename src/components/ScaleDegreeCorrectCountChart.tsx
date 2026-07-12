@@ -148,7 +148,7 @@ function ScaleDegreeCorrectCountSvg({
       <g transform={`translate(0, 10)`}>
         <line x1={PADDING.left} y1={0} x2={PADDING.left + 14} y2={0} stroke={COUNT_COLOR} strokeWidth={2} />
         <text x={PADDING.left + 18} y={3} className="fill-[var(--text-secondary)] text-[9px]">
-          连对题数
+          答对题数
         </text>
         {showScoreSeries && (
           <>
@@ -350,7 +350,7 @@ export function ScaleDegreeCorrectCountChart({
         </p>
         {showScoreSeries && (
           <p className="mt-1 text-[10px] text-[var(--text-secondary)]">
-            蓝=连对题数 · 黄=加权总分
+            蓝=答对题数 · 黄=加权总分
           </p>
         )}
       </div>

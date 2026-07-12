@@ -186,7 +186,7 @@ export function ScaleDegreeIdlePanel({
 
       {bestRecord && (
         <div className="mx-auto w-full max-w-sm rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 text-center">
-          <p className="text-xs text-[var(--text-secondary)]">{modeLabel}最佳连对</p>
+          <p className="text-xs text-[var(--text-secondary)]">{modeLabel}最佳答对</p>
           <p className="mt-1 text-lg font-semibold text-sky-200">{bestRecord.correctCount} 题</p>
         </div>
       )}

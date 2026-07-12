@@ -1,5 +1,10 @@
 import { LISTENING_STATES, type TrainerState } from '../quiz/sequencer'
-import { getCorrectAnswerCount, getTotalScore, type SessionStats } from '../quiz/stats'
+import {
+  getCorrectAnswerCount,
+  getTotalAnswerCount,
+  getTotalScore,
+  type SessionStats,
+} from '../quiz/stats'
 import { getPracticePhase } from '../components/practice/practicePhase'
 
 export function usePracticePlayfieldState(state: TrainerState, sessionStats: SessionStats) {
@@ -9,9 +14,10 @@ export function usePracticePlayfieldState(state: TrainerState, sessionStats: Ses
     state === 'awaiting_answer' || isCorrection || LISTENING_STATES.includes(state)
   const isWrong = state === 'feedback_incorrect'
   const correctCount = getCorrectAnswerCount(sessionStats)
+  const totalCount = getTotalAnswerCount(sessionStats)
   const totalScore = getTotalScore(sessionStats)
   const currentQuestion =
-    correctCount + (canAnswer || LISTENING_STATES.includes(state) ? 1 : 0)
+    totalCount + (canAnswer || LISTENING_STATES.includes(state) ? 1 : 0)
   const isListening = phase === 'listening'
 
   return {

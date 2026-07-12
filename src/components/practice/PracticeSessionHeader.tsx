@@ -35,7 +35,7 @@ export function PracticeSessionHeader({
             <span
               className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs tabular-nums ring-1 ${accentClass}`}
             >
-              连对 {correctCount}
+              答对 {correctCount}
             </span>
           )}
           {totalScore > 0 && (

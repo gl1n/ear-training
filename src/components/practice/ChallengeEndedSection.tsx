@@ -67,7 +67,7 @@ export function ChallengeEndedSection({
   isNewBestRecord,
   bestRecord,
   children,
-  bestRecordLabel = '连对题数',
+  bestRecordLabel = '答对题数',
 }: ChallengeEndedSectionProps) {
   return (
     <>
