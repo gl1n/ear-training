@@ -43,6 +43,7 @@ type PracticeViewProps = {
   settingsControls: SettingsPanelProps
   lastQuiz: Quiz | null
   lastScaleDegreeQuiz: ScaleDegreeQuiz | null
+  currentScaleDegreeQuiz: ScaleDegreeQuiz | null
   currentKeyLabel: string | null
   scaleDegreeGameStarted: boolean
   sessionScaleDegreeMistakes: ScaleDegreeMistakeStatsStore
@@ -72,6 +73,7 @@ type PracticeViewProps = {
   isReplayBusy: boolean
   onPlayQuiz: (quiz: Quiz) => void
   onPlayMelodyQuiz: (quiz: MelodyScaleDegreeQuiz) => void
+  onReplayCurrentMelody: () => void
   onScaleDegreeHome: () => void
   chordDegrees: ChordDegree[]
   currentChord: PlayedChord | null
@@ -112,6 +114,7 @@ export function PracticeView({
   settingsControls,
   lastQuiz,
   lastScaleDegreeQuiz,
+  currentScaleDegreeQuiz,
   currentKeyLabel,
   scaleDegreeGameStarted,
   sessionScaleDegreeMistakes,
@@ -141,6 +144,7 @@ export function PracticeView({
   isReplayBusy,
   onPlayQuiz,
   onPlayMelodyQuiz,
+  onReplayCurrentMelody,
   onScaleDegreeHome,
   chordDegrees,
   currentChord,
@@ -297,10 +301,13 @@ export function PracticeView({
             correctionWrongSelection={correctionWrongSelection}
             melodyEnabled={scaleDegreeMelodyEnabled}
             melodyCorrectDegrees={melodyCorrectDegrees}
+            currentQuiz={currentScaleDegreeQuiz}
+            isReplayBusy={isReplayBusy}
             loadProgress={loadProgress}
             loadIndeterminate={loadIndeterminate}
             loadError={loadError}
             onSelect={onAnswerSelect}
+            onReplayMelody={onReplayCurrentMelody}
             onRetry={loadError ? onRetry : undefined}
           />
         ) : isRunning ? (

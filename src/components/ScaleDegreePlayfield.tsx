@@ -1,4 +1,4 @@
-import { DEGREE_OPTION_IDS, DEGREE_SOLFEGE_LABELS, type ScaleDegreeQuiz } from '../quiz/keys'
+import { DEGREE_OPTION_IDS, DEGREE_SOLFEGE_LABELS, isMelodyScaleDegreeQuiz, type ScaleDegreeQuiz } from '../quiz/keys'
 import { type TrainerState } from '../quiz/sequencer'
 import { type SessionStats } from '../quiz/stats'
 import { usePracticePlayfieldState } from '../hooks/usePracticePlayfieldState'
@@ -11,6 +11,7 @@ import { PracticePhaseIndicator } from './practice/PracticePhaseIndicator'
 import { PracticeSessionHeader } from './practice/PracticeSessionHeader'
 import type { PracticeEncouragement } from './practice/types'
 import { Card } from './ui/Card'
+import { Button } from './ui/Button'
 
 type ScaleDegreePlayfieldProps = {
   state: TrainerState
@@ -21,10 +22,13 @@ type ScaleDegreePlayfieldProps = {
   correctionWrongSelection: string | null
   melodyEnabled?: boolean
   melodyCorrectDegrees?: string[]
+  currentQuiz?: ScaleDegreeQuiz | null
+  isReplayBusy?: boolean
   loadProgress: number | null
   loadIndeterminate: boolean
   loadError: string | null
   onSelect: (degree: string) => void
+  onReplayMelody?: () => void
   onRetry?: () => void
 }
 
@@ -37,10 +41,13 @@ export function ScaleDegreePlayfield({
   correctionWrongSelection,
   melodyEnabled = false,
   melodyCorrectDegrees = [],
+  currentQuiz = null,
+  isReplayBusy = false,
   loadProgress,
   loadIndeterminate,
   loadError,
   onSelect,
+  onReplayMelody,
   onRetry,
 }: ScaleDegreePlayfieldProps) {
   const {
@@ -52,10 +59,15 @@ export function ScaleDegreePlayfield({
     currentQuestion,
     isListening,
   } = usePracticePlayfieldState(state, sessionStats)
-  const canAnswer =
+  const canAnswer = !isReplayBusy && (
     melodyEnabled
-      ? state === 'playing_note' || state === 'awaiting_answer'
-      : baseCanAnswer
+      ? state === 'playing_note' || state === 'awaiting_answer' || state === 'answer_correction'
+      : baseCanAnswer)
+  const canReplayMelody =
+    melodyEnabled &&
+    currentQuiz !== null &&
+    isMelodyScaleDegreeQuiz(currentQuiz) &&
+    (state === 'awaiting_answer' || state === 'answer_correction')
   const melodyPrompt =
     melodyEnabled && canAnswer
       ? `选择第 ${melodyCorrectDegrees.length + 1} 个音的音级`
@@ -146,6 +158,17 @@ export function ScaleDegreePlayfield({
               </span>
             ))}
           </div>
+        )}
+
+        {canReplayMelody && (
+          <Button
+            variant="ghost"
+            disabled={isReplayBusy}
+            onClick={onReplayMelody}
+            className="mx-auto"
+          >
+            {isReplayBusy ? '重听中…' : '重听旋律'}
+          </Button>
         )}
 
         <div className="mx-auto flex w-full max-w-md flex-col gap-2 sm:gap-2.5">

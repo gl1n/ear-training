@@ -75,6 +75,7 @@ export function buildIntervalSpeedLoopCallbacks({
 type ScaleDegreeHandlerDeps = ChallengeHandlerDeps & {
   onStateChange: (state: TrainerState) => void
   onSessionStart: (session: MajorKeySession) => void
+  onQuiz?: ScaleDegreeCallbacks['onQuiz']
   waitForGameStart: ScaleDegreeCallbacks['waitForGameStart']
   waitForAnswer: ScaleDegreeCallbacks['waitForAnswer']
   onAnswerCorrectionStart?: (wrongSelection: string) => void
@@ -91,6 +92,7 @@ type ScaleDegreeHandlerDeps = ChallengeHandlerDeps & {
 export function buildScaleDegreeLoopCallbacks({
   onStateChange,
   onSessionStart,
+  onQuiz,
   waitForGameStart,
   waitForAnswer,
   onAnswerCorrectionStart,
@@ -110,6 +112,7 @@ export function buildScaleDegreeLoopCallbacks({
   return {
     onStateChange,
     onSessionStart,
+    onQuiz,
     waitForGameStart,
     waitForAnswer,
     onAnswerCorrectionStart,

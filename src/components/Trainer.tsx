@@ -6,7 +6,7 @@ import { getInitialSettings, usePersistedSettings } from '../hooks/usePersistedS
 import { useTrainingStats } from '../hooks/useTrainingStats'
 import { useSessionGoal } from '../hooks/useSessionGoal'
 import { ALL_INTERVAL_IDS, type IntervalDirection, type Quiz } from '../quiz/intervals'
-import type { ScaleDegreeQuiz, MelodyScaleDegreeQuiz } from '../quiz/keys'
+import { isMelodyScaleDegreeQuiz, type ScaleDegreeQuiz, type MelodyScaleDegreeQuiz } from '../quiz/keys'
 import { getTotalAnswerCount } from '../quiz/stats'
 import {
   buildIntervalSpeedLoopCallbacks,
@@ -46,6 +46,7 @@ export function Trainer() {
   const [settings, setSettings] = useState<Settings>(initial.settings)
   const [lastQuiz, setLastQuiz] = useState<Quiz | null>(null)
   const [lastScaleDegreeQuiz, setLastScaleDegreeQuiz] = useState<ScaleDegreeQuiz | null>(null)
+  const [currentScaleDegreeQuiz, setCurrentScaleDegreeQuiz] = useState<ScaleDegreeQuiz | null>(null)
   const [currentKeyLabel, setCurrentKeyLabel] = useState<string | null>(null)
   const [scaleDegreeGameStarted, setScaleDegreeGameStarted] = useState(false)
   const [scaleDegreeReviewEnabled, setScaleDegreeReviewEnabled] = useState(
@@ -261,6 +262,12 @@ export function Trainer() {
     [replayMelodyQuizAudio, replayBlocked, settings],
   )
 
+  const handleReplayCurrentMelody = useCallback(() => {
+    if (currentScaleDegreeQuiz && isMelodyScaleDegreeQuiz(currentScaleDegreeQuiz)) {
+      void replayMelodyQuizAudio(currentScaleDegreeQuiz, settings, false)
+    }
+  }, [currentScaleDegreeQuiz, replayMelodyQuizAudio, settings])
+
   const start = useCallback(async () => {
     if (mode !== 'scaleDegree' && mode !== 'chordDegree' && mode !== 'chordProgression' && settings.enabledIntervalIds.length === 0) {
       return
@@ -352,6 +359,7 @@ export function Trainer() {
           buildScaleDegreeLoopCallbacks({
             onStateChange: handleTrainerStateChange,
             onSessionStart: (session) => setCurrentKeyLabel(session.label),
+            onQuiz: setCurrentScaleDegreeQuiz,
             waitForGameStart,
             waitForAnswer: (signal) =>
               waitForChallengeAnswer(signal).then((answer) => ({
@@ -678,6 +686,7 @@ export function Trainer() {
         settingsControls={settingsControls}
         lastQuiz={lastQuiz}
         lastScaleDegreeQuiz={lastScaleDegreeQuiz}
+        currentScaleDegreeQuiz={currentScaleDegreeQuiz}
         currentKeyLabel={currentKeyLabel}
         scaleDegreeGameStarted={scaleDegreeGameStarted}
         sessionScaleDegreeMistakes={sessionScaleDegreeMistakes}
@@ -707,6 +716,7 @@ export function Trainer() {
         isReplayBusy={replayingQuizKey !== null}
         onPlayQuiz={handlePlayQuiz}
         onPlayMelodyQuiz={handlePlayMelodyQuiz}
+        onReplayCurrentMelody={handleReplayCurrentMelody}
         onScaleDegreeHome={handleScaleDegreeHome}
         chordDegrees={chordDegrees}
         currentChord={currentChord}

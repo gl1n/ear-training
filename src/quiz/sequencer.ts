@@ -169,6 +169,7 @@ export const SCALE_DEGREE_REVIEW_MISTAKE_RATIO = 0.6
 export type ScaleDegreeCallbacks = {
   onStateChange: (state: TrainerState) => void
   onSessionStart: (session: MajorKeySession) => void
+  onQuiz?: (quiz: ScaleDegreeQuiz) => void
   waitForGameStart: (signal: AbortSignal) => Promise<void>
   waitForAnswer: (signal: AbortSignal) => Promise<ScaleDegreeAnswer>
   onAnswerCorrectionStart?: (wrongSelection: string) => void
@@ -397,10 +398,11 @@ async function runMelodyScaleDegreeQuestion(
 
   try {
     let firstNoteReactionMs: number | undefined
+    let firstAttemptCorrect = true
 
     for (let noteIndex = 0; noteIndex < quiz.noteMidis.length; noteIndex++) {
       const noteQuiz = buildMelodyNoteQuiz(quiz, noteIndex)
-      const answer =
+      let answer =
         noteIndex === 0
           ? withReactionMs(await callbacks.waitForAnswer(signal), answerReadyAtMs)
           : await callbacks.waitForAnswer(signal)
@@ -409,24 +411,29 @@ async function runMelodyScaleDegreeQuestion(
         firstNoteReactionMs = answer.reactionMs
       }
 
-      const correct =
-        answer.selectedDegree !== '' && answer.selectedDegree === String(noteQuiz.degree)
+      while (answer.selectedDegree !== String(noteQuiz.degree)) {
+        callbacks.onMelodyNoteResolved?.(noteIndex, noteQuiz.degree, false)
+        callbacks.onAnswerSubmitted(noteQuiz, answer, false)
 
-      callbacks.onMelodyNoteResolved?.(noteIndex, noteQuiz.degree, correct)
-      callbacks.onAnswerSubmitted(noteQuiz, answer, correct)
+        if (answer.selectedDegree === '') {
+          const sessionComplete = callbacks.onMelodyGroupSubmitted?.(quiz, false) ?? false
+          return sessionComplete ? false : true
+        }
 
-      if (!correct) {
-        audioAbort.abort()
-        piano.stop()
-        const sessionComplete = callbacks.onMelodyGroupSubmitted?.(quiz, false) ?? false
-        await finishChallengeOnIncorrect(signal, () =>
-          callbacks.onStateChange('feedback_incorrect'),
-        )
-        return sessionComplete ? false : true
+        firstAttemptCorrect = false
+        callbacks.onStateChange('answer_correction')
+        answer = await callbacks.waitForAnswer(signal)
       }
+
+      callbacks.onMelodyNoteResolved?.(noteIndex, noteQuiz.degree, true)
+      callbacks.onAnswerSubmitted(noteQuiz, answer, true)
     }
 
-    const sessionComplete = callbacks.onMelodyGroupSubmitted?.(quiz, true, firstNoteReactionMs) ?? false
+    const sessionComplete = callbacks.onMelodyGroupSubmitted?.(
+      quiz,
+      firstAttemptCorrect,
+      firstNoteReactionMs,
+    ) ?? false
     if (sessionComplete) return false
   } finally {
     audioAbort.abort()
@@ -538,6 +545,7 @@ export async function runScaleDegreeLoop(
       )
     }
     previousNoteMidi = quiz.noteMidi
+    callbacks.onQuiz?.(quiz)
 
     if (melodyEnabled && isMelodyScaleDegreeQuiz(quiz)) {
       const completed = await runMelodyScaleDegreeQuestion(
