@@ -17,6 +17,8 @@ type Props = {
   selectedKey: ChordKey
   activeKeyLabel: string | null
   onKeyChange: (key: ChordKey) => void
+  melodyEnabled: boolean
+  onMelodyEnabledChange: (enabled: boolean) => void
 }
 
 const PROGRESSION_PRESETS: { name: string; description: string; degrees: ChordDegree[] }[] = [
@@ -28,7 +30,7 @@ const PROGRESSION_PRESETS: { name: string; description: string; degrees: ChordDe
   { name: '爵士流行', description: 'ii–V–I–vi', degrees: [2, 5, 1, 6] },
 ]
 
-export function ChordProgressionPanel({ degrees, currentChord, currentPosition, state, isRunning, onDegreeChange, onDegreesChange, rhythm, currentBeat, isCountIn, onRhythmChange, selectedKey, activeKeyLabel, onKeyChange }: Props) {
+export function ChordProgressionPanel({ degrees, currentChord, currentPosition, state, isRunning, onDegreeChange, onDegreesChange, rhythm, currentBeat, isCountIn, onRhythmChange, selectedKey, activeKeyLabel, onKeyChange, melodyEnabled, onMelodyEnabledChange }: Props) {
   return (
     <Card>
       <div className="text-center">
@@ -67,6 +69,10 @@ export function ChordProgressionPanel({ degrees, currentChord, currentPosition, 
         <label className="text-sm text-[var(--text-secondary)]">速度 <strong className="ml-1 text-[var(--text-primary)]">{rhythm.bpm} BPM</strong><input className="mt-2 w-full accent-sky-400" type="range" min="40" max="160" step="5" value={rhythm.bpm} disabled={isRunning} onChange={(event) => onRhythmChange({ ...rhythm, bpm: Number(event.target.value) })} /></label>
         <label className="text-sm text-[var(--text-secondary)]">每个和弦<select className="mt-2 w-full rounded-lg bg-[var(--bg-elevated)] p-2 text-[var(--text-primary)]" value={rhythm.beatsPerChord} disabled={isRunning} onChange={(event) => onRhythmChange({ ...rhythm, beatsPerChord: Number(event.target.value) as 1 | 2 | 4 })}><option value="1">1 拍</option><option value="2">2 拍</option><option value="4">4 拍（1 小节）</option></select></label>
         <label className="text-sm text-[var(--text-secondary)]">开始方式<select className="mt-2 w-full rounded-lg bg-[var(--bg-elevated)] p-2 text-[var(--text-primary)]" value={rhythm.countInBeats} disabled={isRunning} onChange={(event) => onRhythmChange({ ...rhythm, countInBeats: Number(event.target.value) as 0 | 4 })}><option value="0">立即播放</option><option value="4">1 小节预备拍</option></select></label>
+        <label className="flex items-center gap-3 text-sm text-[var(--text-secondary)] sm:col-span-2">
+          <input type="checkbox" className="h-5 w-5 shrink-0 accent-sky-500" checked={melodyEnabled} disabled={isRunning} onChange={(event) => onMelodyEnabledChange(event.target.checked)} />
+          <span><strong className="block text-[var(--text-primary)]">和弦内旋律</strong>在持续和弦上方加入基础三和弦旋律音</span>
+        </label>
       </div>
       <p className="mt-5 text-center text-sm leading-6 text-[var(--text-secondary)]">每组支持 4–8 个和弦；默认立即播放，也可启用一小节预备拍。</p>
     </Card>

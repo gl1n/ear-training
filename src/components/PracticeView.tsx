@@ -79,6 +79,8 @@ type PracticeViewProps = {
   chordKey: ChordKey
   activeChordKeyLabel: string | null
   onChordKeyChange: (key: ChordKey) => void
+  chordMelodyEnabled: boolean
+  onChordMelodyEnabledChange: (enabled: boolean) => void
 }
 
 export function PracticeView({
@@ -129,6 +131,8 @@ export function PracticeView({
   chordKey,
   activeChordKeyLabel,
   onChordKeyChange,
+  chordMelodyEnabled,
+  onChordMelodyEnabledChange,
   chordCountIn,
   onChordRhythmChange,
 }: PracticeViewProps) {
@@ -212,7 +216,7 @@ export function PracticeView({
       }
     >
       {mode === 'chordProgression' ? (
-        <ChordProgressionPanel degrees={chordDegrees} currentChord={currentChord} currentPosition={currentChordPosition} state={state} isRunning={isRunning} onDegreeChange={onChordDegreeChange} onDegreesChange={onChordDegreesChange} rhythm={chordRhythm} currentBeat={currentChordBeat} isCountIn={chordCountIn} onRhythmChange={onChordRhythmChange} selectedKey={chordKey} activeKeyLabel={activeChordKeyLabel} onKeyChange={onChordKeyChange} />
+        <ChordProgressionPanel degrees={chordDegrees} currentChord={currentChord} currentPosition={currentChordPosition} state={state} isRunning={isRunning} onDegreeChange={onChordDegreeChange} onDegreesChange={onChordDegreesChange} rhythm={chordRhythm} currentBeat={currentChordBeat} isCountIn={chordCountIn} onRhythmChange={onChordRhythmChange} selectedKey={chordKey} activeKeyLabel={activeChordKeyLabel} onKeyChange={onChordKeyChange} melodyEnabled={chordMelodyEnabled} onMelodyEnabledChange={onChordMelodyEnabledChange} />
       ) : mode === 'intervalSpeed' ? (
         isRunning && enabledIntervalIds.length > 0 ? (
           <IntervalSpeedPlayfield

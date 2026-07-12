@@ -39,6 +39,24 @@ function invert(notes: number[], times: number) {
   return result
 }
 
+export function chordToneMelody(midis: number[], noteCount: number): number[] {
+  if (midis.length === 0 || noteCount <= 0) return []
+
+  // 七音与 add9 虽属于和弦，但放在持续和弦上方容易产生明显张力；旋律只取基础三和弦。
+  const pitchClasses = [...new Set(midis.slice(0, 3).map((midi) => ((midi % 12) + 12) % 12))]
+  const melodyFloor = Math.max(...midis) + 1
+  const available = pitchClasses
+    .flatMap((pitchClass) => {
+      const first = melodyFloor + ((pitchClass - melodyFloor) % 12 + 12) % 12
+      return [first, first + 12]
+    })
+    .filter((midi) => midi <= melodyFloor + 16)
+    .sort((a, b) => a - b)
+
+  // 固定向上琶音比每拍随机选音更容易形成清楚、稳定的旋律线。
+  return Array.from({ length: noteCount }, (_, index) => available[index % available.length])
+}
+
 export function randomChordForDegree(degree: ChordDegree, tonic = 48): PlayedChord {
   const index = degree - 1
   const root = tonic + ROOT_OFFSETS[index]
@@ -75,6 +93,7 @@ export async function runChordProgressionLoop(
   },
   signal: AbortSignal,
   tonic = 48,
+  melodyEnabled = false,
 ) {
   const beatMs = 60_000 / rhythm.bpm
   for (let beat = 1; beat <= rhythm.countInBeats; beat += 1) {
@@ -85,6 +104,9 @@ export async function runChordProgressionLoop(
   let position = 0
   while (!signal.aborted) {
     const chord = randomChordForDegree(degrees[position], tonic)
+    const melody = melodyEnabled
+      ? chordToneMelody(chord.midis, Math.max(0, rhythm.beatsPerChord - 1))
+      : []
     callbacks.onChord(chord, position)
     callbacks.onBeat(1, false)
     const breathing = rhythm.feel === 'breathe' && rhythm.beatsPerChord >= 4
@@ -96,9 +118,9 @@ export async function runChordProgressionLoop(
     const chordStart = performance.now()
     for (let beat = 1; beat <= rhythm.beatsPerChord; beat += 1) {
       if (beat > 1) callbacks.onBeat(beat, false)
-      if (breathing && beat === 3) {
-        // 第三拍轻触上方声部，保留低音空间与自然释放。
-        await piano.playNotes(chord.midis.slice(1), (beatMs * 1.65) / 1000, 56)
+      if (melodyEnabled && beat > 1) {
+        // 在和弦上方用组成音走一条短旋律，不改变当前和声的性质。
+        await piano.playNote(melody[beat - 2], (beatMs * 0.72) / 1000, breathing ? 62 : 56)
       }
       const remaining = chordStart + beat * beatMs - performance.now()
       if (remaining > 0) await delay(remaining, signal)

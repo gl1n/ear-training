@@ -58,6 +58,7 @@ export function Trainer() {
   const [currentChordBeat, setCurrentChordBeat] = useState(0)
   const [chordCountIn, setChordCountIn] = useState(false)
   const [chordKey, setChordKey] = useState<ChordKey>('random')
+  const [chordMelodyEnabled, setChordMelodyEnabled] = useState(false)
   const [activeChordKeyLabel, setActiveChordKeyLabel] = useState<string | null>(null)
 
   const abortRef = useRef<AbortController | null>(null)
@@ -291,7 +292,7 @@ export function Trainer() {
             setCurrentChordBeat(beat)
             setChordCountIn(isCountIn)
           },
-        }, controller.signal, 48 + pitchClass)
+        }, controller.signal, 48 + pitchClass, chordMelodyEnabled)
       } else if (mode === 'intervalSpeed') {
         await runIntervalSpeedLoop(
           piano,
@@ -388,6 +389,7 @@ export function Trainer() {
     chordDegrees,
     chordRhythm,
     chordKey,
+    chordMelodyEnabled,
     scaleDegreeReviewEnabled,
     scaleDegreeMelodyEnabled,
     resetChallengeAnswerState,
@@ -605,6 +607,8 @@ export function Trainer() {
         chordKey={chordKey}
         activeChordKeyLabel={activeChordKeyLabel}
         onChordKeyChange={setChordKey}
+        chordMelodyEnabled={chordMelodyEnabled}
+        onChordMelodyEnabledChange={setChordMelodyEnabled}
       />
 
       {mode !== 'scaleDegree' && mode !== 'chordProgression' && (
