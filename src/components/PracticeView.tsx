@@ -24,6 +24,7 @@ import { SessionGoalControl } from './practice/SessionGoalControl'
 import { ALL_CHORD_DEGREES, PRIMARY_CHORD_DEGREES, type ChordDegreeHistory, type ChordDegreeInversionMode, type ChordDegreeKey, type ChordDegreeQuiz, type ChordDegreeRange } from '../quiz/chordDegreeQuiz'
 import { ChordDegreePlayfield } from './ChordDegreePlayfield'
 import { ChordDegreeIdlePanel } from './ChordDegreeIdlePanel'
+import { MetronomePanel } from './MetronomePanel'
 
 const MODE_OPTIONS = [
   { value: 'intervalFollow' as const, label: '跟听' },
@@ -31,6 +32,7 @@ const MODE_OPTIONS = [
   { value: 'scaleDegree' as const, label: '音级' },
   { value: 'chordDegree' as const, label: '猜和弦' },
   { value: 'chordProgression' as const, label: '进行' },
+  { value: 'metronome' as const, label: '节拍器' },
 ]
 
 type PracticeViewProps = {
@@ -211,7 +213,7 @@ export function PracticeView({
         </nav>
       }
       settingsSummary={
-        mode !== 'scaleDegree' && mode !== 'chordDegree' && mode !== 'chordProgression' ? (
+        mode !== 'scaleDegree' && mode !== 'chordDegree' && mode !== 'chordProgression' && mode !== 'metronome' ? (
           <SettingsSummary
             mode={mode}
             speedPreset={settingsControls.speedPreset}
@@ -224,7 +226,7 @@ export function PracticeView({
         ) : null
       }
       footer={
-        <>
+        mode === 'metronome' ? null : <>
           {isChallengeMode && isRunning && (
             <div className="w-full max-w-xs" aria-live="polite">
               <div className="mb-1.5 flex justify-between text-xs text-[var(--text-secondary)]">
@@ -249,7 +251,9 @@ export function PracticeView({
         </>
       }
     >
-      {mode === 'chordDegree' ? (
+      {mode === 'metronome' ? (
+        <MetronomePanel />
+      ) : mode === 'chordDegree' ? (
         isRunning ? <ChordDegreePlayfield state={state} sessionStats={sessionStats} quiz={chordDegreeQuiz} wrongSelection={correctionWrongSelection} optionDegrees={chordDegreeRange === 'primary' ? PRIMARY_CHORD_DEGREES : ALL_CHORD_DEGREES} replayCount={chordDegreeReplayCount} onSelect={onAnswerSelect} onPlayDo={onPlayChordDo} onPlayChord={onPlayChordQuiz} onPlaySequence={onPlayChordSequence} onPlaySelected={onPlaySelectedChord} onPlayComparison={onPlayChordComparison} /> : <ChordDegreeIdlePanel quiz={chordDegreeQuiz} sessionStats={sessionStats} history={chordDegreeHistory} sessionCompleted={sessionCompleted} selectedKey={chordDegreeKey} range={chordDegreeRange} inversionMode={chordDegreeInversionMode} onKeyChange={onChordDegreeKeyChange} onRangeChange={onChordDegreeRangeChange} onInversionModeChange={onChordDegreeInversionModeChange} onApplyPreset={onApplyChordDegreePreset} onPlayDo={onPlayChordDo} />
       ) : mode === 'chordProgression' ? (
         <ChordProgressionPanel degrees={chordDegrees} currentChord={currentChord} currentPosition={currentChordPosition} state={state} isRunning={isRunning} onDegreeChange={onChordDegreeChange} onDegreesChange={onChordDegreesChange} rhythm={chordRhythm} currentBeat={currentChordBeat} isCountIn={chordCountIn} onRhythmChange={onChordRhythmChange} selectedKey={chordKey} activeKeyLabel={activeChordKeyLabel} onKeyChange={onChordKeyChange} melodyEnabled={chordMelodyEnabled} onMelodyEnabledChange={onChordMelodyEnabledChange} />

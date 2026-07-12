@@ -153,6 +153,7 @@ export function Trainer() {
   )
 
   useEffect(() => {
+    if (mode === 'metronome') return
     // Start fetching and decoding the samples after the initial screen has painted.
     // Starting a session or replaying a quiz reuses this same in-flight promise.
     const preloadTimer = window.setTimeout(() => {
@@ -164,8 +165,7 @@ export function Trainer() {
     return () => window.clearTimeout(preloadTimer)
     // The initial pitch range covers every feature. Later setting changes should
     // keep using the already loaded instrument instead of starting another load.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ensurePiano])
+  }, [ensurePiano, mode, settings])
 
   const resetMelodyProgress = useCallback(() => {
     setMelodyCorrectDegrees([])
@@ -457,6 +457,7 @@ export function Trainer() {
   ])
 
   const handleToggle = useCallback(() => {
+    if (mode === 'metronome') return
     if (isRunning && mode === 'scaleDegree' && !scaleDegreeGameStarted) {
       stop()
       return
@@ -738,7 +739,7 @@ export function Trainer() {
         onPlayChordComparison={handlePlayChordComparison}
       />
 
-      {mode !== 'scaleDegree' && mode !== 'chordDegree' && mode !== 'chordProgression' && (
+      {mode !== 'scaleDegree' && mode !== 'chordDegree' && mode !== 'chordProgression' && mode !== 'metronome' && (
         <SettingsDrawer
           open={drawerOpen}
           onClose={() => setDrawerOpen(false)}

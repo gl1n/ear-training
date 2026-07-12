@@ -20,7 +20,9 @@ export function AppShell({
   focused = false,
 }: AppShellProps) {
   const meta =
-    mode === 'chordDegree'
+    mode === 'metronome'
+      ? { eyebrow: '节奏工具', title: '节拍器', subtitle: '稳定速度，感受强拍与拍号的循环' }
+      : mode === 'chordDegree'
       ? { eyebrow: '和声辨识', title: '猜和弦', subtitle: '以 do 为参考，辨认随机转位三和弦的级数' }
       : mode === 'chordProgression'
       ? { eyebrow: '和声训练', title: '和弦进行', subtitle: '在循环中建立级数走向与和声色彩的听感' }

@@ -34,6 +34,7 @@ body {
 
 .training-shell[data-training-mode="scaleDegree"] { --mode-accent: #a78bfa; }
 .training-shell[data-training-mode="chordProgression"] { --mode-accent: #fbbf24; }
+.training-shell[data-training-mode="metronome"] { --mode-accent: #fb7185; }
 .training-shell[data-training-mode="intervalFollow"],
 .training-shell[data-training-mode="intervalSpeed"] { --mode-accent: #38bdf8; }
 
