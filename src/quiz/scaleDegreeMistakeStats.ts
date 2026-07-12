@@ -1,6 +1,7 @@
 import {
   scaleDegreeQuizFromMistake,
   DEGREE_OPTION_IDS,
+  midiToDegree,
   type MajorKeySession,
   type ScaleDegreeQuiz,
 } from './keys'
@@ -10,6 +11,8 @@ import { pickWeighted } from './weightedPick'
 
 export type ScaleDegreeMistakeRecord = {
   previousNoteMidi: number | null
+  /** Added without a schema bump so existing histories remain usable. */
+  targetNoteMidi?: number
   correctDegree: number
   wrongDegree: string
 }
@@ -26,6 +29,22 @@ export type ScaleDegreeMistakePairAggregate = {
   wrongDegree: number
   count: number
   ratio: number
+}
+
+export type ScaleDegreeTransitionAggregate = {
+  semitones: number
+  count: number
+  ratio: number
+  correctDegrees: number[]
+}
+
+export type ScaleDegreeWeakness = {
+  degree: number
+  count: number
+  share: number
+  topWrongDegree: number
+  confusionRate: number
+  score: number
 }
 
 const STORAGE_KEY = STORAGE_KEYS.scaleDegreeMistakeStats
@@ -46,6 +65,9 @@ function isScaleDegreeMistakeRecord(value: unknown): value is ScaleDegreeMistake
   ) {
     return false
   }
+  if (record.targetNoteMidi !== undefined && !Number.isInteger(record.targetNoteMidi)) {
+    return false
+  }
   if (
     !Number.isInteger(record.correctDegree) ||
     record.correctDegree < 1 ||
@@ -61,6 +83,55 @@ function isScaleDegreeMistakeRecord(value: unknown): value is ScaleDegreeMistake
   }
 
   return true
+}
+
+export function analyzeScaleDegreeWeaknesses(
+  store: ScaleDegreeMistakeStatsStore,
+): ScaleDegreeWeakness[] {
+  if (store.length === 0) return []
+  const degreeCounts = aggregateByCorrectDegree(store).filter(({ count }) => count > 0)
+  const pairs = aggregateByDegreePair(store)
+
+  return degreeCounts.map(({ degree, count }) => {
+    const degreePairs = pairs.filter((pair) => pair.correctDegree === degree)
+    const topPair = degreePairs[0]!
+    const recentWindow = store.slice(-Math.min(40, store.length))
+    const recentCount = recentWindow.filter((record) => record.correctDegree === degree).length
+    const confusionRate = topPair.count / count
+    // Frequency establishes confidence; recency and repeated confusion make it actionable.
+    const score = count * (1 + recentCount / Math.max(recentWindow.length, 1)) * (1 + confusionRate)
+    return {
+      degree,
+      count,
+      share: count / store.length,
+      topWrongDegree: topPair.wrongDegree,
+      confusionRate,
+      score,
+    }
+  }).sort((a, b) => b.score - a.score || b.count - a.count || a.degree - b.degree)
+}
+
+export function aggregateByPreviousInterval(
+  store: ScaleDegreeMistakeStatsStore,
+): ScaleDegreeTransitionAggregate[] {
+  const usable = store.filter(
+    (record) => record.previousNoteMidi !== null && record.targetNoteMidi !== undefined,
+  )
+  if (usable.length === 0) return []
+  const groups = new Map<number, { count: number; degrees: Set<number> }>()
+  for (const record of usable) {
+    const semitones = record.targetNoteMidi! - record.previousNoteMidi!
+    const group = groups.get(semitones) ?? { count: 0, degrees: new Set<number>() }
+    group.count += 1
+    group.degrees.add(record.correctDegree)
+    groups.set(semitones, group)
+  }
+  return [...groups.entries()].map(([semitones, group]) => ({
+    semitones,
+    count: group.count,
+    ratio: group.count / usable.length,
+    correctDegrees: [...group.degrees].sort((a, b) => a - b),
+  })).sort((a, b) => b.count - a.count || Math.abs(a.semitones) - Math.abs(b.semitones))
 }
 
 function isScaleDegreeMistakeStatsStore(value: unknown): value is ScaleDegreeMistakeStatsStore {
@@ -142,9 +213,8 @@ function pickWeightedMistakeRecord(
 ): ScaleDegreeMistakeRecord | null {
   if (store.length === 0) return null
 
-  const aggregates = aggregateByCorrectDegree(store)
-  const weighted = aggregates.filter((item) => item.count > 0)
-  const chosen = pickWeighted(weighted, (item) => item.count)
+  const weighted = analyzeScaleDegreeWeaknesses(store)
+  const chosen = pickWeighted(weighted, (item) => item.score)
   if (!chosen) return null
 
   const candidates = store.filter((record) => record.correctDegree === chosen.degree)
@@ -165,7 +235,22 @@ export function weightedRandomScaleDegreeQuizFromMistakes(
     const record = pickWeightedMistakeRecord(store)
     if (!record) return null
 
-    const quiz = quizFromMistake(session, record, rootMin, rootMax, previousNoteMidi)
+    const historicalJump = record.previousNoteMidi !== null && record.targetNoteMidi !== undefined
+      ? record.targetNoteMidi - record.previousNoteMidi
+      : null
+    const patternedMidi = historicalJump !== null && previousNoteMidi !== null && previousNoteMidi !== undefined
+      ? previousNoteMidi + historicalJump
+      : null
+    const quiz = patternedMidi !== null && patternedMidi >= rootMin && patternedMidi <= rootMax &&
+      midiToDegree(session.tonicPitchClass, patternedMidi) === record.correctDegree
+      ? {
+          tonicMidi: session.tonicMidi,
+          noteMidi: patternedMidi,
+          degree: record.correctDegree,
+          keyLabel: session.label,
+          previousNoteMidi: previousNoteMidi ?? null,
+        }
+      : quizFromMistake(session, record, rootMin, rootMax, previousNoteMidi)
     if (quiz) return quiz
   }
 

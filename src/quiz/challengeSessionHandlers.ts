@@ -144,6 +144,7 @@ export function buildScaleDegreeLoopCallbacks({
       ) {
         const record: ScaleDegreeMistakeRecord = {
           previousNoteMidi: quiz.previousNoteMidi,
+          targetNoteMidi: quiz.noteMidi,
           correctDegree: quiz.degree,
           wrongDegree: answer.selectedDegree,
         }

@@ -13,6 +13,7 @@ import { ChallengeSessionResults } from './practice/ChallengeSessionResults'
 import { ScaleDegreeCorrectCountChart } from './ScaleDegreeCorrectCountChart'
 import { ScaleDegreeMelodyMistakeSummary } from './ScaleDegreeMelodyMistakeSummary'
 import { ScaleDegreeMistakeSummary } from './ScaleDegreeMistakeSummary'
+import { ScaleDegreeAdvancedAnalysis } from './ScaleDegreeAdvancedAnalysis'
 import { PlayAreaCard } from './PlayAreaCard'
 import { PlayableMelodyAnswerCard } from './PlayableMelodyAnswerCard'
 import { ResetStatsButton } from './ResetStatsButton'
@@ -194,7 +195,7 @@ export function ScaleDegreeIdlePanel({
       {scaleDegreeMelodyEnabled ? (
         <div className="flex w-full justify-center"><ScaleDegreeMelodyMistakeSummary store={scaleDegreeMelodyMistakeStats} title="历史错题统计" /></div>
       ) : (
-        <div className="flex w-full justify-center"><ScaleDegreeMistakeSummary store={scaleDegreeMistakeStats} title="历史错题统计" /></div>
+        <><div className="flex w-full justify-center"><ScaleDegreeAdvancedAnalysis store={scaleDegreeMistakeStats} /></div><div className="flex w-full justify-center"><ScaleDegreeMistakeSummary store={scaleDegreeMistakeStats} title="历史错题统计" /></div></>
       )}
 
       <label
@@ -207,12 +208,12 @@ export function ScaleDegreeIdlePanel({
         ].join(' ')}
       >
         <span className="flex flex-col gap-1 text-left">
-          <span className="text-sm font-medium">错题混合强化</span>
+          <span className="text-sm font-medium">智能弱项专项</span>
           <span className="text-xs text-[var(--text-secondary)]">
             {hasHistoricalMistakes
               ? scaleDegreeMelodyEnabled
                 ? '约六成易错旋律，搭配四成常规旋律'
-                : '约六成历史错题，搭配四成全音级练习'
+                : '约六成高权重错误模式，搭配四成全音级巩固'
               : '暂无错题可复习'}
           </span>
         </span>

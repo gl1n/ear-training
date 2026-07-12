@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   aggregateByCorrectDegree,
   aggregateByDegreePair,
+  aggregateByPreviousInterval,
+  analyzeScaleDegreeWeaknesses,
   clearScaleDegreeMistakeStats,
   loadScaleDegreeMistakeStats,
   MAX_RECENT_MISTAKES,
@@ -107,6 +109,29 @@ describe('aggregateByDegreePair', () => {
   })
 })
 
+describe('advanced weakness analysis', () => {
+  it('ranks recurring concentrated confusions and groups previous-note intervals', () => {
+    const store: ScaleDegreeMistakeStatsStore = [
+      { previousNoteMidi: 60, targetNoteMidi: 64, correctDegree: 3, wrongDegree: '1' },
+      { previousNoteMidi: 62, targetNoteMidi: 66, correctDegree: 3, wrongDegree: '1' },
+      { previousNoteMidi: 60, targetNoteMidi: 62, correctDegree: 2, wrongDegree: '4' },
+    ]
+
+    expect(analyzeScaleDegreeWeaknesses(store)[0]).toMatchObject({
+      degree: 3,
+      count: 2,
+      topWrongDegree: 1,
+      confusionRate: 1,
+    })
+    expect(aggregateByPreviousInterval(store)[0]).toEqual({
+      semitones: 4,
+      count: 2,
+      ratio: 2 / 3,
+      correctDegrees: [3],
+    })
+  })
+})
+
 describe('recordScaleDegreeMistake', () => {
   it('caps the store at MAX_RECENT_MISTAKES', () => {
     const store: ScaleDegreeMistakeStatsStore = []
@@ -168,6 +193,18 @@ describe('weightedRandomScaleDegreeQuizFromMistakes', () => {
     const quiz = weightedRandomScaleDegreeQuizFromMistakes(store, session, 60, 60, null)
     expect(quiz).toBeNull()
 
+    vi.restoreAllMocks()
+  })
+
+  it('recreates a learned previous-note jump when it fits the current key', () => {
+    const store: ScaleDegreeMistakeStatsStore = [
+      { previousNoteMidi: 60, targetNoteMidi: 64, correctDegree: 3, wrongDegree: '1' },
+    ]
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+
+    const quiz = weightedRandomScaleDegreeQuizFromMistakes(store, session, 48, 85, 60)
+    expect(quiz?.noteMidi).toBe(64)
+    expect(quiz?.previousNoteMidi).toBe(60)
     vi.restoreAllMocks()
   })
 })
