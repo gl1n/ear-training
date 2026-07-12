@@ -66,8 +66,9 @@ export function ChordProgressionPanel({ degrees, currentChord, currentPosition, 
         <label className="text-sm text-[var(--text-secondary)]">调性<select className="mt-2 w-full rounded-lg bg-[var(--bg-elevated)] p-2 text-[var(--text-primary)]" value={selectedKey} disabled={isRunning} onChange={(event) => onKeyChange(event.target.value === 'random' ? 'random' : Number(event.target.value) as ChordKey)}>{CHORD_KEY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
         <label className="text-sm text-[var(--text-secondary)]">速度 <strong className="ml-1 text-[var(--text-primary)]">{rhythm.bpm} BPM</strong><input className="mt-2 w-full accent-sky-400" type="range" min="40" max="160" step="5" value={rhythm.bpm} disabled={isRunning} onChange={(event) => onRhythmChange({ ...rhythm, bpm: Number(event.target.value) })} /></label>
         <label className="text-sm text-[var(--text-secondary)]">每个和弦<select className="mt-2 w-full rounded-lg bg-[var(--bg-elevated)] p-2 text-[var(--text-primary)]" value={rhythm.beatsPerChord} disabled={isRunning} onChange={(event) => onRhythmChange({ ...rhythm, beatsPerChord: Number(event.target.value) as 1 | 2 | 4 })}><option value="1">1 拍</option><option value="2">2 拍</option><option value="4">4 拍（1 小节）</option></select></label>
+        <label className="text-sm text-[var(--text-secondary)]">开始方式<select className="mt-2 w-full rounded-lg bg-[var(--bg-elevated)] p-2 text-[var(--text-primary)]" value={rhythm.countInBeats} disabled={isRunning} onChange={(event) => onRhythmChange({ ...rhythm, countInBeats: Number(event.target.value) as 0 | 4 })}><option value="0">立即播放</option><option value="4">1 小节预备拍</option></select></label>
       </div>
-      <p className="mt-5 text-center text-sm leading-6 text-[var(--text-secondary)]">每组支持 4–8 个和弦；开始时会有一小节预备拍，演奏使用自然呼吸节奏。</p>
+      <p className="mt-5 text-center text-sm leading-6 text-[var(--text-secondary)]">每组支持 4–8 个和弦；默认立即播放，也可启用一小节预备拍。</p>
     </Card>
   )
 }

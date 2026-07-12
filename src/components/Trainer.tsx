@@ -54,7 +54,7 @@ export function Trainer() {
   const [chordDegrees, setChordDegrees] = useState<ChordDegree[]>([1, 6, 4, 5])
   const [currentChord, setCurrentChord] = useState<PlayedChord | null>(null)
   const [currentChordPosition, setCurrentChordPosition] = useState(-1)
-  const [chordRhythm, setChordRhythm] = useState<ChordRhythm>({ bpm: 80, beatsPerChord: 4, countInBeats: 4, feel: 'breathe' })
+  const [chordRhythm, setChordRhythm] = useState<ChordRhythm>({ bpm: 80, beatsPerChord: 4, countInBeats: 0, feel: 'breathe' })
   const [currentChordBeat, setCurrentChordBeat] = useState(0)
   const [chordCountIn, setChordCountIn] = useState(false)
   const [chordKey, setChordKey] = useState<ChordKey>('random')
