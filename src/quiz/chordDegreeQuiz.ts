@@ -9,6 +9,8 @@ import { pickWeighted } from './weightedPick'
 
 export const CHORD_DEGREE_IDS = ['1', '2', '3', '4', '5', '6', '7'] as const
 export const PRIMARY_CHORD_DEGREES = [1, 4, 5] as const
+export const COMMON_CHORD_DEGREES = [1, 4, 5, 6] as const
+export const MAJOR_KEY_CHORD_DEGREES = [1, 2, 3, 4, 5, 6] as const
 export const ALL_CHORD_DEGREES = [1, 2, 3, 4, 5, 6, 7] as const
 export const CHORD_DEGREE_PLAYBACK_DURATION_SEC = 2.4
 export const CHORD_DEGREE_RETRIGGER_GAP_MS = 70
@@ -17,7 +19,7 @@ const CHORD_VOICING_BASS_CENTER_MIDI = 55
 export type ChordDegreeId = (typeof CHORD_DEGREE_IDS)[number]
 export type ChordInversion = 0 | 1 | 2
 export type ChordDegreeKey = 'random' | 'c-major'
-export type ChordDegreeRange = 'primary' | 'all'
+export type ChordDegreeRange = 'primary' | 'common' | 'major-key' | 'all'
 export type ChordDegreeInversionMode = 'root' | 'random'
 
 export type ChordDegreeQuiz = {
@@ -29,6 +31,13 @@ export type ChordDegreeQuiz = {
 export type ChordDegreeAnswer = { selectedDegree: string }
 
 export type ChordDegreeHistory = Record<ChordDegreeId, { errors: number; attempts: number }>
+
+export function getChordDegreesForRange(range: ChordDegreeRange): readonly number[] {
+  if (range === 'primary') return PRIMARY_CHORD_DEGREES
+  if (range === 'common') return COMMON_CHORD_DEGREES
+  if (range === 'major-key') return MAJOR_KEY_CHORD_DEGREES
+  return ALL_CHORD_DEGREES
+}
 
 export function randomChordDegreeTonicMidi(random: () => number = Math.random): number {
   return RANDOM_KEY_TONIC_BASE_MIDI + Math.floor(random() * 12)

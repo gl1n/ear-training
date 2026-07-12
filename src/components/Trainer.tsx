@@ -30,7 +30,7 @@ import { PracticeView } from './PracticeView'
 import type { PracticeEncouragement } from './practice/types'
 import { SettingsDrawer } from './SettingsDrawer'
 import { chordKeyLabel, runChordProgressionLoop, type ChordDegree, type ChordKey, type ChordRhythm, type PlayedChord } from '../quiz/chordProgression'
-import { ALL_CHORD_DEGREES, CHORD_DEGREE_PLAYBACK_DURATION_SEC, CHORD_DEGREE_RETRIGGER_GAP_MS, createChordMidis, loadChordDegreeHistory, PRIMARY_CHORD_DEGREES, randomChordDegreeTonicMidi, recordChordDegreeHistory, runChordDegreeLoop, type ChordDegreeHistory, type ChordDegreeId, type ChordDegreeInversionMode, type ChordDegreeKey, type ChordDegreeQuiz, type ChordDegreeRange } from '../quiz/chordDegreeQuiz'
+import { CHORD_DEGREE_PLAYBACK_DURATION_SEC, CHORD_DEGREE_RETRIGGER_GAP_MS, createChordMidis, getChordDegreesForRange, loadChordDegreeHistory, randomChordDegreeTonicMidi, recordChordDegreeHistory, runChordDegreeLoop, type ChordDegreeHistory, type ChordDegreeId, type ChordDegreeInversionMode, type ChordDegreeKey, type ChordDegreeQuiz, type ChordDegreeRange } from '../quiz/chordDegreeQuiz'
 import { recordChallengeResultNoBonus } from '../quiz/stats'
 
 function waitForChordRetrigger(): Promise<void> {
@@ -315,7 +315,7 @@ export function Trainer() {
             setChordDegreeHistory((current) => recordChordDegreeHistory(current, String(quiz.degree) as ChordDegreeId, correct))
             return completeQuestion()
           },
-        }, controller.signal, tonicMidi, chordDegreeRange === 'primary' ? PRIMARY_CHORD_DEGREES : ALL_CHORD_DEGREES, chordDegreeInversionMode)
+        }, controller.signal, tonicMidi, getChordDegreesForRange(chordDegreeRange), chordDegreeInversionMode)
       } else if (mode === 'chordProgression') {
         const pitchClass = chordKey === 'random' ? Math.floor(Math.random() * 12) : chordKey
         setActiveChordKeyLabel(chordKeyLabel(pitchClass))
@@ -493,7 +493,7 @@ export function Trainer() {
       const digit = Number(event.code.slice(-1))
       if (mode === 'scaleDegree' && digit <= 7) handleAnswerSelect(String(digit))
       if (mode === 'chordDegree') {
-        const enabledDegrees = chordDegreeRange === 'primary' ? PRIMARY_CHORD_DEGREES : ALL_CHORD_DEGREES
+        const enabledDegrees = getChordDegreesForRange(chordDegreeRange)
         if (enabledDegrees.some((degree) => degree === digit)) handleAnswerSelect(String(digit))
       }
       if (mode === 'intervalSpeed') {
