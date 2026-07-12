@@ -137,6 +137,21 @@ export function Trainer() {
     sessionSize,
   )
 
+  useEffect(() => {
+    // Start fetching and decoding the samples after the initial screen has painted.
+    // Starting a session or replaying a quiz reuses this same in-flight promise.
+    const preloadTimer = window.setTimeout(() => {
+      void ensurePiano(settings).catch((error: unknown) => {
+        if (!isAbortError(error)) console.warn('钢琴音色预加载失败', error)
+      })
+    }, 0)
+
+    return () => window.clearTimeout(preloadTimer)
+    // The initial pitch range covers every feature. Later setting changes should
+    // keep using the already loaded instrument instead of starting another load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ensurePiano])
+
   const resetMelodyProgress = useCallback(() => {
     setMelodyCorrectDegrees([])
   }, [])

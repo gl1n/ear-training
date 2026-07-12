@@ -50,7 +50,7 @@ export function useAudioEngine() {
   useEffect(() => dispose, [dispose])
 
   const ensurePiano = useCallback(
-    async (settings: Settings, signal: AbortSignal) => {
+    async (settings: Settings, signal?: AbortSignal) => {
       ensureAudioContext()
 
       if (pianoRef.current) return pianoRef.current
@@ -99,15 +99,8 @@ export function useAudioEngine() {
       setReplayingQuizKey(pitchKey)
 
       try {
-        if (!pianoRef.current) {
-          pianoRef.current = await createPiano(audioContextRef.current!, {
-            rootMin: settings.rootMin,
-            rootMax: settings.rootMax,
-            signal: controller.signal,
-          })
-        }
-
-        await replayQuiz(pianoRef.current, quiz, settings, controller.signal)
+        const piano = await ensurePiano(settings, controller.signal)
+        await replayQuiz(piano, quiz, settings, controller.signal)
       } catch (error) {
         if (isAbortError(error)) {
           return
@@ -121,7 +114,7 @@ export function useAudioEngine() {
         }
       }
     },
-    [ensureAudioContext, replayingQuizKey, stopReplay],
+    [ensureAudioContext, ensurePiano, replayingQuizKey, stopReplay],
   )
 
   const handlePlayMelodyQuiz = useCallback(
@@ -139,15 +132,8 @@ export function useAudioEngine() {
       setReplayingQuizKey(pitchKey)
 
       try {
-        if (!pianoRef.current) {
-          pianoRef.current = await createPiano(audioContextRef.current!, {
-            rootMin: settings.rootMin,
-            rootMax: settings.rootMax,
-            signal: controller.signal,
-          })
-        }
-
-        await replayMelodyScaleDegreeQuiz(pianoRef.current, quiz, settings, controller.signal)
+        const piano = await ensurePiano(settings, controller.signal)
+        await replayMelodyScaleDegreeQuiz(piano, quiz, settings, controller.signal)
       } catch (error) {
         if (isAbortError(error)) {
           return
@@ -161,7 +147,7 @@ export function useAudioEngine() {
         }
       }
     },
-    [ensureAudioContext, replayingQuizKey, stopReplay],
+    [ensureAudioContext, ensurePiano, replayingQuizKey, stopReplay],
   )
 
   const handleLoadFailure = useCallback((error: unknown) => {
