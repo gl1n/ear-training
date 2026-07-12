@@ -20,7 +20,9 @@ export function AppShell({
   focused = false,
 }: AppShellProps) {
   const meta =
-    mode === 'chordProgression'
+    mode === 'chordDegree'
+      ? { eyebrow: '和声辨识', title: '猜和弦', subtitle: '以 do 为参考，辨认随机转位三和弦的级数' }
+      : mode === 'chordProgression'
       ? { eyebrow: '和声训练', title: '和弦进行', subtitle: '在循环中建立级数走向与和声色彩的听感' }
       : mode === 'intervalSpeed'
       ? { eyebrow: '辨认挑战', title: '音程辨认', subtitle: '听到音程后立即作答，训练反应速度与准确度' }

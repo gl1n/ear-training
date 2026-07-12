@@ -59,12 +59,12 @@ function wrapInstrument(ctx: AudioContext, piano: Smplr): Piano {
   return {
     async playNote(midi: number, durationSec: number, velocity = 80) {
       await unlockAudioContext(ctx)
-      piano.start({ note: midi, velocity, duration: durationSec })
+      piano.start({ note: midi, velocity, duration: durationSec, ampRelease: 0.08 })
     },
     async playNotes(midis: number[], durationSec: number, velocity = 80) {
       await unlockAudioContext(ctx)
       for (const midi of midis) {
-        piano.start({ note: midi, velocity, duration: durationSec })
+        piano.start({ note: midi, velocity, duration: durationSec, ampRelease: 0.08 })
       }
     },
     stop() {

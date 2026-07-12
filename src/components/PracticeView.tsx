@@ -21,12 +21,16 @@ import type { LoadStatusProps } from './practice/viewProps'
 import type { ChordDegree, ChordKey, ChordRhythm, PlayedChord } from '../quiz/chordProgression'
 import { ChordProgressionPanel } from './ChordProgressionPanel'
 import { SessionGoalControl } from './practice/SessionGoalControl'
+import { ALL_CHORD_DEGREES, PRIMARY_CHORD_DEGREES, type ChordDegreeHistory, type ChordDegreeInversionMode, type ChordDegreeKey, type ChordDegreeQuiz, type ChordDegreeRange } from '../quiz/chordDegreeQuiz'
+import { ChordDegreePlayfield } from './ChordDegreePlayfield'
+import { ChordDegreeIdlePanel } from './ChordDegreeIdlePanel'
 
 const MODE_OPTIONS = [
   { value: 'intervalFollow' as const, label: '跟听' },
   { value: 'intervalSpeed' as const, label: '辨认' },
   { value: 'scaleDegree' as const, label: '音级' },
-  { value: 'chordProgression' as const, label: '和弦' },
+  { value: 'chordDegree' as const, label: '猜和弦' },
+  { value: 'chordProgression' as const, label: '进行' },
 ]
 
 type PracticeViewProps = {
@@ -81,6 +85,21 @@ type PracticeViewProps = {
   onChordKeyChange: (key: ChordKey) => void
   chordMelodyEnabled: boolean
   onChordMelodyEnabledChange: (enabled: boolean) => void
+  chordDegreeQuiz: ChordDegreeQuiz | null
+  chordDegreeHistory: ChordDegreeHistory
+  chordDegreeKey: ChordDegreeKey
+  onChordDegreeKeyChange: (key: ChordDegreeKey) => void
+  onPlayChordDo: () => void
+  chordDegreeRange: ChordDegreeRange
+  chordDegreeInversionMode: ChordDegreeInversionMode
+  chordDegreeReplayCount: number
+  onChordDegreeRangeChange: (range: ChordDegreeRange) => void
+  onChordDegreeInversionModeChange: (mode: ChordDegreeInversionMode) => void
+  onApplyChordDegreePreset: (preset: 'beginner' | 'standard' | 'advanced') => void
+  onPlayChordQuiz: () => void
+  onPlayChordSequence: () => void
+  onPlaySelectedChord: () => void
+  onPlayChordComparison: () => void
 }
 
 export function PracticeView({
@@ -135,13 +154,28 @@ export function PracticeView({
   onChordMelodyEnabledChange,
   chordCountIn,
   onChordRhythmChange,
+  chordDegreeQuiz,
+  chordDegreeHistory,
+  chordDegreeKey,
+  onChordDegreeKeyChange,
+  onPlayChordDo,
+  chordDegreeRange,
+  chordDegreeInversionMode,
+  chordDegreeReplayCount,
+  onChordDegreeRangeChange,
+  onChordDegreeInversionModeChange,
+  onApplyChordDegreePreset,
+  onPlayChordQuiz,
+  onPlayChordSequence,
+  onPlaySelectedChord,
+  onPlayChordComparison,
 }: PracticeViewProps) {
   const { enabledIntervalIds } = settingsControls
   const { loadProgress, loadIndeterminate, loadError, onRetry } = loadStatus
   const canStart =
-    mode === 'scaleDegree' || mode === 'chordProgression' ? true : enabledIntervalIds.length > 0
+    mode === 'scaleDegree' || mode === 'chordDegree' || mode === 'chordProgression' ? true : enabledIntervalIds.length > 0
   const showSettingsHint = !canStart && !isRunning && mode !== 'scaleDegree'
-  const isChallengeMode = mode === 'intervalSpeed' || mode === 'scaleDegree'
+  const isChallengeMode = mode === 'intervalSpeed' || mode === 'scaleDegree' || mode === 'chordDegree'
   const scaleDegreeEstablishing =
     mode === 'scaleDegree' &&
     isRunning &&
@@ -177,7 +211,7 @@ export function PracticeView({
         </nav>
       }
       settingsSummary={
-        mode !== 'scaleDegree' && mode !== 'chordProgression' ? (
+        mode !== 'scaleDegree' && mode !== 'chordDegree' && mode !== 'chordProgression' ? (
           <SettingsSummary
             mode={mode}
             speedPreset={settingsControls.speedPreset}
@@ -215,7 +249,9 @@ export function PracticeView({
         </>
       }
     >
-      {mode === 'chordProgression' ? (
+      {mode === 'chordDegree' ? (
+        isRunning ? <ChordDegreePlayfield state={state} sessionStats={sessionStats} quiz={chordDegreeQuiz} wrongSelection={correctionWrongSelection} optionDegrees={chordDegreeRange === 'primary' ? PRIMARY_CHORD_DEGREES : ALL_CHORD_DEGREES} replayCount={chordDegreeReplayCount} onSelect={onAnswerSelect} onPlayDo={onPlayChordDo} onPlayChord={onPlayChordQuiz} onPlaySequence={onPlayChordSequence} onPlaySelected={onPlaySelectedChord} onPlayComparison={onPlayChordComparison} /> : <ChordDegreeIdlePanel quiz={chordDegreeQuiz} sessionStats={sessionStats} history={chordDegreeHistory} sessionCompleted={sessionCompleted} selectedKey={chordDegreeKey} range={chordDegreeRange} inversionMode={chordDegreeInversionMode} onKeyChange={onChordDegreeKeyChange} onRangeChange={onChordDegreeRangeChange} onInversionModeChange={onChordDegreeInversionModeChange} onApplyPreset={onApplyChordDegreePreset} onPlayDo={onPlayChordDo} />
+      ) : mode === 'chordProgression' ? (
         <ChordProgressionPanel degrees={chordDegrees} currentChord={currentChord} currentPosition={currentChordPosition} state={state} isRunning={isRunning} onDegreeChange={onChordDegreeChange} onDegreesChange={onChordDegreesChange} rhythm={chordRhythm} currentBeat={currentChordBeat} isCountIn={chordCountIn} onRhythmChange={onChordRhythmChange} selectedKey={chordKey} activeKeyLabel={activeChordKeyLabel} onKeyChange={onChordKeyChange} melodyEnabled={chordMelodyEnabled} onMelodyEnabledChange={onChordMelodyEnabledChange} />
       ) : mode === 'intervalSpeed' ? (
         isRunning && enabledIntervalIds.length > 0 ? (

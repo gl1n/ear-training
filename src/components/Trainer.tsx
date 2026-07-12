@@ -30,6 +30,12 @@ import { PracticeView } from './PracticeView'
 import type { PracticeEncouragement } from './practice/types'
 import { SettingsDrawer } from './SettingsDrawer'
 import { chordKeyLabel, runChordProgressionLoop, type ChordDegree, type ChordKey, type ChordRhythm, type PlayedChord } from '../quiz/chordProgression'
+import { ALL_CHORD_DEGREES, CHORD_DEGREE_PLAYBACK_DURATION_SEC, CHORD_DEGREE_RETRIGGER_GAP_MS, createChordMidis, loadChordDegreeHistory, PRIMARY_CHORD_DEGREES, randomChordDegreeTonicMidi, recordChordDegreeHistory, runChordDegreeLoop, type ChordDegreeHistory, type ChordDegreeId, type ChordDegreeInversionMode, type ChordDegreeKey, type ChordDegreeQuiz, type ChordDegreeRange } from '../quiz/chordDegreeQuiz'
+import { recordChallengeResultNoBonus } from '../quiz/stats'
+
+function waitForChordRetrigger(): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, CHORD_DEGREE_RETRIGGER_GAP_MS))
+}
 
 export function Trainer() {
   const initial = getInitialSettings()
@@ -60,6 +66,13 @@ export function Trainer() {
   const [chordKey, setChordKey] = useState<ChordKey>('random')
   const [chordMelodyEnabled, setChordMelodyEnabled] = useState(false)
   const [activeChordKeyLabel, setActiveChordKeyLabel] = useState<string | null>(null)
+  const [chordDegreeQuiz, setChordDegreeQuiz] = useState<ChordDegreeQuiz | null>(null)
+  const [chordDegreeHistory, setChordDegreeHistory] = useState<ChordDegreeHistory>(() => loadChordDegreeHistory())
+  const [chordDegreeKey, setChordDegreeKey] = useState<ChordDegreeKey>('c-major')
+  const [chordDegreeTonicMidi, setChordDegreeTonicMidi] = useState(60)
+  const [chordDegreeRange, setChordDegreeRange] = useState<ChordDegreeRange>('primary')
+  const [chordDegreeInversionMode, setChordDegreeInversionMode] = useState<ChordDegreeInversionMode>('root')
+  const [chordDegreeReplayCount, setChordDegreeReplayCount] = useState(0)
 
   const abortRef = useRef<AbortController | null>(null)
   const answerResolverRef = useRef<((answer: string) => void) | null>(null)
@@ -67,6 +80,7 @@ export function Trainer() {
   const gameStartResolverRef = useRef<(() => void) | null>(null)
   const gameStartCleanupRef = useRef<(() => void) | null>(null)
   const challengeEncouragementKeyRef = useRef(0)
+  const chordReplayTokenRef = useRef(0)
   const [challengeEncouragement, setChallengeEncouragement] =
     useState<PracticeEncouragement | null>(null)
   const [correctionWrongSelection, setCorrectionWrongSelection] = useState<string | null>(null)
@@ -169,6 +183,7 @@ export function Trainer() {
   }, [resetMelodyProgress])
 
   const abortSession = useCallback(() => {
+    chordReplayTokenRef.current += 1
     abortRef.current?.abort()
     abortRef.current = null
     stopReplay()
@@ -247,7 +262,7 @@ export function Trainer() {
   )
 
   const start = useCallback(async () => {
-    if (mode !== 'scaleDegree' && mode !== 'chordProgression' && settings.enabledIntervalIds.length === 0) {
+    if (mode !== 'scaleDegree' && mode !== 'chordDegree' && mode !== 'chordProgression' && settings.enabledIntervalIds.length === 0) {
       return
     }
 
@@ -272,13 +287,29 @@ export function Trainer() {
       setScaleDegreeGameStarted(false)
       clearNewBestRecord(scaleDegreeMelodyEnabled ? 'scaleDegreeMelody' : 'scaleDegree')
     }
+    if (mode === 'chordDegree') setChordDegreeQuiz(null)
 
     try {
       ensureAudioContext()
       const piano = await ensurePiano(settings, controller.signal)
       resetLoadingState()
 
-      if (mode === 'chordProgression') {
+      if (mode === 'chordDegree') {
+        const tonicMidi = chordDegreeKey === 'random' ? randomChordDegreeTonicMidi() : 60
+        setChordDegreeTonicMidi(tonicMidi)
+        await runChordDegreeLoop(piano, {
+          onStateChange: handleTrainerStateChange,
+          onQuiz: (quiz) => { chordReplayTokenRef.current += 1; setChordDegreeQuiz(quiz); setChordDegreeReplayCount(1) },
+          waitForAnswer: (signal) => waitForChallengeAnswer(signal).then((selectedDegree) => ({ selectedDegree })),
+          onAnswerCorrectionStart: handleAnswerCorrectionStart,
+          getSessionStats: () => sessionStatsRef.current,
+          onAnswerSubmitted: (quiz, _selected, correct) => {
+            updateSessionStats((current) => recordChallengeResultNoBonus(current, String(quiz.degree), { correct }))
+            setChordDegreeHistory((current) => recordChordDegreeHistory(current, String(quiz.degree) as ChordDegreeId, correct))
+            return completeQuestion()
+          },
+        }, controller.signal, tonicMidi, chordDegreeRange === 'primary' ? PRIMARY_CHORD_DEGREES : ALL_CHORD_DEGREES, chordDegreeInversionMode)
+      } else if (mode === 'chordProgression') {
         const pitchClass = chordKey === 'random' ? Math.floor(Math.random() * 12) : chordKey
         setActiveChordKeyLabel(chordKeyLabel(pitchClass))
         await runChordProgressionLoop(piano, chordDegrees, chordRhythm, {
@@ -377,7 +408,7 @@ export function Trainer() {
         }
 
         setIsRunning(false)
-        if (mode === 'intervalSpeed' || mode === 'scaleDegree') finishSession()
+        if (mode === 'intervalSpeed' || mode === 'scaleDegree' || mode === 'chordDegree') finishSession()
         setState('idle')
         setScaleDegreeGameStarted(false)
         abortRef.current = null
@@ -390,6 +421,9 @@ export function Trainer() {
     chordRhythm,
     chordKey,
     chordMelodyEnabled,
+    chordDegreeKey,
+    chordDegreeRange,
+    chordDegreeInversionMode,
     scaleDegreeReviewEnabled,
     scaleDegreeMelodyEnabled,
     resetChallengeAnswerState,
@@ -449,6 +483,10 @@ export function Trainer() {
       if (!isRunning || !/^Digit[1-9]$/.test(event.code)) return
       const digit = Number(event.code.slice(-1))
       if (mode === 'scaleDegree' && digit <= 7) handleAnswerSelect(String(digit))
+      if (mode === 'chordDegree') {
+        const enabledDegrees = chordDegreeRange === 'primary' ? PRIMARY_CHORD_DEGREES : ALL_CHORD_DEGREES
+        if (enabledDegrees.some((degree) => degree === digit)) handleAnswerSelect(String(digit))
+      }
       if (mode === 'intervalSpeed') {
         const answer = settings.enabledIntervalIds[digit - 1]
         if (answer) handleAnswerSelect(answer)
@@ -456,7 +494,7 @@ export function Trainer() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [handleAnswerSelect, handleToggle, isRunning, mode, settings.enabledIntervalIds])
+  }, [chordDegreeRange, handleAnswerSelect, handleToggle, isRunning, mode, settings.enabledIntervalIds])
 
   const handleScaleDegreeHome = useCallback(() => {
     setLastScaleDegreeQuiz(null)
@@ -493,6 +531,7 @@ export function Trainer() {
     setCurrentChordPosition(-1)
     setCurrentChordBeat(0)
     setChordCountIn(false)
+    setChordDegreeQuiz(null)
   }
 
   const handleSpeedChange = (preset: SpeedPreset) => {
@@ -533,6 +572,79 @@ export function Trainer() {
   const handleDirectionChange = (direction: IntervalDirection) => {
     setSettings((current) => ({ ...current, direction }))
   }
+
+  const handlePlayChordDo = useCallback(() => {
+    ensureAudioContext()
+    const token = ++chordReplayTokenRef.current
+    void ensurePiano(settings).then(async (piano) => { piano.stop(); await waitForChordRetrigger(); if (token !== chordReplayTokenRef.current) return; return piano.playNote(chordDegreeTonicMidi, 1.2) }).catch((error: unknown) => {
+      if (!isAbortError(error)) handleLoadFailure(error)
+    })
+  }, [chordDegreeTonicMidi, ensureAudioContext, ensurePiano, handleLoadFailure, settings])
+
+  const playChordMidis = useCallback(async (midis: number[]) => {
+    const token = ++chordReplayTokenRef.current
+    ensureAudioContext()
+    const piano = await ensurePiano(settings)
+    piano.stop()
+    await waitForChordRetrigger()
+    if (token !== chordReplayTokenRef.current) return
+    await piano.playNotes(midis, CHORD_DEGREE_PLAYBACK_DURATION_SEC)
+  }, [ensureAudioContext, ensurePiano, settings])
+
+  const handlePlayChordQuiz = useCallback(() => {
+    if (!chordDegreeQuiz) return
+    setChordDegreeReplayCount((count) => count + 1)
+    void playChordMidis(chordDegreeQuiz.midis).catch((error: unknown) => handleLoadFailure(error))
+  }, [chordDegreeQuiz, handleLoadFailure, playChordMidis])
+
+  const handlePlayChordSequence = useCallback(() => {
+    if (!chordDegreeQuiz) return
+    setChordDegreeReplayCount((count) => count + 1)
+    void (async () => {
+      const token = ++chordReplayTokenRef.current
+      const piano = await ensurePiano(settings)
+      piano.stop()
+      await waitForChordRetrigger()
+      if (token !== chordReplayTokenRef.current) return
+      await piano.playNote(chordDegreeTonicMidi, 1.25)
+      await new Promise((resolve) => window.setTimeout(resolve, 1_050))
+      if (token !== chordReplayTokenRef.current) return
+      piano.stop()
+      await waitForChordRetrigger()
+      if (token !== chordReplayTokenRef.current) return
+      await piano.playNotes(chordDegreeQuiz.midis, CHORD_DEGREE_PLAYBACK_DURATION_SEC)
+    })().catch((error: unknown) => handleLoadFailure(error))
+  }, [chordDegreeQuiz, chordDegreeTonicMidi, ensurePiano, handleLoadFailure, settings])
+
+  const handlePlaySelectedChord = useCallback(() => {
+    if (!chordDegreeQuiz || !correctionWrongSelection) return
+    const midis = createChordMidis(chordDegreeTonicMidi, Number(correctionWrongSelection), chordDegreeQuiz.inversion)
+    void playChordMidis(midis).catch((error: unknown) => handleLoadFailure(error))
+  }, [chordDegreeQuiz, chordDegreeTonicMidi, correctionWrongSelection, handleLoadFailure, playChordMidis])
+
+  const handlePlayChordComparison = useCallback(() => {
+    if (!chordDegreeQuiz || !correctionWrongSelection) return
+    void (async () => {
+      const token = ++chordReplayTokenRef.current
+      const piano = await ensurePiano(settings)
+      piano.stop()
+      await waitForChordRetrigger()
+      if (token !== chordReplayTokenRef.current) return
+      await piano.playNotes(createChordMidis(chordDegreeTonicMidi, Number(correctionWrongSelection), chordDegreeQuiz.inversion), CHORD_DEGREE_PLAYBACK_DURATION_SEC)
+      await new Promise((resolve) => window.setTimeout(resolve, 2_000))
+      if (token !== chordReplayTokenRef.current) return
+      piano.stop()
+      await waitForChordRetrigger()
+      if (token !== chordReplayTokenRef.current) return
+      await piano.playNotes(chordDegreeQuiz.midis, CHORD_DEGREE_PLAYBACK_DURATION_SEC)
+    })().catch((error: unknown) => handleLoadFailure(error))
+  }, [chordDegreeQuiz, chordDegreeTonicMidi, correctionWrongSelection, ensurePiano, handleLoadFailure, settings])
+
+  const handleApplyChordDegreePreset = useCallback((preset: 'beginner' | 'standard' | 'advanced') => {
+    if (preset === 'beginner') { setChordDegreeKey('c-major'); setChordDegreeRange('primary'); setChordDegreeInversionMode('root'); return }
+    if (preset === 'standard') { setChordDegreeKey('c-major'); setChordDegreeRange('all'); setChordDegreeInversionMode('root'); return }
+    setChordDegreeKey('random'); setChordDegreeRange('all'); setChordDegreeInversionMode('random')
+  }, [])
 
   const settingsControls: SettingsPanelProps = {
     mode,
@@ -609,9 +721,24 @@ export function Trainer() {
         onChordKeyChange={setChordKey}
         chordMelodyEnabled={chordMelodyEnabled}
         onChordMelodyEnabledChange={setChordMelodyEnabled}
+        chordDegreeQuiz={chordDegreeQuiz}
+        chordDegreeHistory={chordDegreeHistory}
+        chordDegreeKey={chordDegreeKey}
+        onChordDegreeKeyChange={setChordDegreeKey}
+        onPlayChordDo={handlePlayChordDo}
+        chordDegreeRange={chordDegreeRange}
+        chordDegreeInversionMode={chordDegreeInversionMode}
+        chordDegreeReplayCount={chordDegreeReplayCount}
+        onChordDegreeRangeChange={setChordDegreeRange}
+        onChordDegreeInversionModeChange={setChordDegreeInversionMode}
+        onApplyChordDegreePreset={handleApplyChordDegreePreset}
+        onPlayChordQuiz={handlePlayChordQuiz}
+        onPlayChordSequence={handlePlayChordSequence}
+        onPlaySelectedChord={handlePlaySelectedChord}
+        onPlayChordComparison={handlePlayChordComparison}
       />
 
-      {mode !== 'scaleDegree' && mode !== 'chordProgression' && (
+      {mode !== 'scaleDegree' && mode !== 'chordDegree' && mode !== 'chordProgression' && (
         <SettingsDrawer
           open={drawerOpen}
           onClose={() => setDrawerOpen(false)}
