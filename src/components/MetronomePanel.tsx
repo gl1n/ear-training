@@ -26,14 +26,28 @@ export function MetronomePanel() {
 
   const playClick = useCallback((context: AudioContext, time: number, beat: number) => {
     const strong = beat === 0 && accentRef.current
+    const secondary = beat === 3 && beatsRef.current === 6 && accentRef.current
     const oscillator = context.createOscillator()
     const gain = context.createGain()
-    oscillator.frequency.setValueAtTime(strong ? 1320 : 880, time)
-    gain.gain.setValueAtTime(strong ? 0.22 : 0.13, time)
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(strong ? 1500 : secondary ? 1040 : 760, time)
+    gain.gain.setValueAtTime(strong ? 0.25 : secondary ? 0.15 : 0.11, time)
     gain.gain.exponentialRampToValueAtTime(0.001, time + 0.045)
     oscillator.connect(gain).connect(context.destination)
     oscillator.start(time)
     oscillator.stop(time + 0.05)
+
+    if (secondary) {
+      const overtone = context.createOscillator()
+      const overtoneGain = context.createGain()
+      overtone.type = 'sine'
+      overtone.frequency.setValueAtTime(1560, time)
+      overtoneGain.gain.setValueAtTime(0.035, time)
+      overtoneGain.gain.exponentialRampToValueAtTime(0.001, time + 0.06)
+      overtone.connect(overtoneGain).connect(context.destination)
+      overtone.start(time)
+      overtone.stop(time + 0.065)
+    }
   }, [])
 
   const stop = useCallback(() => {
@@ -102,7 +116,7 @@ export function MetronomePanel() {
     <section className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 sm:p-7">
       <div className="mb-7 flex items-center justify-center gap-3" aria-label={`每小节 ${beatsPerBar} 拍，当前第 ${activeBeat + 1} 拍`}>
         {Array.from({ length: beatsPerBar }, (_, beat) => (
-          <span key={beat} className={`h-3 rounded-full transition-all duration-75 ${activeBeat === beat && isPlaying ? 'w-10 bg-rose-400 shadow-[0_0_18px_rgba(251,113,133,0.55)]' : beat === 0 ? 'w-5 bg-rose-400/40' : 'w-5 bg-white/15'}`} />
+          <span key={beat} className={`h-3 rounded-full transition-all duration-75 ${activeBeat === beat && isPlaying ? 'w-10 bg-rose-400 shadow-[0_0_18px_rgba(251,113,133,0.55)]' : beat === 0 ? 'w-5 bg-rose-400/40' : beatsPerBar === 6 && beat === 3 ? 'w-5 bg-rose-400/25' : 'w-5 bg-white/15'}`} />
         ))}
       </div>
 
