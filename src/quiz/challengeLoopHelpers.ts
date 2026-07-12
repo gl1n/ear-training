@@ -31,7 +31,7 @@ export async function resolveAnswerWithCorrection<TAnswer extends { reactionMs?:
   mergeRetrySelection: (firstAnswer: TAnswer, retryAnswer: TAnswer) => TAnswer
   waitForAnswer: () => Promise<TAnswer>
   onEnterCorrection: (wrongSelection: string) => void
-}): Promise<{ answer: TAnswer; correct: boolean }> {
+}): Promise<{ answer: TAnswer; firstAnswer: TAnswer; correct: boolean; firstAttemptCorrect: boolean }> {
   const {
     firstAnswer,
     isCorrect,
@@ -43,21 +43,26 @@ export async function resolveAnswerWithCorrection<TAnswer extends { reactionMs?:
   } = options
 
   if (isCorrect(firstAnswer)) {
-    return { answer: firstAnswer, correct: true }
+    return { answer: firstAnswer, firstAnswer, correct: true, firstAttemptCorrect: true }
   }
 
   if (isEmpty(firstAnswer)) {
-    return { answer: firstAnswer, correct: false }
+    return { answer: firstAnswer, firstAnswer, correct: false, firstAttemptCorrect: false }
   }
 
   onEnterCorrection(getSelection(firstAnswer))
   const retryAnswer = await waitForAnswer()
 
   if (isCorrect(retryAnswer)) {
-    return { answer: mergeRetrySelection(firstAnswer, retryAnswer), correct: true }
+    return {
+      answer: mergeRetrySelection(firstAnswer, retryAnswer),
+      firstAnswer,
+      correct: true,
+      firstAttemptCorrect: false,
+    }
   }
 
-  return { answer: retryAnswer, correct: false }
+  return { answer: retryAnswer, firstAnswer, correct: false, firstAttemptCorrect: false }
 }
 
 export async function raceAnswerAgainstAudio<TAnswer>(options: {

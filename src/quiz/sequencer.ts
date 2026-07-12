@@ -164,6 +164,7 @@ export type ScaleDegreeAnswer = ChallengeAnswer & {
 }
 
 export const SCALE_DEGREE_TONIC_CHORD_DURATION_MS = 2_400
+export const SCALE_DEGREE_REVIEW_MISTAKE_RATIO = 0.6
 
 export type ScaleDegreeCallbacks = {
   onStateChange: (state: TrainerState) => void
@@ -301,7 +302,12 @@ export async function runIntervalSpeedLoop(
       audioPlayStartMs,
     )
 
-    const { answer, correct } = await resolveAnswerWithCorrection({
+    const {
+      answer,
+      firstAnswer: initialAnswer,
+      correct,
+      firstAttemptCorrect,
+    } = await resolveAnswerWithCorrection({
       firstAnswer,
       isCorrect: (candidate) =>
         candidate.selectedIntervalId !== '' &&
@@ -319,7 +325,11 @@ export async function runIntervalSpeedLoop(
       },
     })
 
-    const sessionComplete = callbacks.onAnswerSubmitted(quiz, answer, correct)
+    const sessionComplete = callbacks.onAnswerSubmitted(
+      quiz,
+      firstAttemptCorrect ? answer : initialAnswer,
+      firstAttemptCorrect,
+    )
 
     if (!correct) {
       await finishChallengeOnIncorrect(signal, () =>
@@ -461,14 +471,15 @@ export async function runScaleDegreeLoop(
   let previousNoteMidi: number | null = null
 
   while (!signal.aborted) {
-    // 音级辨识：复习模式开启时优先历史错题；关闭时用本局均衡权重随机。
+    // 复习模式混合错题和常规题，避免少量错题垄断整轮训练。
+    const useMistakeReview = Math.random() < SCALE_DEGREE_REVIEW_MISTAKE_RATIO
     const sessionDegreeWeights = callbacks.getSessionStats
       ? melodyEnabled
         ? getMelodySessionDegreeWeights(callbacks.getSessionStats())
         : getSessionDegreeWeights(callbacks.getSessionStats())
       : undefined
     let quiz: ScaleDegreeQuiz
-    if (reviewEnabled && melodyEnabled && melodyMistakeStore.length > 0) {
+    if (reviewEnabled && useMistakeReview && melodyEnabled && melodyMistakeStore.length > 0) {
       quiz =
         weightedRandomMelodyQuizFromMistakes(
           melodyMistakeStore,
@@ -484,7 +495,7 @@ export async function runScaleDegreeLoop(
           previousNoteMidi,
           sessionDegreeWeights,
         )
-    } else if (reviewEnabled && mistakeStore.length > 0) {
+    } else if (reviewEnabled && useMistakeReview && mistakeStore.length > 0) {
       if (melodyEnabled) {
         quiz = randomMelodyScaleDegreeQuiz(
           session,
@@ -560,7 +571,12 @@ export async function runScaleDegreeLoop(
       notePlayStartMs,
     )
 
-    const { answer, correct } = await resolveAnswerWithCorrection({
+    const {
+      answer,
+      firstAnswer: initialAnswer,
+      correct,
+      firstAttemptCorrect,
+    } = await resolveAnswerWithCorrection({
       firstAnswer,
       isCorrect: (candidate) =>
         candidate.selectedDegree !== '' && candidate.selectedDegree === String(quiz.degree),
@@ -577,7 +593,11 @@ export async function runScaleDegreeLoop(
       },
     })
 
-    const sessionComplete = callbacks.onAnswerSubmitted(quiz, answer, correct)
+    const sessionComplete = callbacks.onAnswerSubmitted(
+      quiz,
+      firstAttemptCorrect ? answer : initialAnswer,
+      firstAttemptCorrect,
+    )
 
     if (!correct) {
       await finishChallengeOnIncorrect(signal, () =>

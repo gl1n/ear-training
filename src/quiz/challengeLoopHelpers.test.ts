@@ -39,7 +39,12 @@ describe('resolveAnswerWithCorrection', () => {
 
     const result = await resolveAnswerWithCorrection(options)
 
-    expect(result).toEqual({ answer: { selectedId: 'M3', reactionMs: 500 }, correct: true })
+    expect(result).toEqual({
+      answer: { selectedId: 'M3', reactionMs: 500 },
+      firstAnswer: { selectedId: 'M3', reactionMs: 500 },
+      correct: true,
+      firstAttemptCorrect: true,
+    })
     expect(options.onEnterCorrection).not.toHaveBeenCalled()
     expect(options.waitForAnswer).not.toHaveBeenCalled()
   })
@@ -51,7 +56,12 @@ describe('resolveAnswerWithCorrection', () => {
 
     const result = await resolveAnswerWithCorrection(options)
 
-    expect(result).toEqual({ answer: { selectedId: '' }, correct: false })
+    expect(result).toEqual({
+      answer: { selectedId: '' },
+      firstAnswer: { selectedId: '' },
+      correct: false,
+      firstAttemptCorrect: false,
+    })
     expect(options.onEnterCorrection).not.toHaveBeenCalled()
     expect(options.waitForAnswer).not.toHaveBeenCalled()
   })
@@ -64,7 +74,12 @@ describe('resolveAnswerWithCorrection', () => {
 
     const result = await resolveAnswerWithCorrection(options)
 
-    expect(result).toEqual({ answer: { selectedId: 'M3', reactionMs: 420 }, correct: true })
+    expect(result).toEqual({
+      answer: { selectedId: 'M3', reactionMs: 420 },
+      firstAnswer: { selectedId: 'P5', reactionMs: 420 },
+      correct: true,
+      firstAttemptCorrect: false,
+    })
     expect(options.onEnterCorrection).toHaveBeenCalledWith('P5')
     expect(options.waitForAnswer).toHaveBeenCalledOnce()
   })
@@ -77,7 +92,12 @@ describe('resolveAnswerWithCorrection', () => {
 
     const result = await resolveAnswerWithCorrection(options)
 
-    expect(result).toEqual({ answer: { selectedId: 'M2', reactionMs: 880 }, correct: false })
+    expect(result).toEqual({
+      answer: { selectedId: 'M2', reactionMs: 880 },
+      firstAnswer: { selectedId: 'P5', reactionMs: 420 },
+      correct: false,
+      firstAttemptCorrect: false,
+    })
     expect(options.onEnterCorrection).toHaveBeenCalledWith('P5')
     expect(options.waitForAnswer).toHaveBeenCalledOnce()
   })

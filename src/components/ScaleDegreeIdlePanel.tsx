@@ -115,8 +115,8 @@ export function ScaleDegreeIdlePanel({
         {sessionCompleted && (
           <div className="rounded-xl border border-sky-400/25 bg-sky-400/8 p-4 text-center">
             <p className="font-medium text-sky-200">本轮目标已完成</p>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">已根据本轮表现准备错题优先训练。</p>
-            <Button onClick={onPracticeWeakest} className="mt-3 min-h-11">练习薄弱音级</Button>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">可进行错题与常规题混合训练，兼顾薄弱项和整体辨识。</p>
+            <Button onClick={onPracticeWeakest} className="mt-3 min-h-11">开始混合强化</Button>
           </div>
         )}
 
@@ -207,12 +207,12 @@ export function ScaleDegreeIdlePanel({
         ].join(' ')}
       >
         <span className="flex flex-col gap-1 text-left">
-          <span className="text-sm font-medium">优先练习错题</span>
+          <span className="text-sm font-medium">错题混合强化</span>
           <span className="text-xs text-[var(--text-secondary)]">
             {hasHistoricalMistakes
               ? scaleDegreeMelodyEnabled
-                ? '优先出历史易错旋律'
-                : '优先出历史错题，加强薄弱音级'
+                ? '约六成易错旋律，搭配四成常规旋律'
+                : '约六成历史错题，搭配四成全音级练习'
               : '暂无错题可复习'}
           </span>
         </span>
