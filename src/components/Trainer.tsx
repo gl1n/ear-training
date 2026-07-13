@@ -72,6 +72,7 @@ export function Trainer() {
   const [chordDegreeKey, setChordDegreeKey] = useState<ChordDegreeKey>('c-major')
   const [chordDegreeTonicMidi, setChordDegreeTonicMidi] = useState(60)
   const [chordDegreeRange, setChordDegreeRange] = useState<ChordDegreeRange>('primary')
+  const [chordDegreeCustomDegrees, setChordDegreeCustomDegrees] = useState<number[]>([2, 3, 6])
   const [chordDegreeInversionMode, setChordDegreeInversionMode] = useState<ChordDegreeInversionMode>('root')
   const [chordDegreeReplayCount, setChordDegreeReplayCount] = useState(0)
 
@@ -315,7 +316,7 @@ export function Trainer() {
             setChordDegreeHistory((current) => recordChordDegreeHistory(current, String(quiz.degree) as ChordDegreeId, correct))
             return completeQuestion()
           },
-        }, controller.signal, tonicMidi, getChordDegreesForRange(chordDegreeRange), chordDegreeInversionMode)
+        }, controller.signal, tonicMidi, getChordDegreesForRange(chordDegreeRange, chordDegreeCustomDegrees), chordDegreeInversionMode)
       } else if (mode === 'chordProgression') {
         const pitchClass = chordKey === 'random' ? Math.floor(Math.random() * 12) : chordKey
         setActiveChordKeyLabel(chordKeyLabel(pitchClass))
@@ -431,6 +432,7 @@ export function Trainer() {
     chordMelodyEnabled,
     chordDegreeKey,
     chordDegreeRange,
+    chordDegreeCustomDegrees,
     chordDegreeInversionMode,
     scaleDegreeReviewEnabled,
     scaleDegreeMelodyEnabled,
@@ -493,7 +495,7 @@ export function Trainer() {
       const digit = Number(event.code.slice(-1))
       if (mode === 'scaleDegree' && digit <= 7) handleAnswerSelect(String(digit))
       if (mode === 'chordDegree') {
-        const enabledDegrees = getChordDegreesForRange(chordDegreeRange)
+        const enabledDegrees = getChordDegreesForRange(chordDegreeRange, chordDegreeCustomDegrees)
         if (enabledDegrees.some((degree) => degree === digit)) handleAnswerSelect(String(digit))
       }
       if (mode === 'intervalSpeed') {
@@ -503,7 +505,7 @@ export function Trainer() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [chordDegreeRange, handleAnswerSelect, handleToggle, isRunning, mode, settings.enabledIntervalIds])
+  }, [chordDegreeCustomDegrees, chordDegreeRange, handleAnswerSelect, handleToggle, isRunning, mode, settings.enabledIntervalIds])
 
   const handleScaleDegreeHome = useCallback(() => {
     setLastScaleDegreeQuiz(null)
@@ -738,9 +740,11 @@ export function Trainer() {
         onChordDegreeKeyChange={setChordDegreeKey}
         onPlayChordDo={handlePlayChordDo}
         chordDegreeRange={chordDegreeRange}
+        chordDegreeCustomDegrees={chordDegreeCustomDegrees}
         chordDegreeInversionMode={chordDegreeInversionMode}
         chordDegreeReplayCount={chordDegreeReplayCount}
         onChordDegreeRangeChange={setChordDegreeRange}
+        onChordDegreeCustomDegreesChange={setChordDegreeCustomDegrees}
         onChordDegreeInversionModeChange={setChordDegreeInversionMode}
         onApplyChordDegreePreset={handleApplyChordDegreePreset}
         onPlayChordQuiz={handlePlayChordQuiz}

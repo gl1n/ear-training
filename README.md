@@ -7,7 +7,7 @@ Browser-based ear training for interval recognition and scale-degree identificat
 - **音程跟听** — Loop playback with spoken interval names (Web Speech API, zh-CN)
 - **音程辨认** — Interval challenge with reaction-weighted scoring and mistake-weighted question selection
 - **音级辨识** — Identify scale degrees in random major keys, with optional mistake review mode
-- **猜和弦** — Identify diatonic triad degrees with guided key establishment, replay and comparison tools, progressive difficulty, and per-degree error history
+- **猜和弦** — Identify diatonic triad degrees with guided key establishment, custom degree sets, replay and comparison tools, progressive difficulty, and per-degree error history
 - **和弦进行** — Build harmonic intuition by looping configurable diatonic progressions
 
 Progress (mistake stats, best records, session history) is stored in `localStorage`. Piano samples load from CDN via [smplr](https://github.com/danigb/smplr) on first use.

@@ -5,8 +5,11 @@ describe('getChordDegreesForRange', () => {
   it('provides progressive chord-degree sets', () => {
     expect(getChordDegreesForRange('primary')).toEqual([1, 4, 5])
     expect(getChordDegreesForRange('common')).toEqual([1, 4, 5, 6])
-    expect(getChordDegreesForRange('major-key')).toEqual([1, 2, 3, 4, 5, 6])
     expect(getChordDegreesForRange('all')).toEqual([1, 2, 3, 4, 5, 6, 7])
+  })
+
+  it('normalizes a custom chord-degree set', () => {
+    expect(getChordDegreesForRange('custom', [6, 2, 3, 6, 8])).toEqual([2, 3, 6])
   })
 })
 
