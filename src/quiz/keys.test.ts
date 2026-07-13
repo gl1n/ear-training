@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   EMPTY_SESSION_STATS,
   getSessionDegreeWeights,
@@ -109,6 +109,7 @@ function consecutiveSameDegreeRate(
   rootMin: number,
   rootMax: number,
   trials: number,
+  useSessionWeighting: boolean,
 ): number {
   let sameDegreeCount = 0
   let stats = EMPTY_SESSION_STATS
@@ -120,7 +121,7 @@ function consecutiveSameDegreeRate(
       rootMin,
       rootMax,
       previousNoteMidi,
-      getSessionDegreeWeights(stats),
+      useSessionWeighting ? getSessionDegreeWeights(stats) : undefined,
     )
     if (
       previousNoteMidi !== null &&
@@ -134,6 +135,20 @@ function consecutiveSameDegreeRate(
   }
 
   return sameDegreeCount / (trials - 1)
+}
+
+function withSeededRandom<T>(seed: number, run: () => T): T {
+  let state = seed >>> 0
+  const random = vi.spyOn(Math, 'random').mockImplementation(() => {
+    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0
+    return state / 2 ** 32
+  })
+
+  try {
+    return run()
+  } finally {
+    random.mockRestore()
+  }
 }
 
 function averageDistanceFromPrevious(
@@ -167,15 +182,27 @@ describe('randomScaleDegreeQuiz', () => {
     }
   })
 
-  it('rarely repeats the same scale degree consecutively with session weighting', () => {
+  it('reduces consecutive scale-degree repeats with session weighting', () => {
     const session = { tonicMidi: 60, tonicPitchClass: 0, label: 'C 大调' }
     const rootMin = 48
     const rootMax = 85
-    const uniformSameDegreeRate = 1 / 7
+    const seeds = [0x1234_5678, 0x9abc_def0, 0xdead_beef]
+    const trials = 2_000
+    const averageRate = (useSessionWeighting: boolean) => seeds.reduce(
+      (total, seed) => total + withSeededRandom(
+        seed,
+        () => consecutiveSameDegreeRate(
+          session,
+          rootMin,
+          rootMax,
+          trials,
+          useSessionWeighting,
+        ),
+      ),
+      0,
+    ) / seeds.length
 
-    expect(consecutiveSameDegreeRate(session, rootMin, rootMax, 400)).toBeLessThan(
-      uniformSameDegreeRate,
-    )
+    expect(averageRate(true)).toBeLessThan(averageRate(false))
   })
 
   it('prefers moderate jumps from the previous note after picking a degree', () => {
