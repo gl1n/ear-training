@@ -18,7 +18,7 @@ import type { ScaleDegreeMelodyMistakeStatsStore } from '../quiz/scaleDegreeMelo
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
 import type { PracticeEncouragement } from './practice/types'
 import type { LoadStatusProps } from './practice/viewProps'
-import type { ChordDegree, ChordKey, ChordRhythm, PlayedChord } from '../quiz/chordProgression'
+import type { ChordDegree, ChordKey, ChordPlaybackMode, ChordRhythm, PlayedChord, RandomChordSettings } from '../quiz/chordProgression'
 import { ChordProgressionPanel } from './ChordProgressionPanel'
 import { SessionGoalControl } from './practice/SessionGoalControl'
 import { getChordDegreesForRange, type ChordDegreeHistory, type ChordDegreeInversionMode, type ChordDegreeKey, type ChordDegreeQuiz, type ChordDegreeRange } from '../quiz/chordDegreeQuiz'
@@ -89,6 +89,10 @@ type PracticeViewProps = {
   onChordKeyChange: (key: ChordKey) => void
   chordMelodyEnabled: boolean
   onChordMelodyEnabledChange: (enabled: boolean) => void
+  chordPlaybackMode: ChordPlaybackMode
+  onChordPlaybackModeChange: (mode: ChordPlaybackMode) => void
+  randomChordSettings: RandomChordSettings
+  onRandomChordSettingsChange: (settings: RandomChordSettings) => void
   chordDegreeQuiz: ChordDegreeQuiz | null
   chordDegreeHistory: ChordDegreeHistory
   chordDegreeKey: ChordDegreeKey
@@ -160,6 +164,10 @@ export function PracticeView({
   onChordKeyChange,
   chordMelodyEnabled,
   onChordMelodyEnabledChange,
+  chordPlaybackMode,
+  onChordPlaybackModeChange,
+  randomChordSettings,
+  onRandomChordSettingsChange,
   chordCountIn,
   onChordRhythmChange,
   chordDegreeQuiz,
@@ -266,7 +274,7 @@ export function PracticeView({
       ) : mode === 'chordDegree' ? (
         isRunning ? <ChordDegreePlayfield state={state} sessionStats={sessionStats} quiz={chordDegreeQuiz} wrongSelection={correctionWrongSelection} optionDegrees={chordDegreeOptions} replayCount={chordDegreeReplayCount} onSelect={onAnswerSelect} onPlayDo={onPlayChordDo} onPlayChord={onPlayChordQuiz} onPlaySequence={onPlayChordSequence} onPlaySelected={onPlaySelectedChord} onPlayComparison={onPlayChordComparison} /> : <ChordDegreeIdlePanel quiz={chordDegreeQuiz} sessionStats={sessionStats} history={chordDegreeHistory} sessionCompleted={sessionCompleted} selectedKey={chordDegreeKey} range={chordDegreeRange} customDegrees={chordDegreeCustomDegrees} inversionMode={chordDegreeInversionMode} onKeyChange={onChordDegreeKeyChange} onRangeChange={onChordDegreeRangeChange} onCustomDegreesChange={onChordDegreeCustomDegreesChange} onInversionModeChange={onChordDegreeInversionModeChange} onApplyPreset={onApplyChordDegreePreset} onPlayDo={onPlayChordDo} />
       ) : mode === 'chordProgression' ? (
-        <ChordProgressionPanel degrees={chordDegrees} currentChord={currentChord} currentPosition={currentChordPosition} state={state} isRunning={isRunning} onDegreeChange={onChordDegreeChange} onDegreesChange={onChordDegreesChange} rhythm={chordRhythm} currentBeat={currentChordBeat} isCountIn={chordCountIn} onRhythmChange={onChordRhythmChange} selectedKey={chordKey} activeKeyLabel={activeChordKeyLabel} onKeyChange={onChordKeyChange} melodyEnabled={chordMelodyEnabled} onMelodyEnabledChange={onChordMelodyEnabledChange} />
+        <ChordProgressionPanel degrees={chordDegrees} currentChord={currentChord} currentPosition={currentChordPosition} state={state} isRunning={isRunning} onDegreeChange={onChordDegreeChange} onDegreesChange={onChordDegreesChange} rhythm={chordRhythm} currentBeat={currentChordBeat} isCountIn={chordCountIn} onRhythmChange={onChordRhythmChange} selectedKey={chordKey} activeKeyLabel={activeChordKeyLabel} onKeyChange={onChordKeyChange} melodyEnabled={chordMelodyEnabled} onMelodyEnabledChange={onChordMelodyEnabledChange} playbackMode={chordPlaybackMode} onPlaybackModeChange={onChordPlaybackModeChange} randomSettings={randomChordSettings} onRandomSettingsChange={onRandomChordSettingsChange} />
       ) : mode === 'intervalSpeed' ? (
         isRunning && enabledIntervalIds.length > 0 ? (
           <IntervalSpeedPlayfield

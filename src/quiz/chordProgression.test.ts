@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { chordToneMelody } from './chordProgression'
+import { chordToneMelody, randomEarTrainingChord } from './chordProgression'
 
 describe('chordToneMelody', () => {
   it('uses only chord tones above the played chord', () => {
@@ -20,5 +20,44 @@ describe('chordToneMelody', () => {
 
   it('returns no notes when there are no melody beats', () => {
     expect(chordToneMelody([48, 52, 55], 0)).toEqual([])
+  })
+})
+
+describe('randomEarTrainingChord', () => {
+  it('keeps the theoretical root when the chord is inverted', () => {
+    const chord = randomEarTrainingChord(
+      { qualities: ['triad'], inversions: [2] },
+      48,
+      () => 0,
+    )
+
+    expect(chord.degree).toBe(1)
+    expect(chord.midis).toEqual([55, 60, 64])
+    expect(chord.rootMidi).toBe(48)
+    expect(chord.inversion).toBe(2)
+  })
+
+  it('supports third-inversion seventh chords', () => {
+    const chord = randomEarTrainingChord(
+      { qualities: ['seventh'], inversions: [3] },
+      48,
+      () => 0,
+    )
+
+    expect(chord.midis).toEqual([59, 60, 64, 67])
+    expect(chord.rootMidi).toBe(48)
+    expect(chord.quality).toBe('seventh')
+    expect(chord.inversion).toBe(3)
+  })
+
+  it('never applies third inversion to a triad', () => {
+    const chord = randomEarTrainingChord(
+      { qualities: ['triad', 'seventh'], inversions: [3] },
+      48,
+      () => 0,
+    )
+
+    expect(chord.quality).toBe('seventh')
+    expect(chord.inversion).toBe(3)
   })
 })

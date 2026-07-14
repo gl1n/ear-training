@@ -29,7 +29,7 @@ import type { SettingsPanelProps } from './SettingsPanel'
 import { PracticeView } from './PracticeView'
 import type { PracticeEncouragement } from './practice/types'
 import { SettingsDrawer } from './SettingsDrawer'
-import { chordKeyLabel, runChordProgressionLoop, type ChordDegree, type ChordKey, type ChordRhythm, type PlayedChord } from '../quiz/chordProgression'
+import { chordKeyLabel, runChordProgressionLoop, runRandomChordEarLoop, type ChordDegree, type ChordKey, type ChordPlaybackMode, type ChordRhythm, type PlayedChord, type RandomChordSettings } from '../quiz/chordProgression'
 import { CHORD_DEGREE_PLAYBACK_DURATION_SEC, CHORD_DEGREE_RETRIGGER_GAP_MS, createChordMidis, getChordDegreesForRange, loadChordDegreeHistory, randomChordDegreeTonicMidi, recordChordDegreeHistory, runChordDegreeLoop, type ChordDegreeHistory, type ChordDegreeId, type ChordDegreeInversionMode, type ChordDegreeKey, type ChordDegreeQuiz, type ChordDegreeRange } from '../quiz/chordDegreeQuiz'
 import { recordChallengeResultNoBonus } from '../quiz/stats'
 
@@ -66,6 +66,11 @@ export function Trainer() {
   const [chordCountIn, setChordCountIn] = useState(false)
   const [chordKey, setChordKey] = useState<ChordKey>('random')
   const [chordMelodyEnabled, setChordMelodyEnabled] = useState(false)
+  const [chordPlaybackMode, setChordPlaybackMode] = useState<ChordPlaybackMode>('progression')
+  const [randomChordSettings, setRandomChordSettings] = useState<RandomChordSettings>({
+    qualities: ['triad', 'seventh'],
+    inversions: [0, 1, 2, 3],
+  })
   const [activeChordKeyLabel, setActiveChordKeyLabel] = useState<string | null>(null)
   const [chordDegreeQuiz, setChordDegreeQuiz] = useState<ChordDegreeQuiz | null>(null)
   const [chordDegreeHistory, setChordDegreeHistory] = useState<ChordDegreeHistory>(() => loadChordDegreeHistory())
@@ -320,18 +325,33 @@ export function Trainer() {
       } else if (mode === 'chordProgression') {
         const pitchClass = chordKey === 'random' ? Math.floor(Math.random() * 12) : chordKey
         setActiveChordKeyLabel(chordKeyLabel(pitchClass))
-        await runChordProgressionLoop(piano, chordDegrees, chordRhythm, {
-          onChord: (chord, position) => {
-            setChordCountIn(false)
-            setCurrentChord(chord)
-            setCurrentChordPosition(position)
-            handleTrainerStateChange('playing_harmonic')
-          },
-          onBeat: (beat, isCountIn) => {
-            setCurrentChordBeat(beat)
-            setChordCountIn(isCountIn)
-          },
-        }, controller.signal, 48 + pitchClass, chordMelodyEnabled)
+        const onBeat = (beat: number, isCountIn: boolean) => {
+          setCurrentChordBeat(beat)
+          setChordCountIn(isCountIn)
+        }
+        if (chordPlaybackMode === 'random-ear') {
+          await runRandomChordEarLoop(piano, randomChordSettings, chordRhythm, {
+            onChord: (chord) => {
+              setChordCountIn(false)
+              setCurrentChord(chord)
+              setCurrentChordPosition(-1)
+            },
+            onBeat,
+            onPhase: (phase) => handleTrainerStateChange(
+              phase === 'chord' ? 'playing_harmonic' : phase === 'root' ? 'playing_root' : 'gap',
+            ),
+          }, controller.signal, 48 + pitchClass)
+        } else {
+          await runChordProgressionLoop(piano, chordDegrees, chordRhythm, {
+            onChord: (chord, position) => {
+              setChordCountIn(false)
+              setCurrentChord(chord)
+              setCurrentChordPosition(position)
+              handleTrainerStateChange('playing_harmonic')
+            },
+            onBeat,
+          }, controller.signal, 48 + pitchClass, chordMelodyEnabled)
+        }
       } else if (mode === 'intervalSpeed') {
         await runIntervalSpeedLoop(
           piano,
@@ -430,6 +450,8 @@ export function Trainer() {
     chordRhythm,
     chordKey,
     chordMelodyEnabled,
+    chordPlaybackMode,
+    randomChordSettings,
     chordDegreeKey,
     chordDegreeRange,
     chordDegreeCustomDegrees,
@@ -734,6 +756,10 @@ export function Trainer() {
         onChordKeyChange={setChordKey}
         chordMelodyEnabled={chordMelodyEnabled}
         onChordMelodyEnabledChange={setChordMelodyEnabled}
+        chordPlaybackMode={chordPlaybackMode}
+        onChordPlaybackModeChange={setChordPlaybackMode}
+        randomChordSettings={randomChordSettings}
+        onRandomChordSettingsChange={setRandomChordSettings}
         chordDegreeQuiz={chordDegreeQuiz}
         chordDegreeHistory={chordDegreeHistory}
         chordDegreeKey={chordDegreeKey}

@@ -3,6 +3,14 @@ import { delay } from '../utils/abort'
 
 export type ChordDegree = 1 | 2 | 3 | 4 | 5 | 6 | 7
 export type ChordKey = 'random' | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11
+export type ChordPlaybackMode = 'progression' | 'random-ear'
+export type RandomChordQuality = 'triad' | 'seventh'
+export type ChordInversion = 0 | 1 | 2 | 3
+
+export type RandomChordSettings = {
+  qualities: RandomChordQuality[]
+  inversions: ChordInversion[]
+}
 
 export const CHORD_KEY_OPTIONS: { value: ChordKey; label: string }[] = [
   { value: 'random', label: '随机（每次开始）' },
@@ -19,6 +27,9 @@ export type PlayedChord = {
   degree: ChordDegree
   name: string
   midis: number[]
+  rootMidi: number
+  quality: RandomChordQuality | 'add9'
+  inversion: ChordInversion
 }
 
 export type ChordRhythm = {
@@ -67,20 +78,107 @@ export function randomChordForDegree(degree: ChordDegree, tonic = 48): PlayedCho
   const choice = choices[Math.floor(Math.random() * choices.length)]
   let intervals = [...triad]
   let suffix = ''
+  let quality: PlayedChord['quality'] = 'triad'
+  let inversion: ChordInversion = 0
 
   if (choice === 'seventh') {
     intervals.push(SEVENTHS[index])
     suffix = '7'
+    quality = 'seventh'
   } else if (choice === 'add9') {
     intervals.push(14)
     suffix = 'add9'
+    quality = 'add9'
   } else if (choice === 'inversion') {
-    const inversion = Math.random() < 0.5 ? 1 : 2
+    inversion = Math.random() < 0.5 ? 1 : 2
     intervals = invert(intervals.map((value) => root + value), inversion).map((midi) => midi - root)
     suffix = inversion === 1 ? '/3' : '/5'
   }
 
-  return { degree, name: `${DEGREE_NAMES[index]}${suffix}`, midis: intervals.map((value) => root + value) }
+  return {
+    degree,
+    name: `${DEGREE_NAMES[index]}${suffix}`,
+    midis: intervals.map((value) => root + value),
+    rootMidi: root,
+    quality,
+    inversion,
+  }
+}
+
+export function randomEarTrainingChord(
+  settings: RandomChordSettings,
+  tonic = 48,
+  random = Math.random,
+): PlayedChord {
+  const candidates = settings.qualities.flatMap((quality) =>
+    settings.inversions
+      .filter((inversion) => quality === 'seventh' || inversion <= 2)
+      .map((inversion) => ({ quality, inversion })),
+  )
+
+  if (candidates.length === 0) {
+    throw new Error('请至少选择一种有效的和弦与转位组合')
+  }
+
+  const degree = (Math.floor(random() * 7) + 1) as ChordDegree
+  const index = degree - 1
+  const rootMidi = tonic + ROOT_OFFSETS[index]
+  const choice = candidates[Math.floor(random() * candidates.length)]
+  const baseIntervals = choice.quality === 'seventh'
+    ? [...TRIADS[index], SEVENTHS[index]]
+    : [...TRIADS[index]]
+  const midis = invert(baseIntervals.map((interval) => rootMidi + interval), choice.inversion)
+  const qualitySuffix = choice.quality === 'seventh' ? '7' : ''
+  const inversionSuffix = choice.inversion === 1 ? '/3' : choice.inversion === 2 ? '/5' : choice.inversion === 3 ? '/7' : ''
+
+  return {
+    degree,
+    name: `${DEGREE_NAMES[index]}${qualitySuffix}${inversionSuffix}`,
+    midis,
+    rootMidi,
+    quality: choice.quality,
+    inversion: choice.inversion,
+  }
+}
+
+export async function runRandomChordEarLoop(
+  piano: Piano,
+  settings: RandomChordSettings,
+  rhythm: ChordRhythm,
+  callbacks: {
+    onChord: (chord: PlayedChord) => void
+    onBeat: (beat: number, isCountIn: boolean) => void
+    onPhase: (phase: 'chord' | 'root' | 'rest') => void
+  },
+  signal: AbortSignal,
+  tonic = 48,
+) {
+  const beatMs = 60_000 / rhythm.bpm
+  for (let beat = 1; beat <= rhythm.countInBeats; beat += 1) {
+    callbacks.onBeat(beat, true)
+    await delay(beatMs, signal)
+  }
+
+  while (!signal.aborted) {
+    const chord = randomEarTrainingChord(settings, tonic)
+    callbacks.onChord(chord)
+    callbacks.onPhase('chord')
+    callbacks.onBeat(1, false)
+    await piano.playNotes(chord.midis, (beatMs * 1.72) / 1000, 78)
+    await delay(beatMs, signal)
+
+    callbacks.onBeat(2, false)
+    await delay(beatMs, signal)
+
+    callbacks.onPhase('root')
+    callbacks.onBeat(3, false)
+    await piano.playNote(chord.rootMidi, (beatMs * 0.72) / 1000, 76)
+    await delay(beatMs, signal)
+
+    callbacks.onPhase('rest')
+    callbacks.onBeat(4, false)
+    await delay(beatMs, signal)
+  }
 }
 
 export async function runChordProgressionLoop(
