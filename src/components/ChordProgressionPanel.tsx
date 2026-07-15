@@ -52,6 +52,16 @@ const INVERSION_OPTIONS: { value: ChordInversion; label: string }[] = [
   { value: 3, label: '第三转位' },
 ]
 
+const DEGREE_OPTIONS: { value: ChordDegree; label: string }[] = [
+  { value: 1, label: 'I' },
+  { value: 2, label: 'ii' },
+  { value: 3, label: 'iii' },
+  { value: 4, label: 'IV' },
+  { value: 5, label: 'V' },
+  { value: 6, label: 'vi' },
+  { value: 7, label: 'vii°' },
+]
+
 export function ChordProgressionPanel({ degrees, currentChord, currentPosition, state, isRunning, onDegreeChange, onDegreesChange, rhythm, currentBeat, isCountIn, onRhythmChange, selectedKey, activeKeyLabel, onKeyChange, melodyEnabled, onMelodyEnabledChange, playbackMode, onPlaybackModeChange, randomSettings, onRandomSettingsChange }: Props) {
   const toggleQuality = (quality: RandomChordQuality) => {
     const selected = randomSettings.qualities.includes(quality)
@@ -63,7 +73,7 @@ export function ChordProgressionPanel({ degrees, currentChord, currentPosition, 
       ? randomSettings.inversions
       : randomSettings.inversions.filter((value) => value !== 3)
     const inversions: ChordInversion[] = validInversions.length > 0 ? validInversions : [0]
-    onRandomSettingsChange({ qualities, inversions })
+    onRandomSettingsChange({ ...randomSettings, qualities, inversions })
   }
 
   const toggleInversion = (inversion: ChordInversion) => {
@@ -73,6 +83,15 @@ export function ChordProgressionPanel({ degrees, currentChord, currentPosition, 
       ? randomSettings.inversions.filter((value) => value !== inversion)
       : [...randomSettings.inversions, inversion].sort()
     onRandomSettingsChange({ ...randomSettings, inversions: inversions as ChordInversion[] })
+  }
+
+  const toggleDegree = (degree: ChordDegree) => {
+    const selected = randomSettings.degrees.includes(degree)
+    if (selected && randomSettings.degrees.length === 1) return
+    const degrees = selected
+      ? randomSettings.degrees.filter((value) => value !== degree)
+      : [...randomSettings.degrees, degree].sort((a, b) => a - b)
+    onRandomSettingsChange({ ...randomSettings, degrees: degrees as ChordDegree[] })
   }
 
   const phaseTitle = isCountIn
@@ -117,6 +136,12 @@ export function ChordProgressionPanel({ degrees, currentChord, currentPosition, 
           })}
         </div>
       </div></> : <div className="mt-8 grid gap-6 border-t border-[var(--border-subtle)] pt-6 sm:grid-cols-2">
+        <fieldset className="sm:col-span-2">
+          <legend className="mb-3 text-sm text-[var(--text-secondary)]">出题范围</legend>
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+            {DEGREE_OPTIONS.map((option) => <label key={option.value} className="flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-3 text-sm"><input type="checkbox" className="h-4 w-4 accent-sky-500" checked={randomSettings.degrees.includes(option.value)} disabled={isRunning} onChange={() => toggleDegree(option.value)} />{option.label}</label>)}
+          </div>
+        </fieldset>
         <fieldset>
           <legend className="mb-3 text-sm text-[var(--text-secondary)]">和弦类型</legend>
           <div className="grid grid-cols-2 gap-2">
@@ -134,12 +159,12 @@ export function ChordProgressionPanel({ degrees, currentChord, currentPosition, 
       <div className="mt-6 grid gap-5 border-t border-[var(--border-subtle)] pt-6 sm:grid-cols-2">
         <label className="text-sm text-[var(--text-secondary)]">调性<select className="mt-2 w-full rounded-lg bg-[var(--bg-elevated)] p-2 text-[var(--text-primary)]" value={selectedKey} disabled={isRunning} onChange={(event) => onKeyChange(event.target.value === 'random' ? 'random' : Number(event.target.value) as ChordKey)}>{CHORD_KEY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
         <label className="text-sm text-[var(--text-secondary)]">速度 <strong className="ml-1 text-[var(--text-primary)]">{rhythm.bpm} BPM</strong><input className="mt-2 w-full accent-sky-400" type="range" min="40" max="160" step="5" value={rhythm.bpm} disabled={isRunning} onChange={(event) => onRhythmChange({ ...rhythm, bpm: Number(event.target.value) })} /></label>
-        {playbackMode === 'progression' ? <label className="text-sm text-[var(--text-secondary)]">每个和弦<select className="mt-2 w-full rounded-lg bg-[var(--bg-elevated)] p-2 text-[var(--text-primary)]" value={rhythm.beatsPerChord} disabled={isRunning} onChange={(event) => onRhythmChange({ ...rhythm, beatsPerChord: Number(event.target.value) as 1 | 2 | 4 })}><option value="1">1 拍</option><option value="2">2 拍</option><option value="4">4 拍（1 小节）</option></select></label> : <div className="text-sm text-[var(--text-secondary)]"><span className="block">每组节奏</span><strong className="mt-2 block rounded-lg bg-[var(--bg-elevated)] p-2 font-medium text-[var(--text-primary)]">和弦 2 拍 · 根音 1 拍 · 呼吸 1 拍</strong></div>}
+        {playbackMode === 'progression' && <><label className="text-sm text-[var(--text-secondary)]">每个和弦<select className="mt-2 w-full rounded-lg bg-[var(--bg-elevated)] p-2 text-[var(--text-primary)]" value={rhythm.beatsPerChord} disabled={isRunning} onChange={(event) => onRhythmChange({ ...rhythm, beatsPerChord: Number(event.target.value) as 1 | 2 | 4 })}><option value="1">1 拍</option><option value="2">2 拍</option><option value="4">4 拍（1 小节）</option></select></label>
         <label className="text-sm text-[var(--text-secondary)]">开始方式<select className="mt-2 w-full rounded-lg bg-[var(--bg-elevated)] p-2 text-[var(--text-primary)]" value={rhythm.countInBeats} disabled={isRunning} onChange={(event) => onRhythmChange({ ...rhythm, countInBeats: Number(event.target.value) as 0 | 4 })}><option value="0">立即播放</option><option value="4">1 小节预备拍</option></select></label>
-        {playbackMode === 'progression' && <label className="flex items-center gap-3 text-sm text-[var(--text-secondary)] sm:col-span-2">
+        <label className="flex items-center gap-3 text-sm text-[var(--text-secondary)] sm:col-span-2">
           <input type="checkbox" className="h-5 w-5 shrink-0 accent-sky-500" checked={melodyEnabled} disabled={isRunning} onChange={(event) => onMelodyEnabledChange(event.target.checked)} />
           <span><strong className="block text-[var(--text-primary)]">和弦内旋律</strong>在持续和弦上方加入基础三和弦旋律音</span>
-        </label>}
+        </label></>}
       </div>
       <p className="mt-5 text-center text-sm leading-6 text-[var(--text-secondary)]">{playbackMode === 'random-ear' ? '每轮都会重新随机级数、和弦类型与有效转位。' : '每组支持 4–8 个和弦；默认立即播放，也可启用一小节预备拍。'}</p>
     </Card>

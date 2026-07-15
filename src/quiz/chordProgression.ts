@@ -8,6 +8,7 @@ export type RandomChordQuality = 'triad' | 'seventh'
 export type ChordInversion = 0 | 1 | 2 | 3
 
 export type RandomChordSettings = {
+  degrees: ChordDegree[]
   qualities: RandomChordQuality[]
   inversions: ChordInversion[]
 }
@@ -120,7 +121,11 @@ export function randomEarTrainingChord(
     throw new Error('请至少选择一种有效的和弦与转位组合')
   }
 
-  const degree = (Math.floor(random() * 7) + 1) as ChordDegree
+  if (settings.degrees.length === 0) {
+    throw new Error('请至少选择一个和弦级数')
+  }
+
+  const degree = settings.degrees[Math.floor(random() * settings.degrees.length)]
   const index = degree - 1
   const rootMidi = tonic + ROOT_OFFSETS[index]
   const choice = candidates[Math.floor(random() * candidates.length)]
@@ -154,11 +159,6 @@ export async function runRandomChordEarLoop(
   tonic = 48,
 ) {
   const beatMs = 60_000 / rhythm.bpm
-  for (let beat = 1; beat <= rhythm.countInBeats; beat += 1) {
-    callbacks.onBeat(beat, true)
-    await delay(beatMs, signal)
-  }
-
   while (!signal.aborted) {
     const chord = randomEarTrainingChord(settings, tonic)
     callbacks.onChord(chord)

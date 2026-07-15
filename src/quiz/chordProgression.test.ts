@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { chordToneMelody, randomEarTrainingChord } from './chordProgression'
+import { chordToneMelody, randomEarTrainingChord, type RandomChordSettings } from './chordProgression'
 
 describe('chordToneMelody', () => {
   it('uses only chord tones above the played chord', () => {
@@ -26,7 +26,7 @@ describe('chordToneMelody', () => {
 describe('randomEarTrainingChord', () => {
   it('keeps the theoretical root when the chord is inverted', () => {
     const chord = randomEarTrainingChord(
-      { qualities: ['triad'], inversions: [2] },
+      { degrees: [1], qualities: ['triad'], inversions: [2] },
       48,
       () => 0,
     )
@@ -39,7 +39,7 @@ describe('randomEarTrainingChord', () => {
 
   it('supports third-inversion seventh chords', () => {
     const chord = randomEarTrainingChord(
-      { qualities: ['seventh'], inversions: [3] },
+      { degrees: [1], qualities: ['seventh'], inversions: [3] },
       48,
       () => 0,
     )
@@ -52,12 +52,23 @@ describe('randomEarTrainingChord', () => {
 
   it('never applies third inversion to a triad', () => {
     const chord = randomEarTrainingChord(
-      { qualities: ['triad', 'seventh'], inversions: [3] },
+      { degrees: [1], qualities: ['triad', 'seventh'], inversions: [3] },
       48,
       () => 0,
     )
 
     expect(chord.quality).toBe('seventh')
     expect(chord.inversion).toBe(3)
+  })
+
+  it('only picks degrees from the configured range', () => {
+    const settings: RandomChordSettings = {
+      degrees: [2, 5],
+      qualities: ['triad'],
+      inversions: [0],
+    }
+
+    expect(randomEarTrainingChord(settings, 48, () => 0).degree).toBe(2)
+    expect(randomEarTrainingChord(settings, 48, () => 0.99).degree).toBe(5)
   })
 })

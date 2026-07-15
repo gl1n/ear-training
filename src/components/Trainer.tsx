@@ -68,6 +68,7 @@ export function Trainer() {
   const [chordMelodyEnabled, setChordMelodyEnabled] = useState(false)
   const [chordPlaybackMode, setChordPlaybackMode] = useState<ChordPlaybackMode>('progression')
   const [randomChordSettings, setRandomChordSettings] = useState<RandomChordSettings>({
+    degrees: [1, 2, 3, 4, 5, 6, 7],
     qualities: ['triad', 'seventh'],
     inversions: [0, 1, 2, 3],
   })
