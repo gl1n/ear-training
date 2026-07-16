@@ -263,6 +263,14 @@ a {
     rgba(4, 4, 4, 0.4);
 }
 
+.fretboard-focus-shell--fullscreen {
+  padding:
+    max(0.5rem, env(safe-area-inset-top))
+    max(0.5rem, env(safe-area-inset-right))
+    max(0.5rem, env(safe-area-inset-bottom))
+    max(0.5rem, env(safe-area-inset-left));
+}
+
 .fretboard-grid {
   display: grid;
   /* Equal-tempered fret spacing: each successive fret is 2^(-1/12) shorter. */
@@ -400,6 +408,18 @@ a {
 @media (max-width: 520px) {
   .fretboard-grid-wrap { --fretboard-row-height: 3.25rem; }
   .fretboard-cell span { min-width: 1.5rem; min-height: 1.5rem; font-size: 0.65rem; }
+  .fretboard-trainer-heading { align-items: center; }
+  .fretboard-tuning-label { display: none; }
+}
+
+@media (max-width: 720px) and (orientation: portrait) {
+  .fretboard-focus-shell--fullscreen {
+    top: 50%;
+    left: 50%;
+    width: 100dvh;
+    height: 100vw;
+    transform: translate(-50%, -50%) rotate(90deg);
+  }
 }
 
 :focus-visible {

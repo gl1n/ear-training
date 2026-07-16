@@ -75,6 +75,58 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
   const deadlineRef = useRef(0)
   const questionStartedAtRef = useRef(0)
   const feedbackTimerRef = useRef<number | null>(null)
+  const fullscreenRef = useRef<HTMLDivElement | null>(null)
+  const [fullscreen, setFullscreen] = useState(false)
+
+  const exitFullscreen = useCallback(async () => {
+    setFullscreen(false)
+    try {
+      screen.orientation.unlock()
+    } catch {
+      // Direction locking is optional and is not available in every browser.
+    }
+    if (document.fullscreenElement) {
+      await document.exitFullscreen().catch(() => undefined)
+    }
+  }, [])
+
+  const enterFullscreen = useCallback(async () => {
+    setFullscreen(true)
+    const container = fullscreenRef.current
+    if (container?.requestFullscreen && !document.fullscreenElement) {
+      await container.requestFullscreen({ navigationUI: 'hide' }).catch(() => undefined)
+    }
+    try {
+      await screen.orientation.lock('landscape')
+    } catch {
+      // CSS rotates the layout on portrait phones when orientation lock is unavailable.
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) setFullscreen(false)
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && fullscreen) void exitFullscreen()
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [exitFullscreen, fullscreen])
+
+  useEffect(() => {
+    if (!fullscreen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [fullscreen])
 
   const clearFeedbackTimer = useCallback(() => {
     if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current)
@@ -192,63 +244,78 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
         ))}
       </section>
 
-      <Card className="overflow-hidden border-amber-300/15 bg-[linear-gradient(145deg,rgba(251,191,36,.08),rgba(255,255,255,.025))] p-4 sm:p-6">
-        <div className="mb-5 flex h-[5.25rem] items-end justify-between gap-3">
-          {roundActive ? (
-            <div>
-              <p className="text-xs font-semibold tracking-[0.16em] text-amber-300">{formatRegion(question.region)}</p>
-              <div className="mt-1 flex items-baseline gap-3">
-                <h2 className="text-xl font-semibold text-white">找到这个音</h2>
-                <span className="text-4xl font-black tracking-tight text-amber-300 sm:text-5xl">{question.targetNote}</span>
+      <div ref={fullscreenRef} className={`fretboard-focus-shell${fullscreen ? ' fretboard-focus-shell--fullscreen fixed inset-0 z-[100] h-dvh w-screen overflow-hidden bg-[#080d14]' : ''}`}>
+        <Card className={`overflow-hidden border-amber-300/15 bg-[linear-gradient(145deg,rgba(251,191,36,.08),rgba(255,255,255,.025))] p-4 sm:p-6 ${fullscreen ? 'flex h-full flex-col rounded-xl !p-3' : ''}`}>
+          <div className={`fretboard-trainer-heading flex items-end justify-between gap-3 ${fullscreen ? 'mb-2 min-h-14' : 'mb-5 min-h-[5.25rem]'}`}>
+            {roundActive ? (
+              <div>
+                <p className="text-xs font-semibold tracking-[0.16em] text-amber-300">{formatRegion(question.region)}</p>
+                <div className="mt-1 flex items-baseline gap-3">
+                  <h2 className={`${fullscreen ? 'text-base' : 'text-xl'} font-semibold text-white`}>找到这个音</h2>
+                  <span className={`${fullscreen ? 'text-3xl' : 'text-4xl sm:text-5xl'} font-black tracking-tight text-amber-300`}>{question.targetNote}</span>
+                </div>
               </div>
+            ) : (
+              <div>
+                <p className="text-xs font-semibold tracking-[0.16em] text-amber-300">指板定位训练</p>
+                <h2 className="mt-1 text-xl font-semibold text-white">{phase === 'finished' ? '本轮已结束' : '准备开始'}</h2>
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">点击指板可自由试音，开始后将显示随机区域与目标音</p>
+              </div>
+            )}
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <button
+                type="button"
+                className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs font-bold text-amber-200 transition hover:border-amber-300/50 hover:bg-amber-300/15"
+                onClick={() => void (fullscreen ? exitFullscreen() : enterFullscreen())}
+                aria-label={fullscreen ? '退出全屏指板' : '横屏全屏显示指板'}
+                aria-pressed={fullscreen}
+              >
+                <span aria-hidden="true">{fullscreen ? '↙' : '↗'}</span>
+                {fullscreen ? '退出全屏' : '横屏全屏'}
+              </button>
+              <p className={`${fullscreen ? 'hidden' : 'fretboard-tuning-label'} text-xs text-[var(--text-secondary)]`}>标准调弦 · 点按正确品格</p>
             </div>
-          ) : (
-            <div>
-              <p className="text-xs font-semibold tracking-[0.16em] text-amber-300">指板定位训练</p>
-              <h2 className="mt-1 text-xl font-semibold text-white">{phase === 'finished' ? '本轮已结束' : '准备开始'}</h2>
-              <p className="mt-1 text-sm text-[var(--text-secondary)]">点击指板可自由试音，开始后将显示随机区域与目标音</p>
-            </div>
-          )}
-          <p className="shrink-0 text-xs text-[var(--text-secondary)]">标准调弦 · 点按正确品格</p>
-        </div>
-
-        <FretboardBoard
-          question={question}
-          showQuestion={roundActive}
-          canAnswer={phase === 'playing'}
-          revealAnswer={phase === 'feedback'}
-          wrongCellKey={wrongCellKey}
-          pluck={pluck}
-          mistakeHeatmap={showStats ? mistakeHeatmap : {}}
-          onSelect={handleCellClick}
-        />
-        {showStats && stats.answers.length > 0 && (
-          <div className="mt-3 flex items-center justify-end gap-2 text-xs text-[var(--text-secondary)]" aria-label="错题热力图图例">
-            <span>错题位置</span>
-            <span className="h-2.5 w-16 rounded-full bg-gradient-to-r from-red-500/10 to-red-500/80" aria-hidden="true" />
-            <span>越红错误率越高 · 近 48 小时</span>
           </div>
-        )}
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/8 pt-4">
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--text-secondary)]">
-            <input
-              type="checkbox"
-              checked={continuous}
-              onChange={(event) => setContinuous(event.target.checked)}
-              disabled={roundActive}
-              className="size-4 accent-amber-300"
-            />
-            连续模式（不计时）
-          </label>
-          {roundActive ? (
-            <Button variant="ghost" onClick={finishGame}>结束本轮</Button>
-          ) : (
-            <Button onClick={startGame} className="bg-amber-400 text-slate-950 hover:bg-amber-300">
-              {phase === 'finished' ? '再来一轮' : '开始训练'}
-            </Button>
+
+          <FretboardBoard
+            question={question}
+            showQuestion={roundActive}
+            canAnswer={phase === 'playing'}
+            revealAnswer={phase === 'feedback'}
+            wrongCellKey={wrongCellKey}
+            pluck={pluck}
+            mistakeHeatmap={showStats ? mistakeHeatmap : {}}
+            fullscreen={fullscreen}
+            onSelect={handleCellClick}
+          />
+          {showStats && stats.answers.length > 0 && (
+            <div className={`${fullscreen ? 'hidden' : 'mt-3 flex'} items-center justify-end gap-2 text-xs text-[var(--text-secondary)]`} aria-label="错题热力图图例">
+              <span>错题位置</span>
+              <span className="h-2.5 w-16 rounded-full bg-gradient-to-r from-red-500/10 to-red-500/80" aria-hidden="true" />
+              <span>越红错误率越高 · 近 48 小时</span>
+            </div>
           )}
-        </div>
-      </Card>
+          <div className={`flex flex-wrap items-center justify-between gap-3 border-t border-white/8 ${fullscreen ? 'mt-2 pt-2' : 'mt-5 pt-4'}`}>
+            <label className={`${fullscreen ? 'hidden' : 'flex'} cursor-pointer items-center gap-2 text-sm text-[var(--text-secondary)]`}>
+              <input
+                type="checkbox"
+                checked={continuous}
+                onChange={(event) => setContinuous(event.target.checked)}
+                disabled={roundActive}
+                className="size-4 accent-amber-300"
+              />
+              连续模式（不计时）
+            </label>
+            {roundActive ? (
+              <Button variant="ghost" onClick={finishGame}>结束本轮</Button>
+            ) : (
+              <Button onClick={startGame} className="bg-amber-400 text-slate-950 hover:bg-amber-300">
+                {phase === 'finished' ? '再来一轮' : '开始训练'}
+              </Button>
+            )}
+          </div>
+        </Card>
+      </div>
 
       {phase === 'finished' && (
         <Card className="border-emerald-300/15 bg-emerald-300/[0.045] p-5 text-center">

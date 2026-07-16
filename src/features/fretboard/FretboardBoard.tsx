@@ -27,6 +27,7 @@ type FretboardBoardProps = {
   wrongCellKey: string | null
   pluck: FretboardPluck
   mistakeHeatmap?: Record<string, number>
+  fullscreen?: boolean
   onSelect: (cell: FretboardCell, answeredAt: number) => void
 }
 
@@ -194,12 +195,13 @@ export function FretboardBoard({
   wrongCellKey,
   pluck,
   mistakeHeatmap = {},
+  fullscreen = false,
   onSelect,
 }: FretboardBoardProps) {
   return (
-    <div className="w-full pb-2">
-      <div className="fretboard-grid-wrap">
-        <div className="fretboard-grid" role="group" aria-label="六弦十二品完整指板">
+    <div className={`w-full ${fullscreen ? 'flex min-h-0 flex-1' : 'pb-2'}`}>
+      <div className={`fretboard-grid-wrap ${fullscreen ? 'flex min-h-0 flex-1 [--fretboard-header-height:1rem] [--fretboard-row-height:auto]' : ''}`}>
+        <div className={`fretboard-grid ${fullscreen ? 'flex-1 [grid-template-rows:var(--fretboard-header-height)_repeat(6,minmax(0,1fr))]' : ''}`} role="group" aria-label="六弦十二品完整指板">
           <span aria-hidden="true" />
           {Array.from({ length: FRET_COUNT }, (_, index) => (
             <span key={index} className="pb-1 text-center text-[10px] font-medium text-[var(--text-secondary)]">
