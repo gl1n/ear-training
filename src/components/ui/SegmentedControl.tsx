@@ -17,7 +17,7 @@ export function SegmentedControl<T extends string>({
   disabled,
 }: SegmentedControlProps<T>) {
   return (
-    <div className="grid grid-cols-4 gap-1 rounded-xl border border-[var(--border-subtle)] bg-black/20 p-1.5">
+    <div className="grid grid-cols-4 gap-1 rounded-xl border border-[var(--border-subtle)] bg-black/20 p-1.5 sm:grid-cols-7">
       {options.map((option) => (
         <button
           key={option.value}

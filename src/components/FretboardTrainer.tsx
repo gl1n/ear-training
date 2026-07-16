@@ -1,0 +1,255 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  EMPTY_FRETBOARD_STATS,
+  FRETBOARD_NOTE_NAMES,
+  accuracy,
+  averageReactionMs,
+  createFretboardQuestion,
+  formatRegion,
+  recordFretboardAnswer,
+  type FretboardCell,
+  type FretboardQuestion,
+  type FretboardStat,
+  type FretboardStats,
+} from '../quiz/fretboard'
+import { STORAGE_KEYS } from '../quiz/storageKeys'
+import { readStorage, writeStorage } from '../utils/storage'
+import { FretboardBoard, type FretboardPluck } from './FretboardBoard'
+import { Button } from './ui/Button'
+import { Card } from './ui/Card'
+
+type GamePhase = 'idle' | 'playing' | 'feedback' | 'finished'
+
+const ROUND_SECONDS = 60
+const EMPTY_ROUND = { score: 0, streak: 0, bestStreak: 0, answered: 0, totalReactionMs: 0 }
+
+function loadStats(): FretboardStats {
+  try {
+    const raw = readStorage(STORAGE_KEYS.fretboardStats)
+    if (!raw) return EMPTY_FRETBOARD_STATS
+    const parsed = JSON.parse(raw) as Partial<FretboardStats>
+    if (!parsed.notes || !parsed.regions) return EMPTY_FRETBOARD_STATS
+    return { notes: parsed.notes, regions: parsed.regions }
+  } catch {
+    return EMPTY_FRETBOARD_STATS
+  }
+}
+
+function StatLine({ label, stat }: { label: string; stat: FretboardStat }) {
+  return (
+    <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-white/6 py-2.5 last:border-0">
+      <span className="truncate text-sm font-medium text-white">{label}</span>
+      <span className="text-xs tabular-nums text-[var(--text-secondary)]">{Math.round(accuracy(stat) * 100)}%</span>
+      <span className="w-14 text-right text-xs tabular-nums text-[var(--text-secondary)]">{(averageReactionMs(stat) / 1000).toFixed(1)}s</span>
+    </div>
+  )
+}
+
+type FretboardTrainerProps = {
+  onPlayNote: (midi: number) => void
+}
+
+export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
+  const [phase, setPhase] = useState<GamePhase>('idle')
+  const [continuous, setContinuous] = useState(true)
+  const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS)
+  const [question, setQuestion] = useState<FretboardQuestion>(() => createFretboardQuestion())
+  const [round, setRound] = useState(EMPTY_ROUND)
+  const [wrongCellKey, setWrongCellKey] = useState<string | null>(null)
+  const [pluck, setPluck] = useState<FretboardPluck>({ stringIndex: -1, fret: 1, token: 0 })
+  const [stats, setStats] = useState<FretboardStats>(loadStats)
+  const deadlineRef = useRef(0)
+  const questionStartedAtRef = useRef(0)
+  const feedbackTimerRef = useRef<number | null>(null)
+
+  const clearFeedbackTimer = useCallback(() => {
+    if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current)
+    feedbackTimerRef.current = null
+  }, [])
+
+  const finishGame = useCallback(() => {
+    clearFeedbackTimer()
+    setPhase('finished')
+    setTimeLeft(0)
+    setWrongCellKey(null)
+  }, [clearFeedbackTimer])
+
+  const nextQuestion = useCallback(() => {
+    setQuestion(createFretboardQuestion())
+    setWrongCellKey(null)
+    setPhase('playing')
+    questionStartedAtRef.current = performance.now()
+  }, [])
+
+  const startGame = useCallback(() => {
+    clearFeedbackTimer()
+    setQuestion(createFretboardQuestion())
+    setRound(EMPTY_ROUND)
+    setWrongCellKey(null)
+    setTimeLeft(ROUND_SECONDS)
+    deadlineRef.current = performance.now() + ROUND_SECONDS * 1000
+    questionStartedAtRef.current = performance.now()
+    setPhase('playing')
+  }, [clearFeedbackTimer])
+
+  useEffect(() => {
+    if (phase !== 'playing' && phase !== 'feedback') return
+    if (continuous) return
+
+    const timer = window.setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((deadlineRef.current - performance.now()) / 1000))
+      setTimeLeft(remaining)
+      if (remaining === 0) finishGame()
+    }, 100)
+
+    return () => window.clearInterval(timer)
+  }, [continuous, finishGame, phase])
+
+  useEffect(() => () => clearFeedbackTimer(), [clearFeedbackTimer])
+
+  const handleCellClick = useCallback((cell: FretboardCell, answeredAt: number) => {
+    setPluck((current) => ({ stringIndex: cell.stringIndex, fret: cell.fret, token: current.token + 1 }))
+    if (phase !== 'playing') {
+      onPlayNote(cell.midi)
+      return
+    }
+
+    const correct = cell.note === question.targetNote
+    const reactionMs = Math.max(1, Math.round(answeredAt - questionStartedAtRef.current))
+    onPlayNote(cell.midi)
+    setPhase('feedback')
+    setWrongCellKey(correct ? null : `${cell.stringIndex}:${cell.fret}`)
+    setRound((current) => {
+      const streak = correct ? current.streak + 1 : 0
+      return {
+        score: current.score + (correct ? 1 : 0),
+        streak,
+        bestStreak: Math.max(current.bestStreak, streak),
+        answered: current.answered + 1,
+        totalReactionMs: current.totalReactionMs + reactionMs,
+      }
+    })
+    setStats((current) => {
+      const next = recordFretboardAnswer(current, question, correct, reactionMs)
+      writeStorage(STORAGE_KEYS.fretboardStats, JSON.stringify(next))
+      return next
+    })
+
+    clearFeedbackTimer()
+    feedbackTimerRef.current = window.setTimeout(() => {
+      if (!continuous && performance.now() >= deadlineRef.current) finishGame()
+      else nextQuestion()
+    }, correct ? 320 : 500)
+  }, [clearFeedbackTimer, continuous, finishGame, nextQuestion, onPlayNote, phase, question])
+
+  const weakestNotes = useMemo(
+    () => FRETBOARD_NOTE_NAMES
+      .flatMap((note) => stats.notes[note] ? [{ label: note, stat: stats.notes[note] }] : [])
+      .sort((a, b) => accuracy(a.stat) - accuracy(b.stat) || b.stat.attempts - a.stat.attempts)
+      .slice(0, 6),
+    [stats.notes],
+  )
+  const weakestRegions = useMemo(
+    () => Object.entries(stats.regions)
+      .map(([label, stat]) => ({ label: label.replace(/^s/, '').replace(':f', ' 弦 · ').replace('-', '–') + ' 品', stat }))
+      .sort((a, b) => accuracy(a.stat) - accuracy(b.stat) || b.stat.attempts - a.stat.attempts)
+      .slice(0, 4),
+    [stats.regions],
+  )
+  const averageMs = round.answered === 0 ? 0 : round.totalReactionMs / round.answered
+  const roundActive = phase === 'playing' || phase === 'feedback'
+  const showStats = phase === 'idle' || phase === 'finished'
+
+  return (
+    <div className="flex flex-col gap-4">
+      <section className="grid grid-cols-4 gap-2" aria-label="本轮数据">
+        {[
+          { label: continuous ? '模式' : '剩余', value: continuous ? '∞' : `${timeLeft}s` },
+          { label: '得分', value: String(round.score) },
+          { label: '连击', value: String(round.streak) },
+          { label: '平均', value: averageMs ? `${(averageMs / 1000).toFixed(1)}s` : '—' },
+        ].map((item) => (
+          <div key={item.label} className="rounded-xl border border-[var(--border-subtle)] bg-white/[0.035] px-2 py-3 text-center">
+            <p className="text-[10px] font-semibold tracking-wider text-[var(--text-secondary)]">{item.label}</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-white sm:text-2xl">{item.value}</p>
+          </div>
+        ))}
+      </section>
+
+      <Card className="overflow-hidden border-amber-300/15 bg-[linear-gradient(145deg,rgba(251,191,36,.08),rgba(255,255,255,.025))] p-4 sm:p-6">
+        <div className="mb-5 flex h-[5.25rem] items-end justify-between gap-3">
+          {roundActive ? (
+            <div>
+              <p className="text-xs font-semibold tracking-[0.16em] text-amber-300">{formatRegion(question.region)}</p>
+              <div className="mt-1 flex items-baseline gap-3">
+                <h2 className="text-xl font-semibold text-white">找到这个音</h2>
+                <span className="text-4xl font-black tracking-tight text-amber-300 sm:text-5xl">{question.targetNote}</span>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <p className="text-xs font-semibold tracking-[0.16em] text-amber-300">指板定位训练</p>
+              <h2 className="mt-1 text-xl font-semibold text-white">{phase === 'finished' ? '本轮已结束' : '准备开始'}</h2>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">点击指板可自由试音，开始后将显示随机区域与目标音</p>
+            </div>
+          )}
+          <p className="shrink-0 text-xs text-[var(--text-secondary)]">标准调弦 · 点按正确品格</p>
+        </div>
+
+        <FretboardBoard
+          question={question}
+          showQuestion={roundActive}
+          canAnswer={phase === 'playing'}
+          revealAnswer={phase === 'feedback'}
+          wrongCellKey={wrongCellKey}
+          pluck={pluck}
+          onSelect={handleCellClick}
+        />
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/8 pt-4">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--text-secondary)]">
+            <input
+              type="checkbox"
+              checked={continuous}
+              onChange={(event) => setContinuous(event.target.checked)}
+              disabled={roundActive}
+              className="size-4 accent-amber-300"
+            />
+            连续模式（不计时）
+          </label>
+          {roundActive ? (
+            <Button variant="ghost" onClick={finishGame}>结束本轮</Button>
+          ) : (
+            <Button onClick={startGame} className="bg-amber-400 text-slate-950 hover:bg-amber-300">
+              {phase === 'finished' ? '再来一轮' : '开始训练'}
+            </Button>
+          )}
+        </div>
+      </Card>
+
+      {phase === 'finished' && (
+        <Card className="border-emerald-300/15 bg-emerald-300/[0.045] p-5 text-center">
+          <p className="text-xs font-semibold tracking-[0.16em] text-emerald-300">本轮完成</p>
+          <p className="mt-2 text-2xl font-bold">答对 {round.score} 题 · 最长连击 {round.bestStreak}</p>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">共作答 {round.answered} 次，平均反应 {(averageMs / 1000).toFixed(1)} 秒</p>
+        </Card>
+      )}
+
+      {showStats && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card className="p-4 sm:p-5">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="font-semibold">薄弱音名</h3><span className="text-xs text-[var(--text-secondary)]">正确率 · 平均耗时</span>
+            </div>
+            {weakestNotes.length ? weakestNotes.map((item) => <StatLine key={item.label} {...item} />) : <p className="py-6 text-center text-sm text-[var(--text-secondary)]">完成第一轮后显示音名统计</p>}
+          </Card>
+          <Card className="p-4 sm:p-5">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="font-semibold">薄弱区域</h3><span className="text-xs text-[var(--text-secondary)]">正确率 · 平均耗时</span>
+            </div>
+            {weakestRegions.length ? weakestRegions.map((item) => <StatLine key={item.label} {...item} />) : <p className="py-6 text-center text-sm text-[var(--text-secondary)]">每个 3 × 4 区域会独立记录</p>}
+          </Card>
+        </div>
+      )}
+    </div>
+  )
+}

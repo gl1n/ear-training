@@ -1,0 +1,189 @@
+import { useEffect, useRef } from 'react'
+import { midiAt, noteAt, type FretboardCell, type FretboardQuestion } from '../quiz/fretboard'
+
+const STRING_COUNT = 6
+const FRET_COUNT = 12
+const STRING_LABELS = ['1 · E', '2 · B', '3 · G', '4 · D', '5 · A', '6 · E']
+const VIBRATION_DURATION_MS = 800
+
+const BOARD_ROWS = Array.from({ length: STRING_COUNT }, (_, stringIndex) => (
+  Array.from({ length: FRET_COUNT }, (_, index) => {
+    const fret = index + 1
+    return { stringIndex, fret, note: noteAt(stringIndex, fret), midi: midiAt(stringIndex, fret) }
+  })
+))
+
+export type FretboardPluck = {
+  stringIndex: number
+  fret: number
+  token: number
+}
+
+type FretboardBoardProps = {
+  question: FretboardQuestion
+  showQuestion: boolean
+  canAnswer: boolean
+  revealAnswer: boolean
+  wrongCellKey: string | null
+  pluck: FretboardPluck
+  onSelect: (cell: FretboardCell, answeredAt: number) => void
+}
+
+function fretboardCellKey(cell: Pick<FretboardCell, 'stringIndex' | 'fret'>) {
+  return `${cell.stringIndex}:${cell.fret}`
+}
+
+function hasPositionMarker(cell: Pick<FretboardCell, 'stringIndex' | 'fret'>) {
+  if ([3, 5, 7, 9].includes(cell.fret)) return cell.stringIndex === 2
+  return cell.fret === 12 && (cell.stringIndex === 1 || cell.stringIndex === 3)
+}
+
+function fretCenterPosition(fret: number) {
+  const previousWire = 1 - 2 ** (-(fret - 1) / 12)
+  const currentWire = 1 - 2 ** (-fret / 12)
+  return previousWire + currentWire
+}
+
+function isCellInRegion(cell: FretboardCell, question: FretboardQuestion) {
+  return cell.stringIndex >= question.region.stringStart
+    && cell.stringIndex < question.region.stringStart + 3
+    && cell.fret >= question.region.fretStart
+    && cell.fret < question.region.fretStart + 4
+}
+
+function FretboardStringsCanvas({ pluck }: { pluck: FretboardPluck }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    const context = canvas?.getContext('2d')
+    if (!canvas || !context) return
+
+    let animationFrame = 0
+    const startedAt = performance.now()
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const fretIndex = Math.min(FRET_COUNT, Math.max(1, pluck.fret)) - 1
+    const pluckPosition = fretCenterPosition(fretIndex + 1)
+    const soundingLengthRatio = 1 - pluckPosition
+    const pluckAmplitude = 0.45 + 4.35 * soundingLengthRatio ** 0.9
+
+    const draw = (now: number) => {
+      const bounds = canvas.getBoundingClientRect()
+      const width = bounds.width
+      const height = bounds.height
+      if (width <= 0 || height <= 0) return
+
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2)
+      const pixelWidth = Math.round(width * pixelRatio)
+      const pixelHeight = Math.round(height * pixelRatio)
+      if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+        canvas.width = pixelWidth
+        canvas.height = pixelHeight
+      }
+
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
+      context.clearRect(0, 0, width, height)
+
+      const elapsed = (now - startedAt) / 1000
+      const vibrating = pluck.token > 0 && elapsed * 1000 < VIBRATION_DURATION_MS && !reducedMotion
+
+      for (let stringIndex = 0; stringIndex < STRING_COUNT; stringIndex += 1) {
+        const restingY = (stringIndex + 0.5) * height / STRING_COUNT
+        context.beginPath()
+
+        if (vibrating && stringIndex === pluck.stringIndex) {
+          const contactX = pluckPosition * width
+          const envelope = Math.exp(-5.8 * elapsed)
+          context.moveTo(0, restingY)
+          context.lineTo(contactX, restingY)
+          for (let x = contactX; x < width; x += 2) {
+            const position = (x - contactX) / (width - contactX)
+            const fundamental = Math.sin(Math.PI * position) * Math.cos(2 * Math.PI * 8 * elapsed)
+            const overtone = 0.18 * Math.sin(2 * Math.PI * position) * Math.cos(2 * Math.PI * 12.8 * elapsed)
+            context.lineTo(x, restingY + pluckAmplitude * envelope * (fundamental + overtone))
+          }
+          context.lineTo(width, restingY)
+        } else {
+          context.moveTo(0, restingY)
+          context.lineTo(width, restingY)
+        }
+
+        context.strokeStyle = 'rgba(226, 232, 240, 0.82)'
+        context.lineWidth = 1 + stringIndex * 0.32
+        context.stroke()
+      }
+
+      if (vibrating) animationFrame = window.requestAnimationFrame(draw)
+    }
+
+    const resizeObserver = new ResizeObserver(() => draw(performance.now()))
+    resizeObserver.observe(canvas)
+    draw(startedAt)
+
+    return () => {
+      resizeObserver.disconnect()
+      window.cancelAnimationFrame(animationFrame)
+    }
+  }, [pluck])
+
+  return <canvas ref={canvasRef} className="fretboard-strings-canvas" aria-hidden="true" />
+}
+
+export function FretboardBoard({
+  question,
+  showQuestion,
+  canAnswer,
+  revealAnswer,
+  wrongCellKey,
+  pluck,
+  onSelect,
+}: FretboardBoardProps) {
+  return (
+    <div className="w-full pb-2">
+      <div className="fretboard-grid-wrap">
+        <div className="fretboard-grid" role="group" aria-label="六弦十二品完整指板">
+          <span aria-hidden="true" />
+          {Array.from({ length: FRET_COUNT }, (_, index) => (
+            <span key={index} className="pb-1 text-center text-[10px] font-medium text-[var(--text-secondary)]">
+              {index + 1}
+            </span>
+          ))}
+          {BOARD_ROWS.map((row, stringIndex) => [
+            <span key={`label-${stringIndex}`} className="flex items-center bg-[#11100e] pr-1 text-[10px] font-semibold text-[var(--text-secondary)] sm:pr-2 sm:text-xs">
+              {STRING_LABELS[stringIndex]}
+            </span>,
+            ...row.map((cell) => {
+                const key = fretboardCellKey(cell)
+                const active = showQuestion && isCellInRegion(cell, question)
+                const revealCorrect = revealAnswer && active && cell.note === question.targetNote
+                const stateClass = revealCorrect
+                  ? 'fretboard-cell--correct'
+                  : wrongCellKey === key
+                    ? 'fretboard-cell--wrong'
+                    : active
+                      ? 'fretboard-cell--active'
+                      : showQuestion
+                        ? 'fretboard-cell--masked'
+                        : ''
+
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`fretboard-cell ${stateClass}`}
+                    onClick={(event) => onSelect(cell, event.timeStamp)}
+                    disabled={showQuestion ? !canAnswer || !active : false}
+                    aria-label={`${stringIndex + 1} 弦，第 ${cell.fret} 品${showQuestion ? active ? '，当前题目区域' : '，非题目区域' : ''}`}
+                  >
+                    {hasPositionMarker(cell) && <i className="fretboard-position-marker" aria-hidden="true" />}
+                    <span aria-hidden="true">{revealCorrect ? cell.note : ''}</span>
+                  </button>
+                )
+              }),
+          ])}
+        </div>
+        <FretboardStringsCanvas pluck={pluck} />
+      </div>
+    </div>
+  )
+}

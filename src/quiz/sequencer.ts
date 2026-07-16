@@ -49,15 +49,16 @@ export type TrainerState =
 
 export type SpeedPreset = 'slow' | 'medium' | 'fast'
 
-/** 音程跟听 · 音程辨认 · 音级辨识 */
-export type AppMode = 'intervalFollow' | 'intervalSpeed' | 'scaleDegree' | 'chordDegree' | 'chordProgression' | 'metronome'
+const APP_MODES = ['intervalFollow', 'intervalSpeed', 'scaleDegree', 'chordDegree', 'chordProgression', 'fretboard', 'metronome'] as const
+
+export type AppMode = (typeof APP_MODES)[number]
 
 export function normalizeAppMode(value: unknown): AppMode | null {
-  if (value === 'intervalFollow' || value === 'intervalSpeed' || value === 'scaleDegree' || value === 'chordDegree' || value === 'chordProgression' || value === 'metronome') {
-    return value
-  }
+  return APP_MODES.includes(value as AppMode) ? value as AppMode : null
+}
 
-  return null
+export function isIntervalMode(mode: AppMode) {
+  return mode === 'intervalFollow' || mode === 'intervalSpeed'
 }
 
 export type Settings = {

@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   scaleDegreeSessionHistory: 'ear-trainer:scale-degree-session-history',
   scaleDegreeMelodySessionHistory: 'ear-trainer:scale-degree-melody-session-history',
   chordDegreeHistory: 'ear-trainer:chord-degree-history',
+  fretboardStats: 'ear-trainer:fretboard-stats',
   challengeBest: {
     intervalSpeed: 'ear-trainer:challenge-best:intervalSpeed',
     scaleDegree: 'ear-trainer:challenge-best:scaleDegree',
@@ -27,6 +28,7 @@ export const TRAINING_STATS_STORAGE_KEYS = [
   STORAGE_KEYS.scaleDegreeMelodyMistakeStatsSchema,
   STORAGE_KEYS.scaleDegreeSessionHistory,
   STORAGE_KEYS.scaleDegreeMelodySessionHistory,
+  STORAGE_KEYS.fretboardStats,
   STORAGE_KEYS.challengeBest.intervalSpeed,
   STORAGE_KEYS.challengeBest.scaleDegree,
   STORAGE_KEYS.challengeBest.scaleDegreeMelody,

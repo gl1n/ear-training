@@ -19,6 +19,7 @@ import {
   runIntervalSpeedLoop,
   runScaleDegreeLoop,
   LISTENING_STATES,
+  isIntervalMode,
   type AppMode,
   type Settings,
   type SpeedPreset,
@@ -104,6 +105,7 @@ export function Trainer() {
     handlePlayQuiz: replayQuizAudio,
     handlePlayMelodyQuiz: replayMelodyQuizAudio,
     handleLoadFailure,
+    playMidi,
     stopReplay,
     dispose: disposeAudio,
     setLoadProgress,
@@ -161,7 +163,7 @@ export function Trainer() {
   )
 
   useEffect(() => {
-    if (mode === 'metronome') return
+    if (mode === 'metronome' || mode === 'fretboard') return
     // Start fetching and decoding the samples after the initial screen has painted.
     // Starting a session or replaying a quiz reuses this same in-flight promise.
     const preloadTimer = window.setTimeout(() => {
@@ -553,6 +555,7 @@ export function Trainer() {
   }, [clearSessionGoal, mode, resetSessionState, sessionStatsRef])
 
   const handleModeChange = (nextMode: AppMode) => {
+    stopReplay()
     setMode(nextMode)
     setLastQuiz(null)
     setLastScaleDegreeQuiz(null)
@@ -655,6 +658,10 @@ export function Trainer() {
     const midis = createChordMidis(chordDegreeTonicMidi, Number(correctionWrongSelection), chordDegreeQuiz.inversion)
     void playChordMidis(midis).catch((error: unknown) => handleLoadFailure(error))
   }, [chordDegreeQuiz, chordDegreeTonicMidi, correctionWrongSelection, handleLoadFailure, playChordMidis])
+
+  const handlePlayFretboardNote = useCallback((midi: number) => {
+    playMidi(midi)
+  }, [playMidi])
 
   const handlePlayChordComparison = useCallback(() => {
     if (!chordDegreeQuiz || !correctionWrongSelection) return
@@ -778,9 +785,10 @@ export function Trainer() {
         onPlayChordSequence={handlePlayChordSequence}
         onPlaySelectedChord={handlePlaySelectedChord}
         onPlayChordComparison={handlePlayChordComparison}
+        onPlayFretboardNote={handlePlayFretboardNote}
       />
 
-      {mode !== 'scaleDegree' && mode !== 'chordDegree' && mode !== 'chordProgression' && mode !== 'metronome' && (
+      {isIntervalMode(mode) && (
         <SettingsDrawer
           open={drawerOpen}
           onClose={() => setDrawerOpen(false)}

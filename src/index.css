@@ -35,11 +35,150 @@ body {
 .training-shell[data-training-mode="scaleDegree"] { --mode-accent: #a78bfa; }
 .training-shell[data-training-mode="chordProgression"] { --mode-accent: #fbbf24; }
 .training-shell[data-training-mode="metronome"] { --mode-accent: #fb7185; }
+.training-shell[data-training-mode="fretboard"] { --mode-accent: #fbbf24; }
 .training-shell[data-training-mode="intervalFollow"],
 .training-shell[data-training-mode="intervalSpeed"] { --mode-accent: #38bdf8; }
 
 .training-shell h1 {
   text-shadow: 0 0 28px color-mix(in srgb, var(--mode-accent) 22%, transparent);
+}
+
+.fretboard-grid-wrap {
+  --fretboard-label-width: clamp(2.5rem, 5vw, 3.2rem);
+  --fretboard-header-height: 1.25rem;
+  --fretboard-row-height: 4.25rem;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  background:
+    linear-gradient(90deg, rgba(61, 37, 20, 0.2), rgba(105, 70, 36, 0.16), rgba(42, 27, 17, 0.22)),
+    rgba(4, 4, 4, 0.4);
+}
+
+.fretboard-grid {
+  display: grid;
+  /* Equal-tempered fret spacing: each successive fret is 2^(-1/12) shorter. */
+  grid-template-columns:
+    var(--fretboard-label-width)
+    minmax(0, 5.613fr)
+    minmax(0, 5.298fr)
+    minmax(0, 5fr)
+    minmax(0, 4.719fr)
+    minmax(0, 4.454fr)
+    minmax(0, 4.204fr)
+    minmax(0, 3.968fr)
+    minmax(0, 3.746fr)
+    minmax(0, 3.536fr)
+    minmax(0, 3.337fr)
+    minmax(0, 3.15fr)
+    minmax(0, 2.973fr);
+  grid-template-rows: var(--fretboard-header-height) repeat(6, var(--fretboard-row-height));
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+}
+
+.fretboard-cell {
+  position: relative;
+  appearance: none;
+  border: 0;
+  border-right: 2px solid rgba(255, 255, 255, 0.22);
+  padding: 0;
+  background: transparent;
+  color: white;
+  touch-action: manipulation;
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.fretboard-cell:focus-visible {
+  outline: none;
+}
+
+.fretboard-cell:focus-visible::after {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 2px solid var(--mode-accent, var(--accent));
+  border-radius: 999px;
+  content: "";
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.fretboard-strings-canvas {
+  position: absolute;
+  z-index: 2;
+  top: var(--fretboard-header-height);
+  right: 0;
+  bottom: 0;
+  left: var(--fretboard-label-width);
+  width: calc(100% - var(--fretboard-label-width));
+  height: calc(100% - var(--fretboard-header-height));
+  pointer-events: none;
+}
+
+.fretboard-cell--active {
+  background-color: rgba(251, 191, 36, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.14);
+}
+
+.fretboard-cell--masked {
+  cursor: not-allowed;
+  background-color: rgba(1, 3, 6, 0.72);
+  opacity: 0.36;
+  filter: saturate(0.2);
+}
+
+.fretboard-cell span {
+  position: relative;
+  z-index: 3;
+  display: inline-grid;
+  min-width: 2rem;
+  min-height: 2rem;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.fretboard-position-marker {
+  position: absolute;
+  z-index: 1;
+  bottom: -0.31rem;
+  left: 50%;
+  width: 0.62rem;
+  height: 0.62rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.78);
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.32);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.fretboard-cell--correct span {
+  background: rgb(52 211 153);
+  color: rgb(2 44 34);
+  box-shadow: 0 0 0 5px rgba(52, 211, 153, 0.14), 0 0 24px rgba(52, 211, 153, 0.32);
+}
+
+.fretboard-cell--wrong span {
+  background: rgb(248 113 113);
+  box-shadow: 0 0 0 5px rgba(248, 113, 113, 0.12);
+  animation: fretboard-wrong-flash 160ms ease-in-out 2;
+}
+
+@keyframes fretboard-wrong-flash {
+  50% { transform: scale(1.18); opacity: 0.65; }
+}
+
+@media (max-width: 520px) {
+  .fretboard-grid-wrap { --fretboard-row-height: 3.25rem; }
+  .fretboard-cell span { min-width: 1.5rem; min-height: 1.5rem; font-size: 0.65rem; }
 }
 
 :focus-visible {
