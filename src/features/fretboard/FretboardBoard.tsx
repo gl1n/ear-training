@@ -157,18 +157,17 @@ function FretboardMistakeHeatmapCanvas({ distribution }: { distribution: Record<
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
       context.clearRect(0, 0, width, height)
 
-      const entries = Object.entries(distribution).filter(([, count]) => count > 0)
-      const maxMistakes = Math.max(0, ...entries.map(([, count]) => count))
+      const entries = Object.entries(distribution).filter(([, errorRate]) => errorRate > 0)
       context.globalCompositeOperation = 'lighter'
 
-      entries.forEach(([key, count]) => {
+      entries.forEach(([key, errorRate]) => {
         const [stringIndex, fret] = key.split(':').map(Number)
         if (!Number.isInteger(stringIndex) || !Number.isInteger(fret)) return
 
         const centerX = fretCenterRatio(fret) * width
         const centerY = (stringIndex + 0.5) * height / STRING_COUNT
         const radius = Math.max(width / 15, height / 5.2)
-        const intensity = Math.sqrt(count / maxMistakes)
+        const intensity = Math.sqrt(errorRate)
         const gradient = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius)
         gradient.addColorStop(0, `rgba(248, 70, 70, ${0.2 + intensity * 0.42})`)
         gradient.addColorStop(0.42, `rgba(239, 45, 64, ${0.1 + intensity * 0.23})`)
@@ -215,7 +214,7 @@ export function FretboardBoard({
                 const key = fretboardCellKey(cell)
                 const active = showQuestion && isCellInRegion(cell, question)
                 const revealCorrect = revealAnswer && active && cell.note === question.targetNote
-                const mistakeCount = mistakeHeatmap[key] ?? 0
+                const errorRate = mistakeHeatmap[key] ?? 0
                 const stateClass = revealCorrect
                   ? 'fretboard-cell--correct'
                   : wrongCellKey === key
@@ -233,7 +232,7 @@ export function FretboardBoard({
                     className={`fretboard-cell ${stateClass}`}
                     onClick={(event) => onSelect(cell, event.timeStamp)}
                     disabled={showQuestion ? !canAnswer || !active : false}
-                    aria-label={`${stringIndex + 1} 弦，第 ${cell.fret} 品${showQuestion ? active ? '，当前题目区域' : '，非题目区域' : ''}${mistakeCount ? `，错题 ${mistakeCount} 次` : ''}`}
+                    aria-label={`${stringIndex + 1} 弦，第 ${cell.fret} 品${showQuestion ? active ? '，当前题目区域' : '，非题目区域' : ''}${errorRate ? `，错误率 ${Math.round(errorRate * 100)}%` : ''}`}
                   >
                     {hasPositionMarker(cell) && <i className="fretboard-position-marker" aria-hidden="true" />}
                     <span aria-hidden="true">{revealCorrect ? cell.note : ''}</span>

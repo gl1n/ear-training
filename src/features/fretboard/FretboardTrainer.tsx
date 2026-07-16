@@ -7,6 +7,7 @@ import {
   createFretboardQuestion,
   fretboardMistakeHeatmap,
   formatRegion,
+  recentFretboardAnswers,
   recentFretboardMistakes,
   recordFretboardAnswer,
   type FretboardCell,
@@ -32,7 +33,14 @@ function loadStats(): FretboardStats {
     const parsed = JSON.parse(raw) as Partial<FretboardStats>
     if (!parsed.notes || !parsed.regions) return EMPTY_FRETBOARD_STATS
     const mistakes = recentFretboardMistakes(Array.isArray(parsed.mistakes) ? parsed.mistakes : [])
-    const next = { notes: parsed.notes, regions: parsed.regions, mistakes }
+    const answers = recentFretboardAnswers(Array.isArray(parsed.answers) ? parsed.answers : [])
+    const next = {
+      notes: parsed.notes,
+      regions: parsed.regions,
+      questions: parsed.questions ?? {},
+      answers,
+      mistakes,
+    }
     writeStorage(STORAGE_KEYS.fretboardStats, JSON.stringify(next))
     return next
   } catch {
@@ -81,7 +89,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
   }, [clearFeedbackTimer])
 
   const nextQuestion = useCallback(() => {
-    setQuestion(createFretboardQuestion(Math.random, statsRef.current.mistakes))
+    setQuestion(createFretboardQuestion(Math.random, statsRef.current))
     setWrongCellKey(null)
     setPhase('playing')
     questionStartedAtRef.current = performance.now()
@@ -89,7 +97,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
 
   const startGame = useCallback(() => {
     clearFeedbackTimer()
-    setQuestion(createFretboardQuestion(Math.random, statsRef.current.mistakes))
+    setQuestion(createFretboardQuestion(Math.random, statsRef.current))
     setRound(EMPTY_ROUND)
     setWrongCellKey(null)
     setTimeLeft(ROUND_SECONDS)
@@ -164,7 +172,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
     [stats.regions],
   )
   const averageMs = round.answered === 0 ? 0 : round.totalReactionMs / round.answered
-  const mistakeHeatmap = useMemo(() => fretboardMistakeHeatmap(stats.mistakes), [stats.mistakes])
+  const mistakeHeatmap = useMemo(() => fretboardMistakeHeatmap(stats.answers), [stats.answers])
   const roundActive = phase === 'playing' || phase === 'feedback'
   const showStats = phase === 'idle' || phase === 'finished'
 
@@ -214,11 +222,11 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
           mistakeHeatmap={showStats ? mistakeHeatmap : {}}
           onSelect={handleCellClick}
         />
-        {showStats && stats.mistakes.length > 0 && (
+        {showStats && stats.answers.length > 0 && (
           <div className="mt-3 flex items-center justify-end gap-2 text-xs text-[var(--text-secondary)]" aria-label="错题热力图图例">
             <span>错题位置</span>
             <span className="h-2.5 w-16 rounded-full bg-gradient-to-r from-red-500/10 to-red-500/80" aria-hidden="true" />
-            <span>越红越薄弱 · 共 {stats.mistakes.length} 次</span>
+            <span>越红错误率越高 · 近 48 小时</span>
           </div>
         )}
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/8 pt-4">

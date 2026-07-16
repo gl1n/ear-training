@@ -41,7 +41,15 @@ export type FretboardStat = {
 export type FretboardStats = {
   notes: Partial<Record<FretboardNoteName, FretboardStat>>
   regions: Record<string, FretboardStat>
+  questions: Record<string, FretboardStat>
+  answers: FretboardAnswerRecord[]
   mistakes: FretboardMistakeRecord[]
+}
+
+export type FretboardAnswerRecord = {
+  position: Pick<FretboardCell, 'stringIndex' | 'fret'>
+  correct: boolean
+  recordedAt: number
 }
 
 export type FretboardMistakeRecord = {
@@ -52,7 +60,13 @@ export type FretboardMistakeRecord = {
   recordedAt: number
 }
 
-export const EMPTY_FRETBOARD_STATS: FretboardStats = { notes: {}, regions: {}, mistakes: [] }
+export const EMPTY_FRETBOARD_STATS: FretboardStats = {
+  notes: {},
+  regions: {},
+  questions: {},
+  answers: [],
+  mistakes: [],
+}
 export const FRETBOARD_MISTAKE_RETENTION_MS = 48 * 60 * 60 * 1000
 
 // From the first (high E) string to the sixth (low E) string.
@@ -70,6 +84,10 @@ export function midiAt(stringIndex: number, fret: number): number {
 
 export function regionId(region: FretboardRegion): string {
   return `s${region.stringStart + 1}-${region.stringStart + 3}:f${region.fretStart}-${region.fretStart + 3}`
+}
+
+export function questionId(question: FretboardQuestion): string {
+  return `${regionId(question.region)}:${question.targetNote}`
 }
 
 export function formatRegion(region: FretboardRegion): string {
@@ -124,23 +142,68 @@ export function recentFretboardMistakes(
   ))
 }
 
+export function recentFretboardAnswers(
+  answers: readonly unknown[],
+  now: number = Date.now(),
+): FretboardAnswerRecord[] {
+  const cutoff = now - FRETBOARD_MISTAKE_RETENTION_MS
+  return answers.filter((value): value is FretboardAnswerRecord => {
+    if (!value || typeof value !== 'object') return false
+    const answer = value as Partial<FretboardAnswerRecord>
+    return Boolean(
+      answer.position
+      && Number.isInteger(answer.position.stringIndex)
+      && answer.position.stringIndex >= 0
+      && answer.position.stringIndex <= 5
+      && Number.isInteger(answer.position.fret)
+      && answer.position.fret >= 1
+      && answer.position.fret <= 12
+      && typeof answer.correct === 'boolean'
+      && typeof answer.recordedAt === 'number'
+      && Number.isFinite(answer.recordedAt)
+      && answer.recordedAt >= cutoff,
+    )
+  })
+}
+
+function smoothedErrorRate(stat: FretboardStat): number {
+  const errors = stat.attempts - stat.correct
+  return (errors + 1) / (stat.attempts + 2)
+}
+
 /**
- * Half of generated questions are uniform random. The other half samples a
- * previous mistake event, which naturally weights the joint note + region pair
- * by its recorded mistake frequency.
+ * Up to half of generated questions review recent mistakes. Review candidates
+ * are unique note + region pairs weighted by their smoothed error rate, and the
+ * review share falls as the weakest candidate's error rate improves.
  */
 export function createFretboardQuestion(
   random: () => number = Math.random,
-  mistakes: readonly FretboardMistakeRecord[] = [],
+  stats: FretboardStats = EMPTY_FRETBOARD_STATS,
   now: number = Date.now(),
 ): FretboardQuestion {
-  const usableMistakes = recentFretboardMistakes(mistakes, now)
-  if (usableMistakes.length === 0 || random() < 0.5) {
+  const candidates = Array.from(
+    recentFretboardMistakes(stats.mistakes, now).reduce<Map<string, FretboardQuestion>>((result, mistake) => {
+      const question = { region: { ...mistake.region }, targetNote: mistake.targetNote }
+      result.set(questionId(question), question)
+      return result
+    }, new Map()),
+  ).flatMap(([id, question]) => {
+    const stat = stats.questions[id]
+    return stat ? [{ question, weight: smoothedErrorRate(stat) }] : []
+  })
+
+  const maxErrorRate = Math.max(0, ...candidates.map(({ weight }) => weight))
+  if (candidates.length === 0 || random() >= 0.5 * maxErrorRate) {
     return createRandomFretboardQuestion(random)
   }
 
-  const picked = usableMistakes[Math.floor(random() * usableMistakes.length)]!
-  return { region: { ...picked.region }, targetNote: picked.targetNote }
+  const totalWeight = candidates.reduce((sum, candidate) => sum + candidate.weight, 0)
+  let pick = random() * totalWeight
+  for (const candidate of candidates) {
+    pick -= candidate.weight
+    if (pick < 0) return candidate.question
+  }
+  return candidates[candidates.length - 1]!.question
 }
 
 function updateStat(stat: FretboardStat | undefined, correct: boolean, reactionMs: number) {
@@ -160,7 +223,9 @@ export function recordFretboardAnswer(
   recordedAt: number = Date.now(),
 ): FretboardStats {
   const id = regionId(question.region)
+  const exactQuestionId = questionId(question)
   const recentMistakes = recentFretboardMistakes(stats.mistakes, recordedAt)
+  const recentAnswers = recentFretboardAnswers(stats.answers, recordedAt)
   return {
     notes: {
       ...stats.notes,
@@ -170,6 +235,18 @@ export function recordFretboardAnswer(
       ...stats.regions,
       [id]: updateStat(stats.regions[id], correct, reactionMs),
     },
+    questions: {
+      ...stats.questions,
+      [exactQuestionId]: updateStat(stats.questions[exactQuestionId], correct, reactionMs),
+    },
+    answers: [
+      ...recentAnswers,
+      {
+        position: { stringIndex: selectedCell.stringIndex, fret: selectedCell.fret },
+        correct,
+        recordedAt,
+      },
+    ],
     mistakes: correct ? recentMistakes : [
       ...recentMistakes,
       {
@@ -184,14 +261,24 @@ export function recordFretboardAnswer(
 }
 
 export function fretboardMistakeHeatmap(
-  mistakes: readonly FretboardMistakeRecord[],
+  answers: readonly FretboardAnswerRecord[],
   now: number = Date.now(),
 ): Record<string, number> {
-  return recentFretboardMistakes(mistakes, now).reduce<Record<string, number>>((distribution, mistake) => {
-    const key = `${mistake.position.stringIndex}:${mistake.position.fret}`
-    distribution[key] = (distribution[key] ?? 0) + 1
-    return distribution
-  }, {})
+  const totals = recentFretboardAnswers(answers, now).reduce<Record<string, { attempts: number; errors: number }>>(
+    (distribution, answer) => {
+      const key = `${answer.position.stringIndex}:${answer.position.fret}`
+      const current = distribution[key] ?? { attempts: 0, errors: 0 }
+      distribution[key] = {
+        attempts: current.attempts + 1,
+        errors: current.errors + (answer.correct ? 0 : 1),
+      }
+      return distribution
+    },
+    {},
+  )
+  return Object.fromEntries(
+    Object.entries(totals).map(([key, stat]) => [key, stat.errors / stat.attempts]),
+  )
 }
 
 export function accuracy(stat: FretboardStat): number {
