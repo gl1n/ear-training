@@ -32,6 +32,8 @@ export type FretboardQuestion = {
   targetNote: FretboardNoteName
 }
 
+export type FretboardRegionCounts = Record<string, number>
+
 export type FretboardStat = {
   attempts: number
   correct: number
@@ -94,10 +96,31 @@ export function formatRegion(region: FretboardRegion): string {
   return `${region.stringStart + 1}–${region.stringStart + 3} 弦 · ${region.fretStart}–${region.fretStart + 3} 品`
 }
 
-function createRandomFretboardQuestion(random: () => number): FretboardQuestion {
-  const region: FretboardRegion = {
-    stringStart: Math.floor(random() * 4),
-    fretStart: Math.floor(random() * 10),
+const FRETBOARD_REGIONS: readonly FretboardRegion[] = Array.from(
+  { length: 40 },
+  (_, index) => ({ stringStart: Math.floor(index / 10), fretStart: index % 10 }),
+)
+
+function createRandomFretboardQuestion(
+  random: () => number,
+  sessionRegionCounts: FretboardRegionCounts,
+): FretboardQuestion {
+  const maxCount = Math.max(
+    0,
+    ...FRETBOARD_REGIONS.map((region) => sessionRegionCounts[regionId(region)] ?? 0),
+  )
+  const weights = FRETBOARD_REGIONS.map(
+    (region) => maxCount - (sessionRegionCounts[regionId(region)] ?? 0) + 1,
+  )
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0)
+  let pick = random() * totalWeight
+  let region = FRETBOARD_REGIONS[FRETBOARD_REGIONS.length - 1]!
+  for (let index = 0; index < FRETBOARD_REGIONS.length; index += 1) {
+    pick -= weights[index]!
+    if (pick < 0) {
+      region = FRETBOARD_REGIONS[index]!
+      break
+    }
   }
   const targetIndex = Math.floor(random() * 12)
   const targetString = region.stringStart + Math.floor(targetIndex / 4)
@@ -180,6 +203,7 @@ export function createFretboardQuestion(
   random: () => number = Math.random,
   stats: FretboardStats = EMPTY_FRETBOARD_STATS,
   now: number = Date.now(),
+  sessionRegionCounts: FretboardRegionCounts = {},
 ): FretboardQuestion {
   const candidates = Array.from(
     recentFretboardMistakes(stats.mistakes, now).reduce<Map<string, FretboardQuestion>>((result, mistake) => {
@@ -194,7 +218,7 @@ export function createFretboardQuestion(
 
   const maxErrorRate = Math.max(0, ...candidates.map(({ weight }) => weight))
   if (candidates.length === 0 || random() >= 0.5 * maxErrorRate) {
-    return createRandomFretboardQuestion(random)
+    return createRandomFretboardQuestion(random, sessionRegionCounts)
   }
 
   const totalWeight = candidates.reduce((sum, candidate) => sum + candidate.weight, 0)

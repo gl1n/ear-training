@@ -44,6 +44,26 @@ describe('fretboard quiz', () => {
     })
   })
 
+  it('favors less-used regions in the random half of a session', () => {
+    const counts = Object.fromEntries(
+      Array.from({ length: 40 }, (_, index) => {
+        const region = { stringStart: Math.floor(index / 10), fretStart: index % 10 }
+        return [regionId(region), index === 39 ? 0 : 10]
+      }),
+    )
+    const values = [0.79, 0]
+
+    expect(createFretboardQuestion(
+      () => values.shift() ?? 0,
+      EMPTY_FRETBOARD_STATS,
+      0,
+      counts,
+    )).toEqual({
+      region: { stringStart: 3, fretStart: 9 },
+      targetNote: 'B',
+    })
+  })
+
   it('records note and region performance without mutating previous stats', () => {
     const question = createFretboardQuestion(() => 0)
     const cell = { stringIndex: 0, fret: 1, note: noteAt(0, 1), midi: midiAt(0, 1) }

@@ -10,8 +10,10 @@ import {
   recentFretboardAnswers,
   recentFretboardMistakes,
   recordFretboardAnswer,
+  regionId,
   type FretboardCell,
   type FretboardQuestion,
+  type FretboardRegionCounts,
   type FretboardStat,
   type FretboardStats,
 } from './fretboard'
@@ -75,6 +77,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
   const deadlineRef = useRef(0)
   const questionStartedAtRef = useRef(0)
   const feedbackTimerRef = useRef<number | null>(null)
+  const roundRegionCountsRef = useRef<FretboardRegionCounts>({})
   const fullscreenRef = useRef<HTMLDivElement | null>(null)
   const [fullscreen, setFullscreen] = useState(false)
 
@@ -140,23 +143,36 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
     setWrongCellKey(null)
   }, [clearFeedbackTimer])
 
+  const createRoundQuestion = useCallback(() => {
+    const next = createFretboardQuestion(
+      Math.random,
+      statsRef.current,
+      Date.now(),
+      roundRegionCountsRef.current,
+    )
+    const id = regionId(next.region)
+    roundRegionCountsRef.current[id] = (roundRegionCountsRef.current[id] ?? 0) + 1
+    return next
+  }, [])
+
   const nextQuestion = useCallback(() => {
-    setQuestion(createFretboardQuestion(Math.random, statsRef.current))
+    setQuestion(createRoundQuestion())
     setWrongCellKey(null)
     setPhase('playing')
     questionStartedAtRef.current = performance.now()
-  }, [])
+  }, [createRoundQuestion])
 
   const startGame = useCallback(() => {
     clearFeedbackTimer()
-    setQuestion(createFretboardQuestion(Math.random, statsRef.current))
+    roundRegionCountsRef.current = {}
+    setQuestion(createRoundQuestion())
     setRound(EMPTY_ROUND)
     setWrongCellKey(null)
     setTimeLeft(ROUND_SECONDS)
     deadlineRef.current = performance.now() + ROUND_SECONDS * 1000
     questionStartedAtRef.current = performance.now()
     setPhase('playing')
-  }, [clearFeedbackTimer])
+  }, [clearFeedbackTimer, createRoundQuestion])
 
   useEffect(() => {
     if (phase !== 'playing' && phase !== 'feedback') return
