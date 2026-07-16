@@ -1,7 +1,7 @@
 import { CHORD_KEY_OPTIONS, type ChordDegree, type ChordInversion, type ChordKey, type ChordPlaybackMode, type ChordRhythm, type PlayedChord, type RandomChordQuality, type RandomChordSettings } from '../quiz/chordProgression'
 import type { TrainerState } from '../quiz/sequencer'
-import { Card } from './ui/Card'
-import { SegmentedControl } from './ui/SegmentedControl'
+import { Card } from '../common/ui/Card'
+import { SegmentedControl } from '../common/ui/SegmentedControl'
 
 type Props = {
   degrees: ChordDegree[]

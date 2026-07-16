@@ -5,8 +5,8 @@ import { usePracticePlayfieldState } from '../hooks/usePracticePlayfieldState'
 import { ChallengeAnswerButton } from './practice/ChallengeAnswerButton'
 import { PracticePhaseIndicator } from './practice/PracticePhaseIndicator'
 import { PracticeSessionHeader } from './practice/PracticeSessionHeader'
-import { Card } from './ui/Card'
-import { Button } from './ui/Button'
+import { Card } from '../common/ui/Card'
+import { Button } from '../common/ui/Button'
 
 type Props = { state: TrainerState; sessionStats: SessionStats; quiz: ChordDegreeQuiz | null; wrongSelection: string | null; optionDegrees: readonly number[]; replayCount: number; onSelect: (degree: string) => void; onPlayDo: () => void; onPlayChord: () => void; onPlaySequence: () => void; onPlaySelected: () => void; onPlayComparison: () => void }
 

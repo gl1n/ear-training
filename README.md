@@ -1,9 +1,11 @@
-# Ear Trainer / 练耳工具
+# 格林的音乐练习小屋
 
-Browser-based ear training for interval recognition and scale-degree identification. Built with React 19, TypeScript, and Vite.
+A browser-based music practice cabin with separate entrances for fretboard practice and ear training. Built with React 19, TypeScript, and Vite.
 
 ## Features
 
+- **独立首页** — Choose between fretboard practice and ear training without loading either practice bundle up front
+- **指板练习** — Locate notes in random fretboard regions, freely audition notes, and review a 48-hour mistake heatmap
 - **音程跟听** — Loop playback with spoken interval names (Web Speech API, zh-CN)
 - **音程辨认** — Interval challenge with reaction-weighted scoring and mistake-weighted question selection
 - **音级辨识** — Identify scale degrees in random major keys, with optional mistake review mode
@@ -99,20 +101,25 @@ The app is configured for GitHub Pages at `/ear-training/` (`BASE_PATH` in `vite
 
 ```
 src/
+  common/       Shared app shell, version display, and UI primitives
+  features/     Independently loaded ear-training and fretboard applications
+  home/         Landing page and practice entrances
   audio/        Web Audio, piano samples, speech synthesis
-  components/   UI (practice/, ui/ shared primitives)
+  components/   Ear-training presentation components
   hooks/        Settings, stats, session, audio engine
   quiz/         Domain logic, game loops, persistence
 ```
 
-Domain logic lives in `src/quiz/` with colocated Vitest tests. The root `Trainer` component wires hooks and delegates rendering to `PracticeView`.
+Shared ear-training domain logic lives in `src/quiz/` with colocated Vitest tests. Feature entry points live under `src/features/` and are lazy-loaded from the hash-based application router.
 
 ## Architecture boundaries
 
 - `audio/` owns browser audio resources; consumers stop or dispose them through `useAudioEngine`.
 - `quiz/` contains framework-independent session and scoring rules.
 - `hooks/` bridge React state, persistence, audio, and quiz sessions.
-- `components/` render state and emit user intent; shared interaction primitives live in `components/ui/`.
+- `features/ear-training/` wires the ear-training session state and view.
+- `features/fretboard/` owns fretboard UI, game rules, and tests.
+- `components/` contains ear-training views; shared interaction primitives and the shared shell live in `common/`.
 - Browser storage is best-effort. Invalid, unavailable, or full storage must never prevent training.
 
 When changing a session loop, preserve its abort contract: after cancellation it must stop audio,

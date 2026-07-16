@@ -1,6 +1,6 @@
 import { DIRECTION_SELECT_OPTIONS, type IntervalDirection } from '../quiz/intervals'
-import { Card } from './ui/Card'
-import { SegmentedControl } from './ui/SegmentedControl'
+import { Card } from '../common/ui/Card'
+import { SegmentedControl } from '../common/ui/SegmentedControl'
 
 type DirectionSelectorProps = {
   direction: IntervalDirection

@@ -2,8 +2,8 @@ import type { ChordDegreeHistory, ChordDegreeInversionMode, ChordDegreeKey, Chor
 import { getCorrectAnswerCount, getTotalAnswerCount, type SessionStats } from '../quiz/stats'
 import { ChordDegreeErrorChart } from './ChordDegreeErrorChart'
 import { PlayAreaCard } from './PlayAreaCard'
-import { Button } from './ui/Button'
-import { SegmentedControl } from './ui/SegmentedControl'
+import { Button } from '../common/ui/Button'
+import { SegmentedControl } from '../common/ui/SegmentedControl'
 
 type Props = { quiz: ChordDegreeQuiz | null; sessionStats: SessionStats; history: ChordDegreeHistory; sessionCompleted: boolean; selectedKey: ChordDegreeKey; range: ChordDegreeRange; customDegrees: number[]; inversionMode: ChordDegreeInversionMode; onKeyChange: (key: ChordDegreeKey) => void; onRangeChange: (range: ChordDegreeRange) => void; onCustomDegreesChange: (degrees: number[]) => void; onInversionModeChange: (mode: ChordDegreeInversionMode) => void; onApplyPreset: (preset: 'beginner' | 'standard' | 'advanced') => void; onPlayDo: () => void }
 

@@ -1,0 +1,58 @@
+import { VersionInfo } from '../common/VersionInfo'
+
+const ENTRANCES = [
+  {
+    href: '#/fretboard',
+    eyebrow: 'FRETBOARD',
+    title: '指板练习',
+    description: '看见音名，迅速落指。用随机区域与错题热力图，慢慢画出属于你的指板地图。',
+    detail: '音名定位 · 自由试音 · 薄弱区域',
+    icon: '♯',
+    tone: 'amber',
+  },
+  {
+    href: '#/ear-training',
+    eyebrow: 'EAR TRAINING',
+    title: '练耳',
+    description: '从音程、音级到和弦进行，在声音里建立稳定、可调用的音乐直觉。',
+    detail: '音程 · 音级 · 和弦 · 节奏',
+    icon: '♪',
+    tone: 'sky',
+  },
+] as const
+
+export function HomePage() {
+  return (
+    <main className="home-page">
+      <div className="home-orbit home-orbit--one" aria-hidden="true" />
+      <div className="home-orbit home-orbit--two" aria-hidden="true" />
+
+      <header className="home-hero">
+        <p className="home-kicker"><span aria-hidden="true">✦</span> GREEN'S MUSIC CABIN</p>
+        <h1>格林的音乐<br className="sm:hidden" />练习小屋</h1>
+        <p>推开一扇门，专注练一件事。今天想从手指开始，还是从耳朵开始？</p>
+      </header>
+
+      <section className="home-entrances" aria-label="选择练习">
+        {ENTRANCES.map((entrance, index) => (
+          <a key={entrance.href} className={`entrance-card entrance-card--${entrance.tone}`} href={entrance.href}>
+            <span className="entrance-number" aria-hidden="true">0{index + 1}</span>
+            <span className="entrance-icon" aria-hidden="true">{entrance.icon}</span>
+            <span className="entrance-copy">
+              <span className="entrance-eyebrow">{entrance.eyebrow}</span>
+              <strong>{entrance.title}</strong>
+              <span className="entrance-description">{entrance.description}</span>
+              <span className="entrance-detail">{entrance.detail}</span>
+            </span>
+            <span className="entrance-action">进入练习 <span aria-hidden="true">→</span></span>
+          </a>
+        ))}
+      </section>
+
+      <footer className="home-footer">
+        <span>每一次认真聆听，都在为音乐直觉添一块木头。</span>
+        <VersionInfo />
+      </footer>
+    </main>
+  )
+}

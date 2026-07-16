@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button } from './ui/Button'
+import { Button } from '../common/ui/Button'
 
 type ResetStatsButtonProps = {
   onReset: () => void

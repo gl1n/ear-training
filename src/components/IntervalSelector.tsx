@@ -1,6 +1,6 @@
 import { INTERVALS } from '../quiz/intervals'
 import { INTERVAL_PRESETS } from '../quiz/intervalPresets'
-import { Card } from './ui/Card'
+import { Card } from '../common/ui/Card'
 
 type IntervalSelectorProps = {
   enabledIntervalIds: string[]

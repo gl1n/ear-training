@@ -17,7 +17,7 @@ import { ScaleDegreeAdvancedAnalysis } from './ScaleDegreeAdvancedAnalysis'
 import { PlayAreaCard } from './PlayAreaCard'
 import { PlayableMelodyAnswerCard } from './PlayableMelodyAnswerCard'
 import { ResetStatsButton } from './ResetStatsButton'
-import { Button } from './ui/Button'
+import { Button } from '../common/ui/Button'
 
 type ScaleDegreeIdlePanelProps = {
   lastQuiz: ScaleDegreeQuiz | null

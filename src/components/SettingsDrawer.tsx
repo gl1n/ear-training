@@ -1,6 +1,6 @@
 import { SettingsPanel, type SettingsPanelProps } from './SettingsPanel'
-import { Button } from './ui/Button'
-import { Drawer } from './ui/Drawer'
+import { Button } from '../common/ui/Button'
+import { Drawer } from '../common/ui/Drawer'
 
 type SettingsDrawerProps = SettingsPanelProps & {
   open: boolean

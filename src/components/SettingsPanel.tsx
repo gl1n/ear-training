@@ -2,8 +2,8 @@ import type { IntervalDirection } from '../quiz/intervals'
 import { SPEED_OPTIONS, type AppMode, type SpeedPreset } from '../quiz/sequencer'
 import { DirectionSelector } from './DirectionSelector'
 import { IntervalSelector } from './IntervalSelector'
-import { Card } from './ui/Card'
-import { SegmentedControl } from './ui/SegmentedControl'
+import { Card } from '../common/ui/Card'
+import { SegmentedControl } from '../common/ui/SegmentedControl'
 
 export type SettingsPanelProps = {
   mode: AppMode

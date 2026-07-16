@@ -1,35 +1,30 @@
-import { lazy, Suspense } from 'react'
-import { isIntervalMode, type AppMode, type TrainerState } from '../quiz/sequencer'
-import type { SessionStats } from '../quiz/stats'
-import { IntervalSpeedIdlePanel } from './IntervalSpeedIdlePanel'
-import { IntervalSpeedPlayfield } from './IntervalSpeedPlayfield'
-import { AppShell } from './AppShell'
-import { ScaleDegreeIdlePanel } from './ScaleDegreeIdlePanel'
-import { ScaleDegreePlayfield } from './ScaleDegreePlayfield'
-import { ScaleDegreeReadyPanel } from './ScaleDegreeReadyPanel'
-import type { SettingsPanelProps } from './SettingsPanel'
-import { SettingsSummary } from './SettingsSummary'
-import { StatusHero } from './StatusHero'
-import { Button } from './ui/Button'
-import { SegmentedControl } from './ui/SegmentedControl'
-import type { Quiz } from '../quiz/intervals'
-import type { ScaleDegreeQuiz, MelodyScaleDegreeQuiz } from '../quiz/keys'
-import type { ScaleDegreeMistakeStatsStore } from '../quiz/scaleDegreeMistakeStats'
-import type { ScaleDegreeMelodyMistakeStatsStore } from '../quiz/scaleDegreeMelodyMistakeStats'
-import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
-import type { PracticeEncouragement } from './practice/types'
-import type { LoadStatusProps } from './practice/viewProps'
-import type { ChordDegree, ChordKey, ChordPlaybackMode, ChordRhythm, PlayedChord, RandomChordSettings } from '../quiz/chordProgression'
-import { ChordProgressionPanel } from './ChordProgressionPanel'
-import { SessionGoalControl } from './practice/SessionGoalControl'
-import { getChordDegreesForRange, type ChordDegreeHistory, type ChordDegreeInversionMode, type ChordDegreeKey, type ChordDegreeQuiz, type ChordDegreeRange } from '../quiz/chordDegreeQuiz'
-import { ChordDegreePlayfield } from './ChordDegreePlayfield'
-import { ChordDegreeIdlePanel } from './ChordDegreeIdlePanel'
-import { MetronomePanel } from './MetronomePanel'
-
-const FretboardTrainer = lazy(() => import('./FretboardTrainer').then((module) => ({
-  default: module.FretboardTrainer,
-})))
+import { isIntervalMode, type AppMode, type TrainerState } from '../../quiz/sequencer'
+import type { SessionStats } from '../../quiz/stats'
+import { IntervalSpeedIdlePanel } from '../../components/IntervalSpeedIdlePanel'
+import { IntervalSpeedPlayfield } from '../../components/IntervalSpeedPlayfield'
+import { AppShell, type AppShellMeta } from '../../common/AppShell'
+import { ScaleDegreeIdlePanel } from '../../components/ScaleDegreeIdlePanel'
+import { ScaleDegreePlayfield } from '../../components/ScaleDegreePlayfield'
+import { ScaleDegreeReadyPanel } from '../../components/ScaleDegreeReadyPanel'
+import type { SettingsPanelProps } from '../../components/SettingsPanel'
+import { SettingsSummary } from '../../components/SettingsSummary'
+import { StatusHero } from '../../components/StatusHero'
+import { Button } from '../../common/ui/Button'
+import { SegmentedControl } from '../../common/ui/SegmentedControl'
+import type { Quiz } from '../../quiz/intervals'
+import type { ScaleDegreeQuiz, MelodyScaleDegreeQuiz } from '../../quiz/keys'
+import type { ScaleDegreeMistakeStatsStore } from '../../quiz/scaleDegreeMistakeStats'
+import type { ScaleDegreeMelodyMistakeStatsStore } from '../../quiz/scaleDegreeMelodyMistakeStats'
+import type { TrainingStatsViewModel } from '../../hooks/useTrainingStats'
+import type { PracticeEncouragement } from '../../components/practice/types'
+import type { LoadStatusProps } from '../../components/practice/viewProps'
+import type { ChordDegree, ChordKey, ChordPlaybackMode, ChordRhythm, PlayedChord, RandomChordSettings } from '../../quiz/chordProgression'
+import { ChordProgressionPanel } from '../../components/ChordProgressionPanel'
+import { SessionGoalControl } from '../../components/practice/SessionGoalControl'
+import { getChordDegreesForRange, type ChordDegreeHistory, type ChordDegreeInversionMode, type ChordDegreeKey, type ChordDegreeQuiz, type ChordDegreeRange } from '../../quiz/chordDegreeQuiz'
+import { ChordDegreePlayfield } from '../../components/ChordDegreePlayfield'
+import { ChordDegreeIdlePanel } from '../../components/ChordDegreeIdlePanel'
+import { MetronomePanel } from '../../components/MetronomePanel'
 
 const MODE_OPTIONS = [
   { value: 'intervalFollow' as const, label: '跟听' },
@@ -37,9 +32,17 @@ const MODE_OPTIONS = [
   { value: 'scaleDegree' as const, label: '音级' },
   { value: 'chordDegree' as const, label: '猜和弦' },
   { value: 'chordProgression' as const, label: '进行' },
-  { value: 'fretboard' as const, label: '指板' },
   { value: 'metronome' as const, label: '节拍器' },
 ]
+
+const MODE_META: Record<AppMode, AppShellMeta> = {
+  intervalFollow: { eyebrow: '基础训练', title: '音程跟听', subtitle: '循环聆听并跟随播报，建立音程声音记忆', badge: '练耳小屋', accent: '#38bdf8' },
+  intervalSpeed: { eyebrow: '辨认挑战', title: '音程辨认', subtitle: '听到音程后立即作答，训练反应速度与准确度', badge: '练耳小屋', accent: '#38bdf8' },
+  scaleDegree: { eyebrow: '调性感知', title: '音级辨识', subtitle: '先建立调性，再辨认音在调内的位置', badge: '练耳小屋', accent: '#a78bfa' },
+  chordDegree: { eyebrow: '和声辨识', title: '猜和弦', subtitle: '以 do 为参考，辨认随机转位三和弦的级数', badge: '练耳小屋', accent: '#38bdf8' },
+  chordProgression: { eyebrow: '和声训练', title: '和弦进行', subtitle: '在循环中建立级数走向与和声色彩的听感', badge: '练耳小屋', accent: '#fbbf24' },
+  metronome: { eyebrow: '节奏工具', title: '节拍器', subtitle: '稳定速度，感受强拍与拍号的循环', badge: '练耳小屋', accent: '#fb7185' },
+}
 
 type PracticeViewProps = {
   mode: AppMode
@@ -116,7 +119,6 @@ type PracticeViewProps = {
   onPlayChordSequence: () => void
   onPlaySelectedChord: () => void
   onPlayChordComparison: () => void
-  onPlayFretboardNote: (midi: number) => void
 }
 
 export function PracticeView({
@@ -194,7 +196,6 @@ export function PracticeView({
   onPlayChordSequence,
   onPlaySelectedChord,
   onPlayChordComparison,
-  onPlayFretboardNote,
 }: PracticeViewProps) {
   const { enabledIntervalIds } = settingsControls
   const { loadProgress, loadIndeterminate, loadError, onRetry } = loadStatus
@@ -210,7 +211,7 @@ export function PracticeView({
     !scaleDegreeGameStarted &&
     (state === 'loading' || state === 'playing_tonic_chord')
   const showIntervalSettings = isIntervalMode(mode)
-  const modeOwnsFooter = mode === 'metronome' || mode === 'fretboard'
+  const modeOwnsFooter = mode === 'metronome'
 
   const footerButtonLabel = (() => {
     if (isLoading && mode !== 'scaleDegree') return '加载钢琴音色…'
@@ -229,9 +230,9 @@ export function PracticeView({
 
   return (
     <AppShell
-      mode={mode}
+      meta={MODE_META[mode]}
       focused={isRunning}
-      modeSwitch={
+      navigation={
         <nav aria-label="训练类型">
           <p className="mb-2 text-xs font-medium text-[var(--text-secondary)]">选择训练</p>
           <SegmentedControl options={MODE_OPTIONS} value={mode} onChange={onModeChange} disabled={isRunning} />
@@ -281,10 +282,6 @@ export function PracticeView({
     >
       {mode === 'metronome' ? (
         <MetronomePanel />
-      ) : mode === 'fretboard' ? (
-        <Suspense fallback={<div className="py-16 text-center text-sm text-[var(--text-secondary)]">正在展开指板…</div>}>
-          <FretboardTrainer onPlayNote={onPlayFretboardNote} />
-        </Suspense>
       ) : mode === 'chordDegree' ? (
         isRunning ? <ChordDegreePlayfield state={state} sessionStats={sessionStats} quiz={chordDegreeQuiz} wrongSelection={correctionWrongSelection} optionDegrees={chordDegreeOptions} replayCount={chordDegreeReplayCount} onSelect={onAnswerSelect} onPlayDo={onPlayChordDo} onPlayChord={onPlayChordQuiz} onPlaySequence={onPlayChordSequence} onPlaySelected={onPlaySelectedChord} onPlayComparison={onPlayChordComparison} /> : <ChordDegreeIdlePanel quiz={chordDegreeQuiz} sessionStats={sessionStats} history={chordDegreeHistory} sessionCompleted={sessionCompleted} selectedKey={chordDegreeKey} range={chordDegreeRange} customDegrees={chordDegreeCustomDegrees} inversionMode={chordDegreeInversionMode} onKeyChange={onChordDegreeKeyChange} onRangeChange={onChordDegreeRangeChange} onCustomDegreesChange={onChordDegreeCustomDegreesChange} onInversionModeChange={onChordDegreeInversionModeChange} onApplyPreset={onApplyChordDegreePreset} onPlayDo={onPlayChordDo} />
       ) : mode === 'chordProgression' ? (

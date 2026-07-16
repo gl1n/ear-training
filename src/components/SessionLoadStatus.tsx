@@ -1,5 +1,5 @@
 import type { TrainerState } from '../quiz/sequencer'
-import { Button } from './ui/Button'
+import { Button } from '../common/ui/Button'
 import { LoadProgressBar } from './LoadProgressBar'
 
 type SessionLoadStatusProps = {

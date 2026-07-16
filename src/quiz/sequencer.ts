@@ -49,7 +49,7 @@ export type TrainerState =
 
 export type SpeedPreset = 'slow' | 'medium' | 'fast'
 
-const APP_MODES = ['intervalFollow', 'intervalSpeed', 'scaleDegree', 'chordDegree', 'chordProgression', 'fretboard', 'metronome'] as const
+const APP_MODES = ['intervalFollow', 'intervalSpeed', 'scaleDegree', 'chordDegree', 'chordProgression', 'metronome'] as const
 
 export type AppMode = (typeof APP_MODES)[number]
 

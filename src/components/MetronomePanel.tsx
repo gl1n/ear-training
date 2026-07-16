@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createAudioContext, unlockAudioContextSync } from '../audio/context'
 import { bpmFromTapTimes, clampBpm, MAX_BPM, MIN_BPM } from '../quiz/metronome'
-import { Button } from './ui/Button'
+import { Button } from '../common/ui/Button'
 
 const BEAT_OPTIONS = [2, 3, 4, 6] as const
 

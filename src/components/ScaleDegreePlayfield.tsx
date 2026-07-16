@@ -10,8 +10,8 @@ import { PracticeLoadStatus } from './practice/PracticeLoadStatus'
 import { PracticePhaseIndicator } from './practice/PracticePhaseIndicator'
 import { PracticeSessionHeader } from './practice/PracticeSessionHeader'
 import type { PracticeEncouragement } from './practice/types'
-import { Card } from './ui/Card'
-import { Button } from './ui/Button'
+import { Card } from '../common/ui/Card'
+import { Button } from '../common/ui/Button'
 
 type ScaleDegreePlayfieldProps = {
   state: TrainerState

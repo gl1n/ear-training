@@ -1,4 +1,4 @@
-import { EncouragementToast } from '../ui/EncouragementToast'
+import { EncouragementToast } from '../../common/ui/EncouragementToast'
 import type { PracticeEncouragement } from './types'
 
 type PracticeEncouragementOverlayProps = {

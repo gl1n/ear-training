@@ -9,7 +9,7 @@ import { PracticeLoadStatus } from './practice/PracticeLoadStatus'
 import { PracticePhaseIndicator } from './practice/PracticePhaseIndicator'
 import { PracticeSessionHeader } from './practice/PracticeSessionHeader'
 import type { PracticeEncouragement } from './practice/types'
-import { Card } from './ui/Card'
+import { Card } from '../common/ui/Card'
 
 type IntervalSpeedPlayfieldProps = {
   optionIds: string[]

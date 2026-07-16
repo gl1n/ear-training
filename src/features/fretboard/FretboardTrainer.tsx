@@ -13,12 +13,12 @@ import {
   type FretboardQuestion,
   type FretboardStat,
   type FretboardStats,
-} from '../quiz/fretboard'
-import { STORAGE_KEYS } from '../quiz/storageKeys'
-import { readStorage, writeStorage } from '../utils/storage'
+} from './fretboard'
+import { STORAGE_KEYS } from '../../quiz/storageKeys'
+import { readStorage, writeStorage } from '../../utils/storage'
 import { FretboardBoard, type FretboardPluck } from './FretboardBoard'
-import { Button } from './ui/Button'
-import { Card } from './ui/Card'
+import { Button } from '../../common/ui/Button'
+import { Card } from '../../common/ui/Card'
 
 type GamePhase = 'idle' | 'playing' | 'feedback' | 'finished'
 

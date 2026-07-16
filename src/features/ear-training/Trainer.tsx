@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useAudioEngine } from '../hooks/useAudioEngine'
-import { useAutoDismiss } from '../hooks/useAutoDismiss'
-import { useChallengeSession } from '../hooks/useChallengeSession'
-import { getInitialSettings, usePersistedSettings } from '../hooks/usePersistedSettings'
-import { useTrainingStats } from '../hooks/useTrainingStats'
-import { useSessionGoal } from '../hooks/useSessionGoal'
-import { ALL_INTERVAL_IDS, type IntervalDirection, type Quiz } from '../quiz/intervals'
-import { isMelodyScaleDegreeQuiz, type ScaleDegreeQuiz, type MelodyScaleDegreeQuiz } from '../quiz/keys'
-import { getTotalAnswerCount } from '../quiz/stats'
+import { useAudioEngine } from '../../hooks/useAudioEngine'
+import { useAutoDismiss } from '../../hooks/useAutoDismiss'
+import { useChallengeSession } from '../../hooks/useChallengeSession'
+import { getInitialSettings, usePersistedSettings } from '../../hooks/usePersistedSettings'
+import { useTrainingStats } from '../../hooks/useTrainingStats'
+import { useSessionGoal } from '../../hooks/useSessionGoal'
+import { ALL_INTERVAL_IDS, type IntervalDirection, type Quiz } from '../../quiz/intervals'
+import { isMelodyScaleDegreeQuiz, type ScaleDegreeQuiz, type MelodyScaleDegreeQuiz } from '../../quiz/keys'
+import { getTotalAnswerCount } from '../../quiz/stats'
 import {
   buildIntervalSpeedLoopCallbacks,
   buildScaleDegreeLoopCallbacks,
-} from '../quiz/challengeSessionHandlers'
-import { createAnswerWaiter, createGameStartWaiter } from '../quiz/createAnswerWaiter'
+} from '../../quiz/challengeSessionHandlers'
+import { createAnswerWaiter, createGameStartWaiter } from '../../quiz/createAnswerWaiter'
 import {
   createDefaultSettings,
   runIntervalFollowLoop,
@@ -24,15 +24,15 @@ import {
   type Settings,
   type SpeedPreset,
   type TrainerState,
-} from '../quiz/sequencer'
-import { isAbortError } from '../utils/abort'
-import type { SettingsPanelProps } from './SettingsPanel'
+} from '../../quiz/sequencer'
+import { isAbortError } from '../../utils/abort'
+import type { SettingsPanelProps } from '../../components/SettingsPanel'
 import { PracticeView } from './PracticeView'
-import type { PracticeEncouragement } from './practice/types'
-import { SettingsDrawer } from './SettingsDrawer'
-import { chordKeyLabel, runChordProgressionLoop, runRandomChordEarLoop, type ChordDegree, type ChordKey, type ChordPlaybackMode, type ChordRhythm, type PlayedChord, type RandomChordSettings } from '../quiz/chordProgression'
-import { CHORD_DEGREE_PLAYBACK_DURATION_SEC, CHORD_DEGREE_RETRIGGER_GAP_MS, createChordMidis, getChordDegreesForRange, loadChordDegreeHistory, randomChordDegreeTonicMidi, recordChordDegreeHistory, runChordDegreeLoop, type ChordDegreeHistory, type ChordDegreeId, type ChordDegreeInversionMode, type ChordDegreeKey, type ChordDegreeQuiz, type ChordDegreeRange } from '../quiz/chordDegreeQuiz'
-import { recordChallengeResultNoBonus } from '../quiz/stats'
+import type { PracticeEncouragement } from '../../components/practice/types'
+import { SettingsDrawer } from '../../components/SettingsDrawer'
+import { chordKeyLabel, runChordProgressionLoop, runRandomChordEarLoop, type ChordDegree, type ChordKey, type ChordPlaybackMode, type ChordRhythm, type PlayedChord, type RandomChordSettings } from '../../quiz/chordProgression'
+import { CHORD_DEGREE_PLAYBACK_DURATION_SEC, CHORD_DEGREE_RETRIGGER_GAP_MS, createChordMidis, getChordDegreesForRange, loadChordDegreeHistory, randomChordDegreeTonicMidi, recordChordDegreeHistory, runChordDegreeLoop, type ChordDegreeHistory, type ChordDegreeId, type ChordDegreeInversionMode, type ChordDegreeKey, type ChordDegreeQuiz, type ChordDegreeRange } from '../../quiz/chordDegreeQuiz'
+import { recordChallengeResultNoBonus } from '../../quiz/stats'
 
 function waitForChordRetrigger(): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, CHORD_DEGREE_RETRIGGER_GAP_MS))
@@ -105,7 +105,6 @@ export function Trainer() {
     handlePlayQuiz: replayQuizAudio,
     handlePlayMelodyQuiz: replayMelodyQuizAudio,
     handleLoadFailure,
-    playMidi,
     stopReplay,
     dispose: disposeAudio,
     setLoadProgress,
@@ -163,7 +162,7 @@ export function Trainer() {
   )
 
   useEffect(() => {
-    if (mode === 'metronome' || mode === 'fretboard') return
+    if (mode === 'metronome') return
     // Start fetching and decoding the samples after the initial screen has painted.
     // Starting a session or replaying a quiz reuses this same in-flight promise.
     const preloadTimer = window.setTimeout(() => {
@@ -659,10 +658,6 @@ export function Trainer() {
     void playChordMidis(midis).catch((error: unknown) => handleLoadFailure(error))
   }, [chordDegreeQuiz, chordDegreeTonicMidi, correctionWrongSelection, handleLoadFailure, playChordMidis])
 
-  const handlePlayFretboardNote = useCallback((midi: number) => {
-    playMidi(midi)
-  }, [playMidi])
-
   const handlePlayChordComparison = useCallback(() => {
     if (!chordDegreeQuiz || !correctionWrongSelection) return
     void (async () => {
@@ -785,7 +780,6 @@ export function Trainer() {
         onPlayChordSequence={handlePlayChordSequence}
         onPlaySelectedChord={handlePlaySelectedChord}
         onPlayChordComparison={handlePlayChordComparison}
-        onPlayFretboardNote={handlePlayFretboardNote}
       />
 
       {isIntervalMode(mode) && (

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { midiAt, noteAt, type FretboardCell, type FretboardQuestion } from '../quiz/fretboard'
+import { midiAt, noteAt, type FretboardCell, type FretboardQuestion } from './fretboard'
 
 const STRING_COUNT = 6
 const FRET_COUNT = 12
