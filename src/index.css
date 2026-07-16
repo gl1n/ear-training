@@ -276,6 +276,7 @@ a {
   /* Equal-tempered fret spacing: each successive fret is 2^(-1/12) shorter. */
   grid-template-columns:
     var(--fretboard-label-width)
+    minmax(0, 5.946fr)
     minmax(0, 5.613fr)
     minmax(0, 5.298fr)
     minmax(0, 5fr)
@@ -308,6 +309,11 @@ a {
 
 .fretboard-cell:focus-visible {
   outline: none;
+}
+
+.fretboard-cell--open {
+  border-right: 4px double rgba(251, 191, 36, 0.48);
+  background: rgba(251, 191, 36, 0.035);
 }
 
 .fretboard-cell:focus-visible::after {

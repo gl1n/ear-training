@@ -2,15 +2,15 @@ import { useEffect, useRef } from 'react'
 import { midiAt, noteAt, type FretboardCell, type FretboardQuestion } from './fretboard'
 
 const STRING_COUNT = 6
-const FRET_COUNT = 12
+const MAX_FRET = 12
 const STRING_LABELS = ['1 · E', '2 · B', '3 · G', '4 · D', '5 · A', '6 · E']
 const VIBRATION_DURATION_MS = 800
+const FRET_NUMBERS = Array.from({ length: MAX_FRET + 1 }, (_, fret) => fret)
 
 const BOARD_ROWS = Array.from({ length: STRING_COUNT }, (_, stringIndex) => (
-  Array.from({ length: FRET_COUNT }, (_, index) => {
-    const fret = index + 1
-    return { stringIndex, fret, note: noteAt(stringIndex, fret), midi: midiAt(stringIndex, fret) }
-  })
+  FRET_NUMBERS.map((fret) => (
+    { stringIndex, fret, note: noteAt(stringIndex, fret), midi: midiAt(stringIndex, fret) }
+  ))
 ))
 
 export type FretboardPluck = {
@@ -40,17 +40,12 @@ function hasPositionMarker(cell: Pick<FretboardCell, 'stringIndex' | 'fret'>) {
   return cell.fret === 12 && (cell.stringIndex === 1 || cell.stringIndex === 3)
 }
 
-function fretCenterPosition(fret: number) {
-  const previousWire = 1 - 2 ** (-(fret - 1) / 12)
-  const currentWire = 1 - 2 ** (-fret / 12)
-  return previousWire + currentWire
-}
-
 function fretCenterRatio(fret: number) {
-  const boardEnd = 1 - 2 ** (-FRET_COUNT / 12)
+  const boardStart = 1 - 2 ** (1 / 12)
+  const boardEnd = 1 - 2 ** (-MAX_FRET / 12)
   const previousWire = 1 - 2 ** (-(fret - 1) / 12)
   const currentWire = 1 - 2 ** (-fret / 12)
-  return (previousWire + currentWire) / (2 * boardEnd)
+  return (previousWire + currentWire - 2 * boardStart) / (2 * (boardEnd - boardStart))
 }
 
 function isCellInRegion(cell: FretboardCell, question: FretboardQuestion) {
@@ -71,8 +66,7 @@ function FretboardStringsCanvas({ pluck }: { pluck: FretboardPluck }) {
     let animationFrame = 0
     const startedAt = performance.now()
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const fretIndex = Math.min(FRET_COUNT, Math.max(1, pluck.fret)) - 1
-    const pluckPosition = fretCenterPosition(fretIndex + 1)
+    const pluckPosition = fretCenterRatio(Math.min(MAX_FRET, Math.max(0, pluck.fret)))
     const soundingLengthRatio = 1 - pluckPosition
     const pluckAmplitude = 0.45 + 4.35 * soundingLengthRatio ** 0.9
 
@@ -201,11 +195,11 @@ export function FretboardBoard({
   return (
     <div className={`w-full ${fullscreen ? 'flex min-h-0 flex-1' : 'pb-2'}`}>
       <div className={`fretboard-grid-wrap ${fullscreen ? 'flex min-h-0 flex-1 [--fretboard-header-height:1rem] [--fretboard-row-height:auto]' : ''}`}>
-        <div className={`fretboard-grid ${fullscreen ? 'flex-1 [grid-template-rows:var(--fretboard-header-height)_repeat(6,minmax(0,1fr))]' : ''}`} role="group" aria-label="六弦十二品完整指板">
+        <div className={`fretboard-grid ${fullscreen ? 'flex-1 [grid-template-rows:var(--fretboard-header-height)_repeat(6,minmax(0,1fr))]' : ''}`} role="group" aria-label="六弦零至十二品完整指板">
           <span aria-hidden="true" />
-          {Array.from({ length: FRET_COUNT }, (_, index) => (
-            <span key={index} className="pb-1 text-center text-[10px] font-medium text-[var(--text-secondary)]">
-              {index + 1}
+          {FRET_NUMBERS.map((fret) => (
+            <span key={fret} className="pb-1 text-center text-[10px] font-medium text-[var(--text-secondary)]">
+              {fret}
             </span>
           ))}
           {BOARD_ROWS.map((row, stringIndex) => [
@@ -231,7 +225,7 @@ export function FretboardBoard({
                   <button
                     key={key}
                     type="button"
-                    className={`fretboard-cell ${stateClass}`}
+                    className={`fretboard-cell ${cell.fret === 0 ? 'fretboard-cell--open' : ''} ${stateClass}`}
                     onClick={(event) => onSelect(cell, event.timeStamp)}
                     disabled={showQuestion ? !canAnswer || !active : false}
                     aria-label={`${stringIndex + 1} 弦，第 ${cell.fret} 品${showQuestion ? active ? '，当前题目区域' : '，非题目区域' : ''}${errorRate ? `，错误率 ${Math.round(errorRate * 100)}%` : ''}`}

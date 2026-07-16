@@ -14,14 +14,16 @@ import {
 
 describe('fretboard quiz', () => {
   it('uses standard guitar tuning', () => {
+    expect(noteAt(0, 0)).toBe('E')
     expect(noteAt(0, 1)).toBe('F')
     expect(noteAt(1, 1)).toBe('C')
     expect(noteAt(5, 12)).toBe('E')
+    expect(midiAt(0, 0)).toBe(64)
     expect(midiAt(0, 1)).toBe(65)
     expect(midiAt(5, 12)).toBe(52)
   })
 
-  it('creates a 3 string by 4 fret question inside the 12-fret board', () => {
+  it('creates a 3 string by 4 fret question inside the 0–12 fret board', () => {
     const values = [0.99, 0.99, 0.5]
     const question = createFretboardQuestion(() => values.shift() ?? 0)
 
@@ -31,6 +33,15 @@ describe('fretboard quiz', () => {
       question.region.fretStart + index % 4,
     ))
     expect(regionNotes).toContain(question.targetNote)
+  })
+
+  it('includes open strings in generated questions', () => {
+    const question = createFretboardQuestion(() => 0)
+
+    expect(question).toEqual({
+      region: { stringStart: 0, fretStart: 0 },
+      targetNote: 'E',
+    })
   })
 
   it('records note and region performance without mutating previous stats', () => {
@@ -84,8 +95,8 @@ describe('fretboard quiz', () => {
 
     const randomValues = [0.49, 0, 0, 0]
     expect(createFretboardQuestion(() => randomValues.shift() ?? 0, stats, 3)).toEqual({
-      region: { stringStart: 0, fretStart: 1 },
-      targetNote: 'F',
+      region: { stringStart: 0, fretStart: 0 },
+      targetNote: 'E',
     })
   })
 
@@ -101,14 +112,14 @@ describe('fretboard quiz', () => {
 
     const randomValues = [0.3, 0, 0, 0]
     expect(createFretboardQuestion(() => randomValues.shift() ?? 0, afterCorrection, 2)).toEqual({
-      region: { stringStart: 0, fretStart: 1 },
-      targetNote: 'F',
+      region: { stringStart: 0, fretStart: 0 },
+      targetNote: 'E',
     })
   })
 
   it('only keeps mistakes from the latest 48 hours', () => {
     const now = 200_000_000
-    const recent = { position: { stringIndex: 0, fret: 1 }, selectedNote: 'F' as const, targetNote: 'A' as const, region: { stringStart: 0, fretStart: 1 }, recordedAt: now - FRETBOARD_MISTAKE_RETENTION_MS }
+    const recent = { position: { stringIndex: 0, fret: 0 }, selectedNote: 'E' as const, targetNote: 'A' as const, region: { stringStart: 0, fretStart: 0 }, recordedAt: now - FRETBOARD_MISTAKE_RETENTION_MS }
     const expired = { ...recent, recordedAt: recent.recordedAt - 1 }
 
     expect(recentFretboardMistakes([expired, recent], now)).toEqual([recent])

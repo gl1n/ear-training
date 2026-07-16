@@ -97,7 +97,7 @@ export function formatRegion(region: FretboardRegion): string {
 function createRandomFretboardQuestion(random: () => number): FretboardQuestion {
   const region: FretboardRegion = {
     stringStart: Math.floor(random() * 4),
-    fretStart: Math.floor(random() * 9) + 1,
+    fretStart: Math.floor(random() * 10),
   }
   const targetIndex = Math.floor(random() * 12)
   const targetString = region.stringStart + Math.floor(targetIndex / 4)
@@ -116,7 +116,7 @@ export function isFretboardMistakeRecord(value: unknown): value is FretboardMist
     && position.stringIndex >= 0
     && position.stringIndex <= 5
     && Number.isInteger(position.fret)
-    && position.fret >= 1
+    && position.fret >= 0
     && position.fret <= 12
     && FRETBOARD_NOTE_NAMES.includes(record.selectedNote as FretboardNoteName)
     && FRETBOARD_NOTE_NAMES.includes(record.targetNote as FretboardNoteName)
@@ -125,7 +125,7 @@ export function isFretboardMistakeRecord(value: unknown): value is FretboardMist
     && region.stringStart >= 0
     && region.stringStart <= 3
     && Number.isInteger(region.fretStart)
-    && region.fretStart >= 1
+    && region.fretStart >= 0
     && region.fretStart <= 9
     && typeof record.recordedAt === 'number'
     && Number.isFinite(record.recordedAt),
@@ -156,7 +156,7 @@ export function recentFretboardAnswers(
       && answer.position.stringIndex >= 0
       && answer.position.stringIndex <= 5
       && Number.isInteger(answer.position.fret)
-      && answer.position.fret >= 1
+      && answer.position.fret >= 0
       && answer.position.fret <= 12
       && typeof answer.correct === 'boolean'
       && typeof answer.recordedAt === 'number'
