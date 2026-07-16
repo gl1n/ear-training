@@ -192,64 +192,10 @@ export function FretboardBoard({
   fullscreen = false,
   onSelect,
 }: FretboardBoardProps) {
-  const gridRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    const grid = gridRef.current
-    if (!fullscreen || !grid) return
-
-    const isRotatedPortraitLayout = () => window.matchMedia('(max-width: 720px) and (orientation: portrait)').matches
-    const isInsideGrid = (event: PointerEvent) => {
-      const bounds = grid.getBoundingClientRect()
-      return event.clientX >= bounds.left
-        && event.clientX <= bounds.right
-        && event.clientY >= bounds.top
-        && event.clientY <= bounds.bottom
-    }
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (event.pointerType !== 'touch' || !isRotatedPortraitLayout() || !isInsideGrid(event)) return
-
-      // Some mobile browsers hit-test fixed elements before their CSS rotation. Prevent
-      // the resulting synthetic click so it cannot activate a visually different cell.
-      event.preventDefault()
-      event.stopPropagation()
-    }
-
-    const handlePointerUp = (event: PointerEvent) => {
-      if (event.pointerType !== 'touch' || !isRotatedPortraitLayout() || !isInsideGrid(event)) return
-
-      event.preventDefault()
-      event.stopPropagation()
-
-      const buttons = grid.querySelectorAll<HTMLButtonElement>('.fretboard-cell')
-      const button = Array.from(buttons).find((candidate) => {
-        const bounds = candidate.getBoundingClientRect()
-        return event.clientX >= bounds.left
-          && event.clientX <= bounds.right
-          && event.clientY >= bounds.top
-          && event.clientY <= bounds.bottom
-      })
-      if (!button || button.disabled) return
-
-      const stringIndex = Number(button.dataset.stringIndex)
-      const fret = Number(button.dataset.fret)
-      const cell = BOARD_ROWS[stringIndex]?.[fret]
-      if (cell) onSelect(cell, event.timeStamp)
-    }
-
-    window.addEventListener('pointerdown', handlePointerDown, { capture: true, passive: false })
-    window.addEventListener('pointerup', handlePointerUp, { capture: true, passive: false })
-    return () => {
-      window.removeEventListener('pointerdown', handlePointerDown, true)
-      window.removeEventListener('pointerup', handlePointerUp, true)
-    }
-  }, [fullscreen, onSelect])
-
   return (
-    <div className={`w-full ${fullscreen ? 'flex min-h-0 flex-1' : 'pb-2'}`}>
-      <div className={`fretboard-grid-wrap ${fullscreen ? 'flex min-h-0 flex-1 [--fretboard-header-height:1rem] [--fretboard-row-height:auto]' : ''}`}>
-        <div ref={gridRef} className={`fretboard-grid ${fullscreen ? 'flex-1 [grid-template-rows:var(--fretboard-header-height)_repeat(6,minmax(0,1fr))]' : ''}`} role="group" aria-label="六弦零至十二品完整指板">
+    <div className={`w-full ${fullscreen ? 'fretboard-board--fullscreen' : 'pb-2'}`}>
+      <div className={`fretboard-grid-wrap${fullscreen ? ' fretboard-grid-wrap--fullscreen' : ''}`}>
+        <div className={`fretboard-grid${fullscreen ? ' fretboard-grid--fullscreen' : ''}`} role="group" aria-label="六弦零至十二品完整指板">
           <span aria-hidden="true" />
           {FRET_NUMBERS.map((fret) => (
             <span key={fret} className="pb-1 text-center text-[10px] font-medium text-[var(--text-secondary)]">
@@ -280,8 +226,6 @@ export function FretboardBoard({
                     key={key}
                     type="button"
                     className={`fretboard-cell ${cell.fret === 0 ? 'fretboard-cell--open' : ''} ${stateClass}`}
-                    data-string-index={cell.stringIndex}
-                    data-fret={cell.fret}
                     onClick={(event) => onSelect(cell, event.timeStamp)}
                     disabled={showQuestion ? !canAnswer || !active : false}
                     aria-label={`${stringIndex + 1} 弦，第 ${cell.fret} 品${showQuestion ? active ? '，当前题目区域' : '，非题目区域' : ''}${errorRate ? `，错误率 ${Math.round(errorRate * 100)}%` : ''}`}

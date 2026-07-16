@@ -263,6 +263,17 @@ a {
     rgba(4, 4, 4, 0.4);
 }
 
+.fretboard-board--fullscreen,
+.fretboard-grid-wrap--fullscreen {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 0%;
+}
+
+.fretboard-grid-wrap--fullscreen {
+  --fretboard-header-height: 1rem;
+}
+
 .fretboard-focus-shell--fullscreen {
   padding:
     max(0.5rem, env(safe-area-inset-top))
@@ -293,6 +304,12 @@ a {
   align-items: stretch;
   width: 100%;
   min-width: 0;
+}
+
+.fretboard-grid--fullscreen {
+  min-height: 0;
+  flex: 1 1 0%;
+  grid-template-rows: var(--fretboard-header-height) repeat(6, minmax(0, 1fr));
 }
 
 .fretboard-cell {
