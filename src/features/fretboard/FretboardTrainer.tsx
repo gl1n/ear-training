@@ -5,11 +5,13 @@ import {
   accuracy,
   averageReactionMs,
   createFretboardQuestion,
+  fretboardCellsForNote,
   fretboardMistakeHeatmap,
   formatRegion,
   recentFretboardAnswers,
   recentFretboardMistakes,
   recordFretboardAnswer,
+  randomFretboardNote,
   regionId,
   type FretboardCell,
   type FretboardQuestion,
@@ -24,6 +26,7 @@ import { Button } from '../../common/ui/Button'
 import { Card } from '../../common/ui/Card'
 
 type GamePhase = 'idle' | 'playing' | 'feedback' | 'finished'
+type GameMode = 'region' | 'all-notes'
 
 const ROUND_SECONDS = 60
 const EMPTY_ROUND = { score: 0, streak: 0, bestStreak: 0, answered: 0, totalReactionMs: 0 }
@@ -66,11 +69,13 @@ type FretboardTrainerProps = {
 
 export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
   const [phase, setPhase] = useState<GamePhase>('idle')
+  const [gameMode, setGameMode] = useState<GameMode>('region')
   const [continuous, setContinuous] = useState(true)
   const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS)
   const [question, setQuestion] = useState<FretboardQuestion>(() => createFretboardQuestion())
   const [round, setRound] = useState(EMPTY_ROUND)
   const [wrongCellKey, setWrongCellKey] = useState<string | null>(null)
+  const [foundCellKeys, setFoundCellKeys] = useState<string[]>([])
   const [pluck, setPluck] = useState<FretboardPluck>({ stringIndex: -1, fret: 1, token: 0 })
   const [stats, setStats] = useState<FretboardStats>(loadStats)
   const statsRef = useRef(stats)
@@ -144,6 +149,9 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
   }, [clearFeedbackTimer])
 
   const createRoundQuestion = useCallback(() => {
+    if (gameMode === 'all-notes') {
+      return { region: { stringStart: 0, fretStart: 0 }, targetNote: randomFretboardNote() }
+    }
     const next = createFretboardQuestion(
       Math.random,
       statsRef.current,
@@ -153,11 +161,12 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
     const id = regionId(next.region)
     roundRegionCountsRef.current[id] = (roundRegionCountsRef.current[id] ?? 0) + 1
     return next
-  }, [])
+  }, [gameMode])
 
   const nextQuestion = useCallback(() => {
     setQuestion(createRoundQuestion())
     setWrongCellKey(null)
+    setFoundCellKeys([])
     setPhase('playing')
     questionStartedAtRef.current = performance.now()
   }, [createRoundQuestion])
@@ -168,6 +177,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
     setQuestion(createRoundQuestion())
     setRound(EMPTY_ROUND)
     setWrongCellKey(null)
+    setFoundCellKeys([])
     setTimeLeft(ROUND_SECONDS)
     deadlineRef.current = performance.now() + ROUND_SECONDS * 1000
     questionStartedAtRef.current = performance.now()
@@ -199,6 +209,42 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
     const correct = cell.note === question.targetNote
     const reactionMs = Math.max(1, Math.round(answeredAt - questionStartedAtRef.current))
     onPlayNote(cell.midi)
+
+    if (gameMode === 'all-notes') {
+      const key = `${cell.stringIndex}:${cell.fret}`
+      const targetCount = fretboardCellsForNote(question.targetNote).length
+
+      if (!correct) {
+        setWrongCellKey(key)
+        clearFeedbackTimer()
+        feedbackTimerRef.current = window.setTimeout(() => setWrongCellKey(null), 500)
+        return
+      }
+
+      const nextFoundCellKeys = foundCellKeys.includes(key) ? foundCellKeys : [...foundCellKeys, key]
+      setFoundCellKeys(nextFoundCellKeys)
+      setWrongCellKey(null)
+      if (nextFoundCellKeys.length < targetCount) return
+
+      setPhase('feedback')
+      setRound((current) => {
+        const streak = current.streak + 1
+        return {
+          score: current.score + 1,
+          streak,
+          bestStreak: Math.max(current.bestStreak, streak),
+          answered: current.answered + 1,
+          totalReactionMs: current.totalReactionMs + reactionMs,
+        }
+      })
+      clearFeedbackTimer()
+      feedbackTimerRef.current = window.setTimeout(() => {
+        if (!continuous && performance.now() >= deadlineRef.current) finishGame()
+        else nextQuestion()
+      }, 650)
+      return
+    }
+
     setPhase('feedback')
     setWrongCellKey(correct ? null : `${cell.stringIndex}:${cell.fret}`)
     setRound((current) => {
@@ -223,7 +269,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
       if (!continuous && performance.now() >= deadlineRef.current) finishGame()
       else nextQuestion()
     }, correct ? 320 : 500)
-  }, [clearFeedbackTimer, continuous, finishGame, nextQuestion, onPlayNote, phase, question])
+  }, [clearFeedbackTimer, continuous, finishGame, foundCellKeys, gameMode, nextQuestion, onPlayNote, phase, question])
 
   const weakestNotes = useMemo(
     () => FRETBOARD_NOTE_NAMES
@@ -243,14 +289,17 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
   const mistakeHeatmap = useMemo(() => fretboardMistakeHeatmap(stats.answers), [stats.answers])
   const roundActive = phase === 'playing' || phase === 'feedback'
   const showStats = phase === 'idle' || phase === 'finished'
+  const targetCellCount = gameMode === 'all-notes' ? fretboardCellsForNote(question.targetNote).length : 0
 
   return (
     <div className="flex flex-col gap-4">
       <section className="grid grid-cols-4 gap-2" aria-label="本轮数据">
         {[
           { label: continuous ? '模式' : '剩余', value: continuous ? '∞' : `${timeLeft}s` },
-          { label: '得分', value: String(round.score) },
-          { label: '连击', value: String(round.streak) },
+          { label: gameMode === 'all-notes' ? '通过' : '得分', value: String(round.score) },
+          gameMode === 'all-notes'
+            ? { label: '已找到 / 全部', value: roundActive ? `${foundCellKeys.length}/${targetCellCount}` : '—' }
+            : { label: '连击', value: String(round.streak) },
           { label: '平均', value: averageMs ? `${(averageMs / 1000).toFixed(1)}s` : '—' },
         ].map((item) => (
           <div key={item.label} className="rounded-xl border border-[var(--border-subtle)] bg-white/[0.035] px-2 py-3 text-center">
@@ -265,9 +314,13 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
           <div className={`fretboard-trainer-heading flex items-end justify-between gap-3 ${fullscreen ? 'mb-2 min-h-14' : 'mb-5 min-h-[5.25rem]'}`}>
             {roundActive ? (
               <div>
-                <p className="text-xs font-semibold tracking-[0.16em] text-amber-300">{formatRegion(question.region)}</p>
+                <p className="text-xs font-semibold tracking-[0.16em] text-amber-300">
+                  {gameMode === 'all-notes' ? `全指板 · 已找到 ${foundCellKeys.length} / ${targetCellCount}` : formatRegion(question.region)}
+                </p>
                 <div className="mt-1 flex items-baseline gap-3">
-                  <h2 className={`${fullscreen ? 'text-base' : 'text-xl'} font-semibold text-white`}>找到这个音</h2>
+                  <h2 className={`${fullscreen ? 'text-base' : 'text-xl'} font-semibold text-white`}>
+                    {gameMode === 'all-notes' ? '找出全部' : '找到这个音'}
+                  </h2>
                   <span className={`${fullscreen ? 'text-3xl' : 'text-4xl sm:text-5xl'} font-black tracking-tight text-amber-300`}>{question.targetNote}</span>
                 </div>
               </div>
@@ -275,7 +328,9 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
               <div>
                 <p className="text-xs font-semibold tracking-[0.16em] text-amber-300">指板定位训练</p>
                 <h2 className="mt-1 text-xl font-semibold text-white">{phase === 'finished' ? '本轮已结束' : '准备开始'}</h2>
-                <p className="mt-1 text-sm text-[var(--text-secondary)]">点击指板可自由试音，开始后将显示随机区域与目标音</p>
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                  {gameMode === 'all-notes' ? '找齐 0–12 品内的全部目标音才算通过' : '点击指板可自由试音，开始后将显示随机区域与目标音'}
+                </p>
               </div>
             )}
             <div className="flex shrink-0 flex-col items-end gap-2">
@@ -301,6 +356,8 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
             wrongCellKey={wrongCellKey}
             pluck={pluck}
             mistakeHeatmap={showStats ? mistakeHeatmap : {}}
+            wholeBoard={gameMode === 'all-notes'}
+            foundCellKeys={foundCellKeys}
             fullscreen={fullscreen}
             onSelect={handleCellClick}
           />
@@ -312,16 +369,37 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
             </div>
           )}
           <div className={`flex flex-wrap items-center justify-between gap-3 border-t border-white/8 ${fullscreen ? 'mt-2 pt-2' : 'mt-5 pt-4'}`}>
-            <label className={`${fullscreen ? 'hidden' : 'flex'} cursor-pointer items-center gap-2 text-sm text-[var(--text-secondary)]`}>
-              <input
-                type="checkbox"
-                checked={continuous}
-                onChange={(event) => setContinuous(event.target.checked)}
-                disabled={roundActive}
-                className="size-4 accent-amber-300"
-              />
-              连续模式（不计时）
-            </label>
+            <div className={`${fullscreen ? 'hidden' : 'flex'} flex-wrap items-center gap-3`}>
+              <div className="flex rounded-xl border border-[var(--border-subtle)] bg-black/20 p-1" aria-label="指板练习模式">
+                {([
+                  ['region', '区域闪击'],
+                  ['all-notes', '全指板找音'],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setGameMode(value)}
+                    disabled={roundActive}
+                    aria-pressed={gameMode === value}
+                    className={`min-h-9 rounded-lg px-3 text-sm font-semibold transition ${
+                      gameMode === value ? 'bg-amber-300 text-slate-950' : 'text-[var(--text-secondary)] hover:bg-white/8 hover:text-white'
+                    } disabled:cursor-not-allowed disabled:opacity-50`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--text-secondary)]">
+                <input
+                  type="checkbox"
+                  checked={continuous}
+                  onChange={(event) => setContinuous(event.target.checked)}
+                  disabled={roundActive}
+                  className="size-4 accent-amber-300"
+                />
+                连续模式（不计时）
+              </label>
+            </div>
             {roundActive ? (
               <Button variant="ghost" onClick={finishGame}>结束本轮</Button>
             ) : (
@@ -336,8 +414,12 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
       {phase === 'finished' && (
         <Card className="border-emerald-300/15 bg-emerald-300/[0.045] p-5 text-center">
           <p className="text-xs font-semibold tracking-[0.16em] text-emerald-300">本轮完成</p>
-          <p className="mt-2 text-2xl font-bold">答对 {round.score} 题 · 最长连击 {round.bestStreak}</p>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">共作答 {round.answered} 次，平均反应 {(averageMs / 1000).toFixed(1)} 秒</p>
+          <p className="mt-2 text-2xl font-bold">
+            {gameMode === 'all-notes' ? `找齐并通过 ${round.score} 个音` : `答对 ${round.score} 题 · 最长连击 ${round.bestStreak}`}
+          </p>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">
+            {gameMode === 'all-notes' ? `平均每个音用时 ${(averageMs / 1000).toFixed(1)} 秒` : `共作答 ${round.answered} 次，平均反应 ${(averageMs / 1000).toFixed(1)} 秒`}
+          </p>
         </Card>
       )}
 

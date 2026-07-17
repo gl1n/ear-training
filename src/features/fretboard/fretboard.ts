@@ -84,6 +84,21 @@ export function midiAt(stringIndex: number, fret: number): number {
   return OPEN_STRING_MIDIS[stringIndex] + fret
 }
 
+export function fretboardCellsForNote(targetNote: FretboardNoteName): FretboardCell[] {
+  return Array.from({ length: 6 }, (_, stringIndex) => (
+    Array.from({ length: 13 }, (_, fret) => ({
+      stringIndex,
+      fret,
+      note: noteAt(stringIndex, fret),
+      midi: midiAt(stringIndex, fret),
+    }))
+  )).flat().filter((cell) => cell.note === targetNote)
+}
+
+export function randomFretboardNote(random: () => number = Math.random): FretboardNoteName {
+  return FRETBOARD_NOTE_NAMES[Math.floor(random() * FRETBOARD_NOTE_NAMES.length)]!
+}
+
 export function regionId(region: FretboardRegion): string {
   return `s${region.stringStart + 1}-${region.stringStart + 3}:f${region.fretStart}-${region.fretStart + 3}`
 }

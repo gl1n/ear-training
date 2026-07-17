@@ -3,9 +3,11 @@ import {
   EMPTY_FRETBOARD_STATS,
   FRETBOARD_MISTAKE_RETENTION_MS,
   createFretboardQuestion,
+  fretboardCellsForNote,
   fretboardMistakeHeatmap,
   midiAt,
   noteAt,
+  randomFretboardNote,
   recordFretboardAnswer,
   recentFretboardMistakes,
   regionId,
@@ -21,6 +23,20 @@ describe('fretboard quiz', () => {
     expect(midiAt(0, 0)).toBe(64)
     expect(midiAt(0, 1)).toBe(65)
     expect(midiAt(5, 12)).toBe(52)
+  })
+
+  it('finds every position for a target note across the full fretboard', () => {
+    const positions = fretboardCellsForNote('C')
+
+    expect(positions).toHaveLength(6)
+    expect(positions).toContainEqual({ stringIndex: 0, fret: 8, note: 'C', midi: 72 })
+    expect(positions).toContainEqual({ stringIndex: 1, fret: 1, note: 'C', midi: 60 })
+    expect(positions.every((cell) => noteAt(cell.stringIndex, cell.fret) === 'C')).toBe(true)
+  })
+
+  it('picks a target note from all twelve pitch classes', () => {
+    expect(randomFretboardNote(() => 0)).toBe('C')
+    expect(randomFretboardNote(() => 0.999)).toBe('B')
   })
 
   it('creates a 3 string by 4 fret question inside the 0–12 fret board', () => {

@@ -27,6 +27,8 @@ type FretboardBoardProps = {
   wrongCellKey: string | null
   pluck: FretboardPluck
   mistakeHeatmap?: Record<string, number>
+  wholeBoard?: boolean
+  foundCellKeys?: readonly string[]
   fullscreen?: boolean
   onSelect: (cell: FretboardCell, answeredAt: number) => void
 }
@@ -189,9 +191,13 @@ export function FretboardBoard({
   wrongCellKey,
   pluck,
   mistakeHeatmap = {},
+  wholeBoard = false,
+  foundCellKeys = [],
   fullscreen = false,
   onSelect,
 }: FretboardBoardProps) {
+  const foundCells = new Set(foundCellKeys)
+
   return (
     <div className={`w-full ${fullscreen ? 'fretboard-board--fullscreen' : 'pb-2'}`}>
       <div className={`fretboard-grid-wrap${fullscreen ? ' fretboard-grid-wrap--fullscreen' : ''}`}>
@@ -208,10 +214,11 @@ export function FretboardBoard({
             </span>,
             ...row.map((cell) => {
                 const key = fretboardCellKey(cell)
-                const active = showQuestion && isCellInRegion(cell, question)
+                const active = showQuestion && (wholeBoard || isCellInRegion(cell, question))
+                const found = foundCells.has(key)
                 const revealCorrect = revealAnswer && active && cell.note === question.targetNote
                 const errorRate = mistakeHeatmap[key] ?? 0
-                const stateClass = revealCorrect
+                const stateClass = found || revealCorrect
                   ? 'fretboard-cell--correct'
                   : wrongCellKey === key
                     ? 'fretboard-cell--wrong'
@@ -227,11 +234,11 @@ export function FretboardBoard({
                     type="button"
                     className={`fretboard-cell ${cell.fret === 0 ? 'fretboard-cell--open' : ''} ${stateClass}`}
                     onClick={(event) => onSelect(cell, event.timeStamp)}
-                    disabled={showQuestion ? !canAnswer || !active : false}
-                    aria-label={`${stringIndex + 1} 弦，第 ${cell.fret} 品${showQuestion ? active ? '，当前题目区域' : '，非题目区域' : ''}${errorRate ? `，错误率 ${Math.round(errorRate * 100)}%` : ''}`}
+                    disabled={showQuestion ? !canAnswer || !active || found : false}
+                    aria-label={`${stringIndex + 1} 弦，第 ${cell.fret} 品${showQuestion ? active ? wholeBoard ? '，全指板找音区域' : '，当前题目区域' : '，非题目区域' : ''}${found ? '，已找到' : ''}${errorRate ? `，错误率 ${Math.round(errorRate * 100)}%` : ''}`}
                   >
                     {hasPositionMarker(cell) && <i className="fretboard-position-marker" aria-hidden="true" />}
-                    <span aria-hidden="true">{revealCorrect ? cell.note : ''}</span>
+                    <span aria-hidden="true">{found || revealCorrect ? cell.note : ''}</span>
                   </button>
                 )
               }),
