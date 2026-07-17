@@ -54,13 +54,22 @@ export type FretboardAnswerRecord = {
   recordedAt: number
 }
 
-export type FretboardMistakeRecord = {
+export type FretboardWrongSelectionRecord = {
   position: Pick<FretboardCell, 'stringIndex' | 'fret'>
   selectedNote: FretboardNoteName
   targetNote: FretboardNoteName
   region: FretboardRegion
   recordedAt: number
 }
+
+export type FretboardTimeoutMistakeRecord = {
+  timedOut: true
+  targetNote: FretboardNoteName
+  region: FretboardRegion
+  recordedAt: number
+}
+
+export type FretboardMistakeRecord = FretboardWrongSelectionRecord | FretboardTimeoutMistakeRecord
 
 export const EMPTY_FRETBOARD_STATS: FretboardStats = {
   notes: {},
@@ -146,18 +155,9 @@ function createRandomFretboardQuestion(
 export function isFretboardMistakeRecord(value: unknown): value is FretboardMistakeRecord {
   if (!value || typeof value !== 'object') return false
   const record = value as Partial<FretboardMistakeRecord>
-  const position = record.position
   const region = record.region
-  return Boolean(
-    position
-    && Number.isInteger(position.stringIndex)
-    && position.stringIndex >= 0
-    && position.stringIndex <= 5
-    && Number.isInteger(position.fret)
-    && position.fret >= 0
-    && position.fret <= 12
-    && FRETBOARD_NOTE_NAMES.includes(record.selectedNote as FretboardNoteName)
-    && FRETBOARD_NOTE_NAMES.includes(record.targetNote as FretboardNoteName)
+  const hasCommonFields = Boolean(
+    FRETBOARD_NOTE_NAMES.includes(record.targetNote as FretboardNoteName)
     && region
     && Number.isInteger(region.stringStart)
     && region.stringStart >= 0
@@ -167,6 +167,21 @@ export function isFretboardMistakeRecord(value: unknown): value is FretboardMist
     && region.fretStart <= 9
     && typeof record.recordedAt === 'number'
     && Number.isFinite(record.recordedAt),
+  )
+  if (!hasCommonFields) return false
+  if ('timedOut' in record) return record.timedOut === true
+
+  const wrongSelection = record as Partial<FretboardWrongSelectionRecord>
+  const position = wrongSelection.position
+  return Boolean(
+    position
+    && Number.isInteger(position.stringIndex)
+    && position.stringIndex >= 0
+    && position.stringIndex <= 5
+    && Number.isInteger(position.fret)
+    && position.fret >= 0
+    && position.fret <= 12
+    && FRETBOARD_NOTE_NAMES.includes(wrongSelection.selectedNote as FretboardNoteName),
   )
 }
 
@@ -228,7 +243,7 @@ export function createFretboardQuestion(
     }, new Map()),
   ).flatMap(([id, question]) => {
     const stat = stats.questions[id]
-    return stat ? [{ question, weight: smoothedErrorRate(stat) }] : []
+    return [{ question, weight: stat ? smoothedErrorRate(stat) : 1 }]
   })
 
   const maxErrorRate = Math.max(0, ...candidates.map(({ weight }) => weight))
@@ -291,6 +306,58 @@ export function recordFretboardAnswer(
       {
         position: { stringIndex: selectedCell.stringIndex, fret: selectedCell.fret },
         selectedNote: selectedCell.note,
+        targetNote: question.targetNote,
+        region: { ...question.region },
+        recordedAt,
+      },
+    ],
+  }
+}
+
+export function recordFretboardTimeout(
+  stats: FretboardStats,
+  question: FretboardQuestion,
+  reactionMs: number,
+  recordedAt: number = Date.now(),
+  wholeBoard: boolean = false,
+): FretboardStats {
+  const id = regionId(question.region)
+  const exactQuestionId = questionId(question)
+  const recentAnswers = recentFretboardAnswers(stats.answers, recordedAt)
+  const targetCells = fretboardCellsForNote(question.targetNote).filter((cell) => (
+    wholeBoard || (
+      cell.stringIndex >= question.region.stringStart
+      && cell.stringIndex <= question.region.stringStart + 2
+      && cell.fret >= question.region.fretStart
+      && cell.fret <= question.region.fretStart + 3
+    )
+  ))
+
+  return {
+    notes: {
+      ...stats.notes,
+      [question.targetNote]: updateStat(stats.notes[question.targetNote], false, reactionMs),
+    },
+    regions: {
+      ...stats.regions,
+      [id]: updateStat(stats.regions[id], false, reactionMs),
+    },
+    questions: {
+      ...stats.questions,
+      [exactQuestionId]: updateStat(stats.questions[exactQuestionId], false, reactionMs),
+    },
+    answers: [
+      ...recentAnswers,
+      ...targetCells.map((cell) => ({
+        position: { stringIndex: cell.stringIndex, fret: cell.fret },
+        correct: false,
+        recordedAt,
+      })),
+    ],
+    mistakes: [
+      ...recentFretboardMistakes(stats.mistakes, recordedAt),
+      {
+        timedOut: true,
         targetNote: question.targetNote,
         region: { ...question.region },
         recordedAt,

@@ -9,6 +9,7 @@ import {
   noteAt,
   randomFretboardNote,
   recordFretboardAnswer,
+  recordFretboardTimeout,
   recentFretboardMistakes,
   regionId,
   questionId,
@@ -105,6 +106,51 @@ describe('fretboard quiz', () => {
       recordedAt: 1234,
     }])
     expect(fretboardMistakeHeatmap(next.answers, 1234)).toEqual({ '2:5': 1 })
+  })
+
+  it('records a timeout as an incorrect attempt without requiring a selected cell', () => {
+    const question = { region: { stringStart: 1, fretStart: 4 }, targetNote: 'A' as const }
+    const next = recordFretboardTimeout(EMPTY_FRETBOARD_STATS, question, 5000, 1234)
+
+    expect(next.mistakes).toEqual([{
+      timedOut: true,
+      targetNote: 'A',
+      region: question.region,
+      recordedAt: 1234,
+    }])
+    expect(next.notes.A).toEqual({ attempts: 1, correct: 0, totalReactionMs: 5000 })
+    expect(next.regions[regionId(question.region)]).toEqual({ attempts: 1, correct: 0, totalReactionMs: 5000 })
+    expect(next.questions[questionId(question)]).toEqual({ attempts: 1, correct: 0, totalReactionMs: 5000 })
+    expect(next.answers).toEqual([{
+      position: { stringIndex: 3, fret: 7 },
+      correct: false,
+      recordedAt: 1234,
+    }])
+    expect(fretboardMistakeHeatmap(next.answers, 1234)).toEqual({ '3:7': 1 })
+  })
+
+  it('can review a timeout based on its incorrect answer statistics', () => {
+    const question = { region: { stringStart: 1, fretStart: 4 }, targetNote: 'A' as const }
+    const stats = recordFretboardTimeout(EMPTY_FRETBOARD_STATS, question, 5000, 1234)
+    const values = [0, 0]
+
+    expect(createFretboardQuestion(() => values.shift() ?? 0, stats, 1234)).toEqual(question)
+  })
+
+  it('marks every matching position when a full-fretboard question times out', () => {
+    const question = { region: { stringStart: 0, fretStart: 0 }, targetNote: 'C' as const }
+    const next = recordFretboardTimeout(EMPTY_FRETBOARD_STATS, question, 5000, 1234, true)
+
+    expect(next.answers).toHaveLength(6)
+    expect(next.answers.every((answer) => answer.correct === false)).toBe(true)
+    expect(fretboardMistakeHeatmap(next.answers, 1234)).toEqual({
+      '0:8': 1,
+      '1:1': 1,
+      '2:5': 1,
+      '3:10': 1,
+      '4:3': 1,
+      '5:8': 1,
+    })
   })
 
   it('weights unique note-plus-region mistakes by smoothed error rate', () => {

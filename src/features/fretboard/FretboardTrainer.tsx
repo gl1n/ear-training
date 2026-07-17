@@ -11,6 +11,7 @@ import {
   recentFretboardAnswers,
   recentFretboardMistakes,
   recordFretboardAnswer,
+  recordFretboardTimeout,
   randomFretboardNote,
   regionId,
   type FretboardCell,
@@ -29,6 +30,7 @@ type GamePhase = 'idle' | 'playing' | 'feedback' | 'finished'
 type GameMode = 'region' | 'all-notes'
 
 const ROUND_SECONDS = 60
+const SLOW_ANSWER_MS = 5_000
 const EMPTY_ROUND = { score: 0, streak: 0, bestStreak: 0, answered: 0, totalReactionMs: 0 }
 
 function loadStats(): FretboardStats {
@@ -81,6 +83,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
   const statsRef = useRef(stats)
   const deadlineRef = useRef(0)
   const questionStartedAtRef = useRef(0)
+  const questionTimedOutRef = useRef(false)
   const feedbackTimerRef = useRef<number | null>(null)
   const roundRegionCountsRef = useRef<FretboardRegionCounts>({})
   const fullscreenRef = useRef<HTMLDivElement | null>(null)
@@ -168,6 +171,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
     setWrongCellKey(null)
     setFoundCellKeys([])
     setPhase('playing')
+    questionTimedOutRef.current = false
     questionStartedAtRef.current = performance.now()
   }, [createRoundQuestion])
 
@@ -180,6 +184,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
     setFoundCellKeys([])
     setTimeLeft(ROUND_SECONDS)
     deadlineRef.current = performance.now() + ROUND_SECONDS * 1000
+    questionTimedOutRef.current = false
     questionStartedAtRef.current = performance.now()
     setPhase('playing')
   }, [clearFeedbackTimer, createRoundQuestion])
@@ -196,6 +201,34 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
 
     return () => window.clearInterval(timer)
   }, [continuous, finishGame, phase])
+
+  useEffect(() => {
+    if (phase !== 'playing') return
+
+    const elapsedMs = performance.now() - questionStartedAtRef.current
+    const timer = window.setTimeout(() => {
+      questionTimedOutRef.current = true
+      setStats((current) => {
+        const next = recordFretboardTimeout(
+          current,
+          question,
+          SLOW_ANSWER_MS,
+          Date.now(),
+          gameMode === 'all-notes',
+        )
+        statsRef.current = next
+        writeStorage(STORAGE_KEYS.fretboardStats, JSON.stringify(next))
+        return next
+      })
+      setRound((current) => ({
+        ...current,
+        answered: current.answered + 1,
+        totalReactionMs: current.totalReactionMs + SLOW_ANSWER_MS,
+      }))
+    }, Math.max(0, SLOW_ANSWER_MS - elapsedMs))
+
+    return () => window.clearTimeout(timer)
+  }, [gameMode, phase, question])
 
   useEffect(() => () => clearFeedbackTimer(), [clearFeedbackTimer])
 
@@ -227,16 +260,18 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
       if (nextFoundCellKeys.length < targetCount) return
 
       setPhase('feedback')
-      setRound((current) => {
-        const streak = current.streak + 1
-        return {
-          score: current.score + 1,
-          streak,
-          bestStreak: Math.max(current.bestStreak, streak),
-          answered: current.answered + 1,
-          totalReactionMs: current.totalReactionMs + reactionMs,
-        }
-      })
+      if (!questionTimedOutRef.current) {
+        setRound((current) => {
+          const streak = current.streak + 1
+          return {
+            score: current.score + 1,
+            streak,
+            bestStreak: Math.max(current.bestStreak, streak),
+            answered: current.answered + 1,
+            totalReactionMs: current.totalReactionMs + reactionMs,
+          }
+        })
+      }
       clearFeedbackTimer()
       feedbackTimerRef.current = window.setTimeout(() => {
         if (!continuous && performance.now() >= deadlineRef.current) finishGame()
@@ -247,22 +282,25 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
 
     setPhase('feedback')
     setWrongCellKey(correct ? null : `${cell.stringIndex}:${cell.fret}`)
-    setRound((current) => {
-      const streak = correct ? current.streak + 1 : 0
-      return {
-        score: current.score + (correct ? 1 : 0),
-        streak,
-        bestStreak: Math.max(current.bestStreak, streak),
-        answered: current.answered + 1,
-        totalReactionMs: current.totalReactionMs + reactionMs,
-      }
-    })
-    setStats((current) => {
-      const next = recordFretboardAnswer(current, question, cell, correct, reactionMs)
-      statsRef.current = next
-      writeStorage(STORAGE_KEYS.fretboardStats, JSON.stringify(next))
-      return next
-    })
+    const resolvesTimedOutQuestion = correct && questionTimedOutRef.current
+    if (!resolvesTimedOutQuestion) {
+      setRound((current) => {
+        const streak = correct ? current.streak + 1 : 0
+        return {
+          score: current.score + (correct ? 1 : 0),
+          streak,
+          bestStreak: Math.max(current.bestStreak, streak),
+          answered: current.answered + 1,
+          totalReactionMs: current.totalReactionMs + reactionMs,
+        }
+      })
+      setStats((current) => {
+        const next = recordFretboardAnswer(current, question, cell, correct, reactionMs)
+        statsRef.current = next
+        writeStorage(STORAGE_KEYS.fretboardStats, JSON.stringify(next))
+        return next
+      })
+    }
 
     clearFeedbackTimer()
     feedbackTimerRef.current = window.setTimeout(() => {
