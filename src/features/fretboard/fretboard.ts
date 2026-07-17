@@ -15,6 +15,8 @@ export const FRETBOARD_NOTE_NAMES = [
 
 export type FretboardNoteName = (typeof FRETBOARD_NOTE_NAMES)[number]
 
+export const C_MAJOR_NOTE_NAMES: readonly FretboardNoteName[] = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
+
 export type FretboardCell = {
   stringIndex: number
   fret: number
@@ -104,8 +106,12 @@ export function fretboardCellsForNote(targetNote: FretboardNoteName): FretboardC
   )).flat().filter((cell) => cell.note === targetNote)
 }
 
-export function randomFretboardNote(random: () => number = Math.random): FretboardNoteName {
-  return FRETBOARD_NOTE_NAMES[Math.floor(random() * FRETBOARD_NOTE_NAMES.length)]!
+export function randomFretboardNote(
+  random: () => number = Math.random,
+  allowedNotes: readonly FretboardNoteName[] = FRETBOARD_NOTE_NAMES,
+): FretboardNoteName {
+  const notes = allowedNotes.length > 0 ? allowedNotes : FRETBOARD_NOTE_NAMES
+  return notes[Math.floor(random() * notes.length)]!
 }
 
 export function regionId(region: FretboardRegion): string {
@@ -128,6 +134,7 @@ const FRETBOARD_REGIONS: readonly FretboardRegion[] = Array.from(
 function createRandomFretboardQuestion(
   random: () => number,
   sessionRegionCounts: FretboardRegionCounts,
+  allowedNotes: readonly FretboardNoteName[],
 ): FretboardQuestion {
   const maxCount = Math.max(
     0,
@@ -146,10 +153,15 @@ function createRandomFretboardQuestion(
       break
     }
   }
-  const targetIndex = Math.floor(random() * 12)
-  const targetString = region.stringStart + Math.floor(targetIndex / 4)
-  const targetFret = region.fretStart + targetIndex % 4
-  return { region, targetNote: noteAt(targetString, targetFret) }
+  const regionNotes = Array.from({ length: 12 }, (_, index) => (
+    noteAt(region.stringStart + Math.floor(index / 4), region.fretStart + index % 4)
+  ))
+  const availableNotes = regionNotes.filter((note) => allowedNotes.includes(note))
+  const targetNotes = availableNotes.length > 0 ? availableNotes : regionNotes
+  return {
+    region,
+    targetNote: targetNotes[Math.floor(random() * targetNotes.length)]!,
+  }
 }
 
 export function isFretboardMistakeRecord(value: unknown): value is FretboardMistakeRecord {
@@ -234,11 +246,12 @@ export function createFretboardQuestion(
   stats: FretboardStats = EMPTY_FRETBOARD_STATS,
   now: number = Date.now(),
   sessionRegionCounts: FretboardRegionCounts = {},
+  allowedNotes: readonly FretboardNoteName[] = FRETBOARD_NOTE_NAMES,
 ): FretboardQuestion {
   const candidates = Array.from(
     recentFretboardMistakes(stats.mistakes, now).reduce<Map<string, FretboardQuestion>>((result, mistake) => {
       const question = { region: { ...mistake.region }, targetNote: mistake.targetNote }
-      result.set(questionId(question), question)
+      if (allowedNotes.includes(question.targetNote)) result.set(questionId(question), question)
       return result
     }, new Map()),
   ).flatMap(([id, question]) => {
@@ -248,7 +261,7 @@ export function createFretboardQuestion(
 
   const maxErrorRate = Math.max(0, ...candidates.map(({ weight }) => weight))
   if (candidates.length === 0 || random() >= 0.5 * maxErrorRate) {
-    return createRandomFretboardQuestion(random, sessionRegionCounts)
+    return createRandomFretboardQuestion(random, sessionRegionCounts, allowedNotes)
   }
 
   const totalWeight = candidates.reduce((sum, candidate) => sum + candidate.weight, 0)

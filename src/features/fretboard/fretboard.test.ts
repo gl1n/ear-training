@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  C_MAJOR_NOTE_NAMES,
   EMPTY_FRETBOARD_STATS,
   FRETBOARD_MISTAKE_RETENTION_MS,
   createFretboardQuestion,
@@ -40,6 +41,11 @@ describe('fretboard quiz', () => {
     expect(randomFretboardNote(() => 0.999)).toBe('B')
   })
 
+  it('limits full-fretboard targets to C major notes when requested', () => {
+    expect(randomFretboardNote(() => 0, C_MAJOR_NOTE_NAMES)).toBe('C')
+    expect(randomFretboardNote(() => 0.999, C_MAJOR_NOTE_NAMES)).toBe('B')
+  })
+
   it('creates a 3 string by 4 fret question inside the 0–12 fret board', () => {
     const values = [0.99, 0.99, 0.5]
     const question = createFretboardQuestion(() => values.shift() ?? 0)
@@ -59,6 +65,46 @@ describe('fretboard quiz', () => {
       region: { stringStart: 0, fretStart: 0 },
       targetNote: 'E',
     })
+  })
+
+  it('limits region targets to C major notes when requested', () => {
+    const questions = Array.from({ length: 100 }, (_, index) => createFretboardQuestion(
+      () => (index + 0.5) / 100,
+      EMPTY_FRETBOARD_STATS,
+      0,
+      {},
+      C_MAJOR_NOTE_NAMES,
+    ))
+
+    expect(questions.every((question) => C_MAJOR_NOTE_NAMES.includes(question.targetNote))).toBe(true)
+  })
+
+  it('filters chromatic mistakes out of C major review questions', () => {
+    const naturalQuestion = { region: { stringStart: 0, fretStart: 0 }, targetNote: 'C' as const }
+    const chromaticQuestion = { region: { stringStart: 1, fretStart: 1 }, targetNote: 'C♯' as const }
+    const stats = {
+      ...EMPTY_FRETBOARD_STATS,
+      mistakes: [
+        {
+          timedOut: true as const,
+          ...chromaticQuestion,
+          recordedAt: 1,
+        },
+        {
+          timedOut: true as const,
+          ...naturalQuestion,
+          recordedAt: 1,
+        },
+      ],
+    }
+
+    expect(createFretboardQuestion(
+      () => 0,
+      stats,
+      1,
+      {},
+      C_MAJOR_NOTE_NAMES,
+    )).toEqual(naturalQuestion)
   })
 
   it('favors less-used regions in the random half of a session', () => {

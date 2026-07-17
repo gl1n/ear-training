@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  C_MAJOR_NOTE_NAMES,
   EMPTY_FRETBOARD_STATS,
   FRETBOARD_NOTE_NAMES,
   accuracy,
@@ -73,6 +74,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
   const [phase, setPhase] = useState<GamePhase>('idle')
   const [gameMode, setGameMode] = useState<GameMode>('region')
   const [continuous, setContinuous] = useState(true)
+  const [cMajorOnly, setCMajorOnly] = useState(false)
   const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS)
   const [question, setQuestion] = useState<FretboardQuestion>(() => createFretboardQuestion())
   const [round, setRound] = useState(EMPTY_ROUND)
@@ -152,19 +154,24 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
   }, [clearFeedbackTimer])
 
   const createRoundQuestion = useCallback(() => {
+    const allowedNotes = cMajorOnly ? C_MAJOR_NOTE_NAMES : FRETBOARD_NOTE_NAMES
     if (gameMode === 'all-notes') {
-      return { region: { stringStart: 0, fretStart: 0 }, targetNote: randomFretboardNote() }
+      return {
+        region: { stringStart: 0, fretStart: 0 },
+        targetNote: randomFretboardNote(Math.random, allowedNotes),
+      }
     }
     const next = createFretboardQuestion(
       Math.random,
       statsRef.current,
       Date.now(),
       roundRegionCountsRef.current,
+      allowedNotes,
     )
     const id = regionId(next.region)
     roundRegionCountsRef.current[id] = (roundRegionCountsRef.current[id] ?? 0) + 1
     return next
-  }, [gameMode])
+  }, [cMajorOnly, gameMode])
 
   const nextQuestion = useCallback(() => {
     setQuestion(createRoundQuestion())
@@ -436,6 +443,16 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
                   className="size-4 accent-amber-300"
                 />
                 连续模式（不计时）
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--text-secondary)]">
+                <input
+                  type="checkbox"
+                  checked={cMajorOnly}
+                  onChange={(event) => setCMajorOnly(event.target.checked)}
+                  disabled={roundActive}
+                  className="size-4 accent-amber-300"
+                />
+                仅 C 大调音（无升降号）
               </label>
             </div>
             {roundActive ? (
