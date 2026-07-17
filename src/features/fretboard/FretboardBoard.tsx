@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { midiAt, noteAt, type FretboardCell, type FretboardQuestion } from './fretboard'
+import { fretboardRegionEdgeClasses } from './fretboardRegionStyles'
 
 const STRING_COUNT = 6
 const MAX_FRET = 12
@@ -218,6 +219,11 @@ export function FretboardBoard({
                 const found = foundCells.has(key)
                 const revealCorrect = revealAnswer && active && cell.note === question.targetNote
                 const errorRate = mistakeHeatmap[key] ?? 0
+                const regionEdgeClass = fretboardRegionEdgeClasses(
+                  cell,
+                  question.region,
+                  active && !wholeBoard,
+                )
                 const stateClass = found || revealCorrect
                   ? 'fretboard-cell--correct'
                   : wrongCellKey === key
@@ -232,7 +238,7 @@ export function FretboardBoard({
                   <button
                     key={key}
                     type="button"
-                    className={`fretboard-cell ${cell.fret === 0 ? 'fretboard-cell--open' : ''} ${stateClass}`}
+                    className={`fretboard-cell ${cell.fret === 0 ? 'fretboard-cell--open' : ''} ${stateClass} ${regionEdgeClass}`}
                     onClick={(event) => onSelect(cell, event.timeStamp)}
                     disabled={showQuestion ? !canAnswer || !active || found : false}
                     aria-label={`${stringIndex + 1} 弦，第 ${cell.fret} 品${showQuestion ? active ? wholeBoard ? '，全指板找音区域' : '，当前题目区域' : '，非题目区域' : ''}${found ? '，已找到' : ''}${errorRate ? `，错误率 ${Math.round(errorRate * 100)}%` : ''}`}
