@@ -201,6 +201,7 @@ export function recentFretboardMistakes(
   mistakes: readonly unknown[],
   _now: number = Date.now(),
 ): FretboardMistakeRecord[] {
+  void _now // Kept for compatibility with callers that previously supplied a retention cutoff time.
   return mistakes
     .filter((mistake): mistake is FretboardMistakeRecord => isFretboardMistakeRecord(mistake))
     .slice(-FRETBOARD_RECORD_LIMIT)
@@ -210,6 +211,7 @@ export function recentFretboardAnswers(
   answers: readonly unknown[],
   _now: number = Date.now(),
 ): FretboardAnswerRecord[] {
+  void _now // Kept for compatibility with callers that previously supplied a retention cutoff time.
   return answers
     .filter((value): value is FretboardAnswerRecord => {
       if (!value || typeof value !== 'object') return false

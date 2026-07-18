@@ -55,7 +55,7 @@ function summarizeHistory(
 
 function ComparisonBadge({ children, positive }: { children: ReactNode; positive: boolean }) {
   return (
-    <span className={`mt-1 inline-block text-xs font-semibold ${positive ? 'text-emerald-300' : 'text-rose-300'}`}>
+    <span className={`mt-1 inline-block text-xs font-semibold ${positive ? 'text-emerald-300' : 'text-red-200'}`}>
       {children}
     </span>
   )
@@ -530,11 +530,11 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
             </p>
           </div>
           <div className="mt-5 grid gap-3 border-t border-white/8 pt-4 sm:grid-cols-2" aria-label="本轮与历史表现对比">
-            <div className="rounded-xl bg-black/15 p-3 text-center">
+            <div className="rounded-xl bg-black/20 p-3 text-center">
               <p className="text-xs text-[var(--text-secondary)]">正确率</p>
               <p className="mt-1 font-semibold tabular-nums">
                 本轮 {roundAccuracy === null ? '暂无' : `${Math.round(roundAccuracy * 100)}%`}
-                <span className="mx-2 text-[var(--text-secondary)]">·</span>
+                <span className="text-[var(--text-secondary)]"> · </span>
                 历史 {historyAccuracy === null ? '暂无' : `${Math.round(historyAccuracy * 100)}%`}
               </p>
               {accuracyDelta !== null && accuracyDelta !== 0 && (
@@ -544,11 +544,11 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
               )}
               {accuracyDelta === 0 && <span className="mt-1 inline-block text-xs text-[var(--text-secondary)]">与历史持平</span>}
             </div>
-            <div className="rounded-xl bg-black/15 p-3 text-center">
+            <div className="rounded-xl bg-black/20 p-3 text-center">
               <p className="text-xs text-[var(--text-secondary)]">平均反应</p>
               <p className="mt-1 font-semibold tabular-nums">
                 本轮 {averageMs ? `${(averageMs / 1000).toFixed(1)}s` : '暂无'}
-                <span className="mx-2 text-[var(--text-secondary)]">·</span>
+                <span className="text-[var(--text-secondary)]"> · </span>
                 历史 {historyAverageMs === null ? '暂无' : `${(historyAverageMs / 1000).toFixed(1)}s`}
               </p>
               {speedDelta !== null && speedDelta !== 0 && (
