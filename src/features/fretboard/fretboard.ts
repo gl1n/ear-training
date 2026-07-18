@@ -80,7 +80,7 @@ export const EMPTY_FRETBOARD_STATS: FretboardStats = {
   answers: [],
   mistakes: [],
 }
-export const FRETBOARD_MISTAKE_RETENTION_MS = 48 * 60 * 60 * 1000
+export const FRETBOARD_RECORD_LIMIT = 200
 
 // From the first (high E) string to the sixth (low E) string.
 const OPEN_STRING_PITCH_CLASSES = [4, 11, 7, 2, 9, 4]
@@ -199,36 +199,35 @@ export function isFretboardMistakeRecord(value: unknown): value is FretboardMist
 
 export function recentFretboardMistakes(
   mistakes: readonly unknown[],
-  now: number = Date.now(),
+  _now: number = Date.now(),
 ): FretboardMistakeRecord[] {
-  const cutoff = now - FRETBOARD_MISTAKE_RETENTION_MS
-  return mistakes.filter((mistake): mistake is FretboardMistakeRecord => (
-    isFretboardMistakeRecord(mistake) && mistake.recordedAt >= cutoff
-  ))
+  return mistakes
+    .filter((mistake): mistake is FretboardMistakeRecord => isFretboardMistakeRecord(mistake))
+    .slice(-FRETBOARD_RECORD_LIMIT)
 }
 
 export function recentFretboardAnswers(
   answers: readonly unknown[],
-  now: number = Date.now(),
+  _now: number = Date.now(),
 ): FretboardAnswerRecord[] {
-  const cutoff = now - FRETBOARD_MISTAKE_RETENTION_MS
-  return answers.filter((value): value is FretboardAnswerRecord => {
-    if (!value || typeof value !== 'object') return false
-    const answer = value as Partial<FretboardAnswerRecord>
-    return Boolean(
-      answer.position
-      && Number.isInteger(answer.position.stringIndex)
-      && answer.position.stringIndex >= 0
-      && answer.position.stringIndex <= 5
-      && Number.isInteger(answer.position.fret)
-      && answer.position.fret >= 0
-      && answer.position.fret <= 12
-      && typeof answer.correct === 'boolean'
-      && typeof answer.recordedAt === 'number'
-      && Number.isFinite(answer.recordedAt)
-      && answer.recordedAt >= cutoff,
-    )
-  })
+  return answers
+    .filter((value): value is FretboardAnswerRecord => {
+      if (!value || typeof value !== 'object') return false
+      const answer = value as Partial<FretboardAnswerRecord>
+      return Boolean(
+        answer.position
+        && Number.isInteger(answer.position.stringIndex)
+        && answer.position.stringIndex >= 0
+        && answer.position.stringIndex <= 5
+        && Number.isInteger(answer.position.fret)
+        && answer.position.fret >= 0
+        && answer.position.fret <= 12
+        && typeof answer.correct === 'boolean'
+        && typeof answer.recordedAt === 'number'
+        && Number.isFinite(answer.recordedAt),
+      )
+    })
+    .slice(-FRETBOARD_RECORD_LIMIT)
 }
 
 function smoothedErrorRate(stat: FretboardStat): number {
@@ -306,15 +305,15 @@ export function recordFretboardAnswer(
       ...stats.questions,
       [exactQuestionId]: updateStat(stats.questions[exactQuestionId], correct, reactionMs),
     },
-    answers: [
+    answers: recentFretboardAnswers([
       ...recentAnswers,
       {
         position: { stringIndex: selectedCell.stringIndex, fret: selectedCell.fret },
         correct,
         recordedAt,
       },
-    ],
-    mistakes: correct ? recentMistakes : [
+    ]),
+    mistakes: correct ? recentMistakes : recentFretboardMistakes([
       ...recentMistakes,
       {
         position: { stringIndex: selectedCell.stringIndex, fret: selectedCell.fret },
@@ -323,7 +322,7 @@ export function recordFretboardAnswer(
         region: { ...question.region },
         recordedAt,
       },
-    ],
+    ]),
   }
 }
 
@@ -359,15 +358,15 @@ export function recordFretboardTimeout(
       ...stats.questions,
       [exactQuestionId]: updateStat(stats.questions[exactQuestionId], false, reactionMs),
     },
-    answers: [
+    answers: recentFretboardAnswers([
       ...recentAnswers,
       ...targetCells.map((cell) => ({
         position: { stringIndex: cell.stringIndex, fret: cell.fret },
         correct: false,
         recordedAt,
       })),
-    ],
-    mistakes: [
+    ]),
+    mistakes: recentFretboardMistakes([
       ...recentFretboardMistakes(stats.mistakes, recordedAt),
       {
         timedOut: true,
@@ -375,7 +374,7 @@ export function recordFretboardTimeout(
         region: { ...question.region },
         recordedAt,
       },
-    ],
+    ]),
   }
 }
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   C_MAJOR_NOTE_NAMES,
   EMPTY_FRETBOARD_STATS,
-  FRETBOARD_MISTAKE_RETENTION_MS,
+  FRETBOARD_RECORD_LIMIT,
   createFretboardQuestion,
   fretboardCellsForNote,
   fretboardMistakeHeatmap,
@@ -245,24 +245,34 @@ describe('fretboard quiz', () => {
     })
   })
 
-  it('only keeps mistakes from the latest 48 hours', () => {
-    const now = 200_000_000
-    const recent = { position: { stringIndex: 0, fret: 0 }, selectedNote: 'E' as const, targetNote: 'A' as const, region: { stringStart: 0, fretStart: 0 }, recordedAt: now - FRETBOARD_MISTAKE_RETENTION_MS }
-    const expired = { ...recent, recordedAt: recent.recordedAt - 1 }
+  it('only keeps the latest 200 valid mistake records regardless of age', () => {
+    const mistakes = Array.from({ length: FRETBOARD_RECORD_LIMIT + 1 }, (_, recordedAt) => ({
+      position: { stringIndex: 0, fret: 0 },
+      selectedNote: 'E' as const,
+      targetNote: 'A' as const,
+      region: { stringStart: 0, fretStart: 0 },
+      recordedAt,
+    }))
 
-    expect(recentFretboardMistakes([expired, recent], now)).toEqual([recent])
+    const retained = recentFretboardMistakes(mistakes, 999_999_999)
+    expect(retained).toHaveLength(FRETBOARD_RECORD_LIMIT)
+    expect(retained[0]?.recordedAt).toBe(1)
   })
 
-  it('builds the 48-hour heatmap from position error rates', () => {
-    const now = 200_000_000
-    const expired = { position: { stringIndex: 0, fret: 1 }, correct: false, recordedAt: now - FRETBOARD_MISTAKE_RETENTION_MS - 1 }
+  it('builds the heatmap from the latest 200 valid answer records', () => {
     const answers = [
-      expired,
-      { position: { stringIndex: 0, fret: 1 }, correct: false, recordedAt: now - 2 },
-      { position: { stringIndex: 0, fret: 1 }, correct: true, recordedAt: now - 1 },
-      { position: { stringIndex: 1, fret: 3 }, correct: true, recordedAt: now },
+      ...Array.from({ length: 199 }, (_, recordedAt) => ({
+        position: { stringIndex: 2, fret: 5 },
+        correct: true,
+        recordedAt,
+      })),
+      { position: { stringIndex: 0, fret: 1 }, correct: false, recordedAt: 200 },
+      { position: { stringIndex: 0, fret: 1 }, correct: true, recordedAt: 201 },
     ]
 
-    expect(fretboardMistakeHeatmap(answers, now)).toEqual({ '0:1': 0.5, '1:3': 0 })
+    expect(fretboardMistakeHeatmap(answers, 999_999_999)).toEqual({
+      '2:5': 0,
+      '0:1': 0.5,
+    })
   })
 })

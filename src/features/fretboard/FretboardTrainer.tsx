@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   C_MAJOR_NOTE_NAMES,
   EMPTY_FRETBOARD_STATS,
@@ -9,6 +9,7 @@ import {
   fretboardCellsForNote,
   fretboardMistakeHeatmap,
   formatRegion,
+  noteAt,
   recentFretboardAnswers,
   recentFretboardMistakes,
   recordFretboardAnswer,
@@ -16,6 +17,7 @@ import {
   randomFretboardNote,
   regionId,
   type FretboardCell,
+  type FretboardNoteName,
   type FretboardQuestion,
   type FretboardRegionCounts,
   type FretboardStat,
@@ -33,6 +35,31 @@ type GameMode = 'region' | 'all-notes'
 const ROUND_SECONDS = 60
 const SLOW_ANSWER_MS = 5_000
 const EMPTY_ROUND = { score: 0, streak: 0, bestStreak: 0, answered: 0, totalReactionMs: 0 }
+
+type PerformanceSummary = { attempts: number; correct: number; totalReactionMs: number }
+
+function summarizeHistory(
+  stats: FretboardStats,
+  allowedNotes: readonly FretboardNoteName[],
+): PerformanceSummary {
+  return allowedNotes.reduce<PerformanceSummary>((summary, note) => {
+    const stat = stats.notes[note]
+    if (!stat) return summary
+    return {
+      attempts: summary.attempts + stat.attempts,
+      correct: summary.correct + stat.correct,
+      totalReactionMs: summary.totalReactionMs + stat.totalReactionMs,
+    }
+  }, { attempts: 0, correct: 0, totalReactionMs: 0 })
+}
+
+function ComparisonBadge({ children, positive }: { children: ReactNode; positive: boolean }) {
+  return (
+    <span className={`mt-1 inline-block text-xs font-semibold ${positive ? 'text-emerald-300' : 'text-rose-300'}`}>
+      {children}
+    </span>
+  )
+}
 
 function loadStats(): FretboardStats {
   try {
@@ -82,6 +109,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
   const [foundCellKeys, setFoundCellKeys] = useState<string[]>([])
   const [pluck, setPluck] = useState<FretboardPluck>({ stringIndex: -1, fret: 1, token: 0 })
   const [stats, setStats] = useState<FretboardStats>(loadStats)
+  const [historyBeforeRound, setHistoryBeforeRound] = useState<PerformanceSummary | null>(null)
   const statsRef = useRef(stats)
   const deadlineRef = useRef(0)
   const questionStartedAtRef = useRef(0)
@@ -186,6 +214,10 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
     clearFeedbackTimer()
     roundRegionCountsRef.current = {}
     setQuestion(createRoundQuestion())
+    setHistoryBeforeRound(summarizeHistory(
+      statsRef.current,
+      cMajorOnly ? C_MAJOR_NOTE_NAMES : FRETBOARD_NOTE_NAMES,
+    ))
     setRound(EMPTY_ROUND)
     setWrongCellKey(null)
     setFoundCellKeys([])
@@ -194,7 +226,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
     questionTimedOutRef.current = false
     questionStartedAtRef.current = performance.now()
     setPhase('playing')
-  }, [clearFeedbackTimer, createRoundQuestion])
+  }, [cMajorOnly, clearFeedbackTimer, createRoundQuestion])
 
   useEffect(() => {
     if (phase !== 'playing' && phase !== 'feedback') return
@@ -317,11 +349,11 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
   }, [clearFeedbackTimer, continuous, finishGame, foundCellKeys, gameMode, nextQuestion, onPlayNote, phase, question])
 
   const weakestNotes = useMemo(
-    () => FRETBOARD_NOTE_NAMES
+    () => (cMajorOnly ? C_MAJOR_NOTE_NAMES : FRETBOARD_NOTE_NAMES)
       .flatMap((note) => stats.notes[note] ? [{ label: note, stat: stats.notes[note] }] : [])
       .sort((a, b) => accuracy(a.stat) - accuracy(b.stat) || b.stat.attempts - a.stat.attempts)
       .slice(0, 6),
-    [stats.notes],
+    [cMajorOnly, stats.notes],
   )
   const weakestRegions = useMemo(
     () => Object.entries(stats.regions)
@@ -331,10 +363,30 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
     [stats.regions],
   )
   const averageMs = round.answered === 0 ? 0 : round.totalReactionMs / round.answered
-  const mistakeHeatmap = useMemo(() => fretboardMistakeHeatmap(stats.answers), [stats.answers])
+  const mistakeHeatmap = useMemo(() => {
+    const heatmap = fretboardMistakeHeatmap(stats.answers)
+    if (!cMajorOnly) return heatmap
+    return Object.fromEntries(Object.entries(heatmap).filter(([key]) => {
+      const [stringIndex, fret] = key.split(':').map(Number)
+      return C_MAJOR_NOTE_NAMES.includes(noteAt(stringIndex, fret))
+    }))
+  }, [cMajorOnly, stats.answers])
   const roundActive = phase === 'playing' || phase === 'feedback'
   const showStats = phase === 'idle' || phase === 'finished'
   const targetCellCount = gameMode === 'all-notes' ? fretboardCellsForNote(question.targetNote).length : 0
+  const roundAccuracy = round.answered === 0 ? null : round.score / round.answered
+  const historyAccuracy = historyBeforeRound?.attempts
+    ? historyBeforeRound.correct / historyBeforeRound.attempts
+    : null
+  const historyAverageMs = historyBeforeRound?.attempts
+    ? historyBeforeRound.totalReactionMs / historyBeforeRound.attempts
+    : null
+  const accuracyDelta = historyAccuracy === null || roundAccuracy === null
+    ? null
+    : roundAccuracy - historyAccuracy
+  const speedDelta = historyAverageMs && averageMs
+    ? (historyAverageMs - averageMs) / historyAverageMs
+    : null
 
   return (
     <div className="flex flex-col gap-4">
@@ -410,7 +462,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
             <div className={`${fullscreen ? 'hidden' : 'mt-3 flex'} items-center justify-end gap-2 text-xs text-[var(--text-secondary)]`} aria-label="错题热力图图例">
               <span>错题位置</span>
               <span className="h-2.5 w-16 rounded-full bg-gradient-to-r from-red-500/10 to-red-500/80" aria-hidden="true" />
-              <span>越红错误率越高 · 近 48 小时</span>
+              <span>越红错误率越高 · 最近 200 条记录</span>
             </div>
           )}
           <div className={`flex flex-wrap items-center justify-between gap-3 border-t border-white/8 ${fullscreen ? 'mt-2 pt-2' : 'mt-5 pt-4'}`}>
@@ -467,14 +519,46 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
       </div>
 
       {phase === 'finished' && (
-        <Card className="border-emerald-300/15 bg-emerald-300/[0.045] p-5 text-center">
-          <p className="text-xs font-semibold tracking-[0.16em] text-emerald-300">本轮完成</p>
-          <p className="mt-2 text-2xl font-bold">
-            {gameMode === 'all-notes' ? `找齐并通过 ${round.score} 个音` : `答对 ${round.score} 题 · 最长连击 ${round.bestStreak}`}
-          </p>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            {gameMode === 'all-notes' ? `平均每个音用时 ${(averageMs / 1000).toFixed(1)} 秒` : `共作答 ${round.answered} 次，平均反应 ${(averageMs / 1000).toFixed(1)} 秒`}
-          </p>
+        <Card className="border-emerald-300/15 bg-emerald-300/[0.045] p-5">
+          <div className="text-center">
+            <p className="text-xs font-semibold tracking-[0.16em] text-emerald-300">本轮完成</p>
+            <p className="mt-2 text-2xl font-bold">
+              {gameMode === 'all-notes' ? `找齐并通过 ${round.score} 个音` : `答对 ${round.score} 题 · 最长连击 ${round.bestStreak}`}
+            </p>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">
+              {gameMode === 'all-notes' ? `平均每个音用时 ${(averageMs / 1000).toFixed(1)} 秒` : `共作答 ${round.answered} 次，平均反应 ${(averageMs / 1000).toFixed(1)} 秒`}
+            </p>
+          </div>
+          <div className="mt-5 grid gap-3 border-t border-white/8 pt-4 sm:grid-cols-2" aria-label="本轮与历史表现对比">
+            <div className="rounded-xl bg-black/15 p-3 text-center">
+              <p className="text-xs text-[var(--text-secondary)]">正确率</p>
+              <p className="mt-1 font-semibold tabular-nums">
+                本轮 {roundAccuracy === null ? '暂无' : `${Math.round(roundAccuracy * 100)}%`}
+                <span className="mx-2 text-[var(--text-secondary)]">·</span>
+                历史 {historyAccuracy === null ? '暂无' : `${Math.round(historyAccuracy * 100)}%`}
+              </p>
+              {accuracyDelta !== null && accuracyDelta !== 0 && (
+                <ComparisonBadge positive={accuracyDelta > 0}>
+                  {accuracyDelta > 0 ? '进步' : '退步'} {Math.abs(Math.round(accuracyDelta * 100))} 个百分点
+                </ComparisonBadge>
+              )}
+              {accuracyDelta === 0 && <span className="mt-1 inline-block text-xs text-[var(--text-secondary)]">与历史持平</span>}
+            </div>
+            <div className="rounded-xl bg-black/15 p-3 text-center">
+              <p className="text-xs text-[var(--text-secondary)]">平均反应</p>
+              <p className="mt-1 font-semibold tabular-nums">
+                本轮 {averageMs ? `${(averageMs / 1000).toFixed(1)}s` : '暂无'}
+                <span className="mx-2 text-[var(--text-secondary)]">·</span>
+                历史 {historyAverageMs === null ? '暂无' : `${(historyAverageMs / 1000).toFixed(1)}s`}
+              </p>
+              {speedDelta !== null && speedDelta !== 0 && (
+                <ComparisonBadge positive={speedDelta > 0}>
+                  {speedDelta > 0 ? '提速' : '变慢'} {Math.abs(Math.round(speedDelta * 100))}%
+                </ComparisonBadge>
+              )}
+              {speedDelta === 0 && <span className="mt-1 inline-block text-xs text-[var(--text-secondary)]">与历史持平</span>}
+            </div>
+          </div>
         </Card>
       )}
 
