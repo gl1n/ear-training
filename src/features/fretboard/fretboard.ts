@@ -95,6 +95,47 @@ export function midiAt(stringIndex: number, fret: number): number {
   return OPEN_STRING_MIDIS[stringIndex] + fret
 }
 
+export function fretboardCellsInRegion(region: FretboardRegion): FretboardCell[] {
+  return Array.from({ length: 3 }, (_, stringOffset) => (
+    Array.from({ length: 4 }, (_, fretOffset) => {
+      const stringIndex = region.stringStart + stringOffset
+      const fret = region.fretStart + fretOffset
+      return {
+        stringIndex,
+        fret,
+        note: noteAt(stringIndex, fret),
+        midi: midiAt(stringIndex, fret),
+      }
+    })
+  )).flat()
+}
+
+/**
+ * Maps a detected pitch to the current question region. Exact MIDI matches win,
+ * then the same pitch class is used as an octave-error fallback. Guitar pitch
+ * detectors can lock onto an upper harmonic even when the played note is lower.
+ */
+export function fretboardCellForDetectedMidi(
+  region: FretboardRegion,
+  detectedMidi: number,
+): FretboardCell | null {
+  const cells = fretboardCellsInRegion(region)
+  const exact = cells.find((cell) => cell.midi === detectedMidi)
+  if (exact) return exact
+
+  const detectedPitchClass = ((detectedMidi % 12) + 12) % 12
+  const sameNoteCells = cells.filter(
+    (cell) => ((cell.midi % 12) + 12) % 12 === detectedPitchClass,
+  )
+  if (sameNoteCells.length === 0) return null
+
+  return sameNoteCells.reduce((closest, cell) => (
+    Math.abs(cell.midi - detectedMidi) < Math.abs(closest.midi - detectedMidi)
+      ? cell
+      : closest
+  ))
+}
+
 export function fretboardCellsForNote(targetNote: FretboardNoteName): FretboardCell[] {
   return Array.from({ length: 6 }, (_, stringIndex) => (
     Array.from({ length: 13 }, (_, fret) => ({

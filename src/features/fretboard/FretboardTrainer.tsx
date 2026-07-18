@@ -6,6 +6,7 @@ import {
   accuracy,
   averageReactionMs,
   createFretboardQuestion,
+  fretboardCellForDetectedMidi,
   fretboardCellsForNote,
   fretboardMistakeHeatmap,
   formatRegion,
@@ -28,6 +29,8 @@ import { readStorage, writeStorage } from '../../utils/storage'
 import { FretboardBoard, type FretboardPluck } from './FretboardBoard'
 import { Button } from '../../common/ui/Button'
 import { Card } from '../../common/ui/Card'
+import { useGuitarInput } from '../../hooks/useGuitarInput'
+import type { GuitarPitchReading } from '../../audio/guitarPitch'
 
 type GamePhase = 'idle' | 'playing' | 'feedback' | 'finished'
 type GameMode = 'region' | 'all-notes'
@@ -59,6 +62,15 @@ function ComparisonBadge({ children, positive }: { children: ReactNode; positive
       {children}
     </span>
   )
+}
+
+function formatDetectedPitch(reading: GuitarPitchReading): string {
+  const pitchClass = FRETBOARD_NOTE_NAMES[((reading.midi % 12) + 12) % 12]
+  const octave = Math.floor(reading.midi / 12) - 1
+  const cents = reading.cents === 0
+    ? '音准'
+    : `${reading.cents > 0 ? '+' : ''}${reading.cents}¢`
+  return `${pitchClass}${octave} · ${cents}`
 }
 
 function loadStats(): FretboardStats {
@@ -108,6 +120,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
   const [wrongCellKey, setWrongCellKey] = useState<string | null>(null)
   const [foundCellKeys, setFoundCellKeys] = useState<string[]>([])
   const [pluck, setPluck] = useState<FretboardPluck>({ stringIndex: -1, fret: 1, token: 0 })
+  const [guitarHint, setGuitarHint] = useState<string | null>(null)
   const [stats, setStats] = useState<FretboardStats>(loadStats)
   const [historyBeforeRound, setHistoryBeforeRound] = useState<PerformanceSummary | null>(null)
   const statsRef = useRef(stats)
@@ -205,6 +218,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
     setQuestion(createRoundQuestion())
     setWrongCellKey(null)
     setFoundCellKeys([])
+    setGuitarHint(null)
     setPhase('playing')
     questionTimedOutRef.current = false
     questionStartedAtRef.current = performance.now()
@@ -221,6 +235,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
     setRound(EMPTY_ROUND)
     setWrongCellKey(null)
     setFoundCellKeys([])
+    setGuitarHint(null)
     setTimeLeft(ROUND_SECONDS)
     deadlineRef.current = performance.now() + ROUND_SECONDS * 1000
     questionTimedOutRef.current = false
@@ -271,16 +286,16 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
 
   useEffect(() => () => clearFeedbackTimer(), [clearFeedbackTimer])
 
-  const handleCellClick = useCallback((cell: FretboardCell, answeredAt: number) => {
+  const handleCellAnswer = useCallback((cell: FretboardCell, answeredAt: number, playNote: boolean) => {
     setPluck((current) => ({ stringIndex: cell.stringIndex, fret: cell.fret, token: current.token + 1 }))
     if (phase !== 'playing') {
-      onPlayNote(cell.midi)
+      if (playNote) onPlayNote(cell.midi)
       return
     }
 
     const correct = cell.note === question.targetNote
     const reactionMs = Math.max(1, Math.round(answeredAt - questionStartedAtRef.current))
-    onPlayNote(cell.midi)
+    if (playNote) onPlayNote(cell.midi)
 
     if (gameMode === 'all-notes') {
       const key = `${cell.stringIndex}:${cell.fret}`
@@ -347,6 +362,32 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
       else nextQuestion()
     }, correct ? 320 : 500)
   }, [clearFeedbackTimer, continuous, finishGame, foundCellKeys, gameMode, nextQuestion, onPlayNote, phase, question])
+
+  const handleCellClick = useCallback((cell: FretboardCell, answeredAt: number) => {
+    handleCellAnswer(cell, answeredAt, true)
+  }, [handleCellAnswer])
+
+  const handleGuitarPitch = useCallback((reading: GuitarPitchReading) => {
+    if (phase !== 'playing' || gameMode !== 'region') return
+
+    const cell = fretboardCellForDetectedMidi(question.region, reading.midi)
+    if (!cell) {
+      setGuitarHint('识别到的音不在当前区域')
+      return
+    }
+
+    setGuitarHint(null)
+    handleCellAnswer(cell, performance.now(), false)
+  }, [gameMode, handleCellAnswer, phase, question.region])
+
+  const guitarInput = useGuitarInput({ onPitch: handleGuitarPitch })
+  const { status: guitarInputStatus, stop: stopGuitarInput } = guitarInput
+
+  useEffect(() => {
+    if (gameMode === 'all-notes' && guitarInputStatus !== 'disabled') {
+      stopGuitarInput()
+    }
+  }, [gameMode, guitarInputStatus, stopGuitarInput])
 
   const weakestNotes = useMemo(
     () => (cMajorOnly ? C_MAJOR_NOTE_NAMES : FRETBOARD_NOTE_NAMES)
@@ -426,7 +467,9 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
                 <p className="text-xs font-semibold tracking-[0.16em] text-amber-300">指板定位训练</p>
                 <h2 className="mt-1 text-xl font-semibold text-white">{phase === 'finished' ? '本轮已结束' : '准备开始'}</h2>
                 <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                  {gameMode === 'all-notes' ? '找齐 0–12 品内的全部目标音才算通过' : '点击指板可自由试音，开始后将显示随机区域与目标音'}
+                  {gameMode === 'all-notes'
+                    ? '找齐 0–12 品内的全部目标音才算通过'
+                    : `开始后将显示随机区域与目标音${guitarInput.status === 'listening' ? '，可直接弹奏作答' : ''}`}
                 </p>
               </div>
             )}
@@ -441,7 +484,9 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
                 <span aria-hidden="true">{fullscreen ? '↙' : '↗'}</span>
                 {fullscreen ? '退出全屏' : '横屏全屏'}
               </button>
-              <p className={`${fullscreen ? 'hidden' : 'fretboard-tuning-label'} text-xs text-[var(--text-secondary)]`}>标准调弦 · 点按正确品格</p>
+              <p className={`${fullscreen ? 'hidden' : 'fretboard-tuning-label'} text-xs text-[var(--text-secondary)]`}>
+                标准调弦 · {guitarInput.status === 'listening' && gameMode === 'region' ? '弹奏或点按正确品格' : '点按正确品格'}
+              </p>
             </div>
           </div>
 
@@ -458,6 +503,33 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
             fullscreen={fullscreen}
             onSelect={handleCellClick}
           />
+          {gameMode === 'region' && guitarInput.status !== 'disabled' && (
+            <div
+              className={`mt-3 flex min-h-10 items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm ${
+                guitarInput.status === 'error'
+                  ? 'border-red-400/30 bg-red-500/10 text-red-200'
+                  : 'border-emerald-300/15 bg-emerald-300/[0.045] text-emerald-200'
+              } ${fullscreen ? 'mt-2 py-1.5' : ''}`}
+              aria-live="polite"
+            >
+              <span className="flex items-center gap-2">
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    guitarInput.status === 'listening' ? 'animate-pulse bg-emerald-400' : 'bg-amber-300'
+                  }`}
+                  aria-hidden="true"
+                />
+                {guitarInput.status === 'starting' && '正在请求音频输入权限…'}
+                {guitarInput.status === 'error' && guitarInput.error}
+                {guitarInput.status === 'listening' && (
+                  guitarInput.reading ? `识别：${formatDetectedPitch(guitarInput.reading)}` : '正在监听，请弹奏单音'
+                )}
+              </span>
+              {guitarHint && guitarInput.status === 'listening' && (
+                <span className="shrink-0 text-xs text-amber-200">{guitarHint}</span>
+              )}
+            </div>
+          )}
           {showStats && stats.answers.length > 0 && (
             <div className={`${fullscreen ? 'hidden' : 'mt-3 flex'} items-center justify-end gap-2 text-xs text-[var(--text-secondary)]`} aria-label="错题热力图图例">
               <span>错题位置</span>
@@ -486,6 +558,31 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
                   </button>
                 ))}
               </div>
+              {gameMode === 'region' && (
+                <button
+                  type="button"
+                  onClick={() => void (
+                    guitarInput.status === 'listening' || guitarInput.status === 'starting'
+                      ? guitarInput.stop()
+                      : guitarInput.start()
+                  )}
+                  disabled={roundActive || guitarInput.status === 'starting'}
+                  aria-pressed={guitarInput.status === 'listening'}
+                  className={`min-h-10 rounded-xl border px-3 text-sm font-semibold transition ${
+                    guitarInput.status === 'listening'
+                      ? 'border-emerald-400/20 bg-emerald-400/8 text-emerald-200'
+                      : 'border-[var(--border-subtle)] bg-black/20 text-[var(--text-secondary)] hover:bg-white/8 hover:text-white'
+                  } disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  {guitarInput.status === 'starting'
+                    ? '连接中…'
+                    : guitarInput.status === 'listening'
+                      ? '🎸 吉他输入已开启'
+                      : guitarInput.status === 'error'
+                        ? '重试吉他输入'
+                        : '🎸 启用吉他输入'}
+                </button>
+              )}
               <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--text-secondary)]">
                 <input
                   type="checkbox"

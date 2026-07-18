@@ -4,6 +4,8 @@ import {
   EMPTY_FRETBOARD_STATS,
   FRETBOARD_RECORD_LIMIT,
   createFretboardQuestion,
+  fretboardCellForDetectedMidi,
+  fretboardCellsInRegion,
   fretboardCellsForNote,
   fretboardMistakeHeatmap,
   midiAt,
@@ -34,6 +36,24 @@ describe('fretboard quiz', () => {
     expect(positions).toContainEqual({ stringIndex: 0, fret: 8, note: 'C', midi: 72 })
     expect(positions).toContainEqual({ stringIndex: 1, fret: 1, note: 'C', midi: 60 })
     expect(positions.every((cell) => noteAt(cell.stringIndex, cell.fret) === 'C')).toBe(true)
+  })
+
+  it('builds the twelve playable cells in a question region', () => {
+    const cells = fretboardCellsInRegion({ stringStart: 1, fretStart: 4 })
+
+    expect(cells).toHaveLength(12)
+    expect(cells[0]).toEqual({ stringIndex: 1, fret: 4, note: 'D♯', midi: 63 })
+    expect(cells.at(-1)).toEqual({ stringIndex: 3, fret: 7, note: 'A', midi: 57 })
+  })
+
+  it('maps octave-shifted guitar detection back to the same note in the region', () => {
+    const lowerLeftRegion = { stringStart: 3, fretStart: 0 }
+
+    expect(fretboardCellForDetectedMidi(lowerLeftRegion, 50))
+      .toEqual({ stringIndex: 3, fret: 0, note: 'D', midi: 50 })
+    expect(fretboardCellForDetectedMidi(lowerLeftRegion, 62))
+      .toEqual({ stringIndex: 3, fret: 0, note: 'D', midi: 50 })
+    expect(fretboardCellForDetectedMidi(lowerLeftRegion, 61)).toBeNull()
   })
 
   it('picks a target note from all twelve pitch classes', () => {
