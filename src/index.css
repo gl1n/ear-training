@@ -129,7 +129,7 @@ a {
   width: min(68rem, 100%);
   margin: auto auto 0;
   gap: 1rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .entrance-card {

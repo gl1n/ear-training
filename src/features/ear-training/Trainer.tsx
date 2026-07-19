@@ -162,7 +162,6 @@ export function Trainer() {
   )
 
   useEffect(() => {
-    if (mode === 'metronome') return
     // Start fetching and decoding the samples after the initial screen has painted.
     // Starting a session or replaying a quiz reuses this same in-flight promise.
     const preloadTimer = window.setTimeout(() => {
@@ -491,7 +490,6 @@ export function Trainer() {
   ])
 
   const handleToggle = useCallback(() => {
-    if (mode === 'metronome') return
     if (isRunning && mode === 'scaleDegree' && !scaleDegreeGameStarted) {
       stop()
       return

@@ -1,11 +1,12 @@
 # 格林的音乐练习小屋
 
-A browser-based music practice cabin with separate entrances for fretboard practice and ear training. Built with React 19, TypeScript, and Vite.
+A browser-based music practice cabin with separate entrances for fretboard practice, ear training, and rhythm tools. Built with React 19, TypeScript, and Vite.
 
 ## Features
 
-- **独立首页** — Choose between fretboard practice and ear training without loading either practice bundle up front
+- **独立首页** — Choose between fretboard practice, ear training, and the metronome without loading practice bundles up front
 - **指板练习** — Locate notes in random fretboard regions, freely audition notes, and review a heatmap built from the latest 200 answer records
+- **节拍器** — Keep time with adjustable BPM, meter accents, keyboard control, and tap tempo
 - **音程跟听** — Loop playback with spoken interval names (Web Speech API, zh-CN)
 - **音程辨认** — Interval challenge with reaction-weighted scoring and mistake-weighted question selection
 - **音级辨识** — Identify scale degrees in random major keys, with optional mistake review mode

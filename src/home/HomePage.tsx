@@ -15,8 +15,17 @@ const ENTRANCES = [
     eyebrow: 'EAR TRAINING',
     title: '练耳',
     description: '从音程、音级到和弦进行，在声音里建立稳定、可调用的音乐直觉。',
-    detail: '音程 · 音级 · 和弦 · 节奏',
+    detail: '音程 · 音级 · 和弦',
     icon: '♪',
+    tone: 'sky',
+  },
+  {
+    href: '#/metronome',
+    eyebrow: 'RHYTHM',
+    title: '节拍器',
+    description: '选择速度与拍号，让清晰稳定的节拍陪你练习，逐渐建立可靠的内在律动。',
+    detail: '速度调节 · 拍号 · 点按测速',
+    icon: '♩',
     tone: 'sky',
   },
 ] as const
@@ -30,7 +39,7 @@ export function HomePage() {
       <header className="home-hero">
         <p className="home-kicker"><span aria-hidden="true">✦</span> GREEN'S MUSIC CABIN</p>
         <h1>格林的音乐<br className="sm:hidden" />练习小屋</h1>
-        <p>推开一扇门，专注练一件事。今天想从手指开始，还是从耳朵开始？</p>
+        <p>推开一扇门，专注练一件事。练手、练耳，或让稳定的节拍陪你开始。</p>
       </header>
 
       <section className="home-entrances" aria-label="选择练习">

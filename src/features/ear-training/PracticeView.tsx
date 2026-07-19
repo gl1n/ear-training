@@ -24,7 +24,6 @@ import { SessionGoalControl } from '../../components/practice/SessionGoalControl
 import { getChordDegreesForRange, type ChordDegreeHistory, type ChordDegreeInversionMode, type ChordDegreeKey, type ChordDegreeQuiz, type ChordDegreeRange } from '../../quiz/chordDegreeQuiz'
 import { ChordDegreePlayfield } from '../../components/ChordDegreePlayfield'
 import { ChordDegreeIdlePanel } from '../../components/ChordDegreeIdlePanel'
-import { MetronomePanel } from '../../components/MetronomePanel'
 
 const MODE_OPTIONS = [
   { value: 'intervalFollow' as const, label: '跟听' },
@@ -32,7 +31,6 @@ const MODE_OPTIONS = [
   { value: 'scaleDegree' as const, label: '音级' },
   { value: 'chordDegree' as const, label: '猜和弦' },
   { value: 'chordProgression' as const, label: '进行' },
-  { value: 'metronome' as const, label: '节拍器' },
 ]
 
 const MODE_META: Record<AppMode, AppShellMeta> = {
@@ -41,7 +39,6 @@ const MODE_META: Record<AppMode, AppShellMeta> = {
   scaleDegree: { eyebrow: '调性感知', title: '音级辨识', subtitle: '先建立调性，再辨认音在调内的位置', badge: '练耳小屋', accent: '#a78bfa' },
   chordDegree: { eyebrow: '和声辨识', title: '猜和弦', subtitle: '以 do 为参考，辨认随机转位三和弦的级数', badge: '练耳小屋', accent: '#38bdf8' },
   chordProgression: { eyebrow: '和声训练', title: '和弦进行', subtitle: '在循环中建立级数走向与和声色彩的听感', badge: '练耳小屋', accent: '#fbbf24' },
-  metronome: { eyebrow: '节奏工具', title: '节拍器', subtitle: '稳定速度，感受强拍与拍号的循环', badge: '练耳小屋', accent: '#fb7185' },
 }
 
 type PracticeViewProps = {
@@ -211,7 +208,6 @@ export function PracticeView({
     !scaleDegreeGameStarted &&
     (state === 'loading' || state === 'playing_tonic_chord')
   const showIntervalSettings = isIntervalMode(mode)
-  const modeOwnsFooter = mode === 'metronome'
 
   const footerButtonLabel = (() => {
     if (isLoading && mode !== 'scaleDegree') return '加载钢琴音色…'
@@ -255,7 +251,7 @@ export function PracticeView({
         ) : null
       }
       footer={
-        modeOwnsFooter ? null : <>
+        <>
           {isChallengeMode && isRunning && (
             <div className="w-full max-w-xs" aria-live="polite">
               <div className="mb-1.5 flex justify-between text-xs text-[var(--text-secondary)]">
@@ -280,9 +276,7 @@ export function PracticeView({
         </>
       }
     >
-      {mode === 'metronome' ? (
-        <MetronomePanel />
-      ) : mode === 'chordDegree' ? (
+      {mode === 'chordDegree' ? (
         isRunning ? <ChordDegreePlayfield state={state} sessionStats={sessionStats} quiz={chordDegreeQuiz} wrongSelection={correctionWrongSelection} optionDegrees={chordDegreeOptions} replayCount={chordDegreeReplayCount} onSelect={onAnswerSelect} onPlayDo={onPlayChordDo} onPlayChord={onPlayChordQuiz} onPlaySequence={onPlayChordSequence} onPlaySelected={onPlaySelectedChord} onPlayComparison={onPlayChordComparison} /> : <ChordDegreeIdlePanel quiz={chordDegreeQuiz} sessionStats={sessionStats} history={chordDegreeHistory} sessionCompleted={sessionCompleted} selectedKey={chordDegreeKey} range={chordDegreeRange} customDegrees={chordDegreeCustomDegrees} inversionMode={chordDegreeInversionMode} onKeyChange={onChordDegreeKeyChange} onRangeChange={onChordDegreeRangeChange} onCustomDegreesChange={onChordDegreeCustomDegreesChange} onInversionModeChange={onChordDegreeInversionModeChange} onApplyPreset={onApplyChordDegreePreset} onPlayDo={onPlayChordDo} />
       ) : mode === 'chordProgression' ? (
         <ChordProgressionPanel degrees={chordDegrees} currentChord={currentChord} currentPosition={currentChordPosition} state={state} isRunning={isRunning} onDegreeChange={onChordDegreeChange} onDegreesChange={onChordDegreesChange} rhythm={chordRhythm} currentBeat={currentChordBeat} isCountIn={chordCountIn} onRhythmChange={onChordRhythmChange} selectedKey={chordKey} activeKeyLabel={activeChordKeyLabel} onKeyChange={onChordKeyChange} melodyEnabled={chordMelodyEnabled} onMelodyEnabledChange={onChordMelodyEnabledChange} playbackMode={chordPlaybackMode} onPlaybackModeChange={onChordPlaybackModeChange} randomSettings={randomChordSettings} onRandomSettingsChange={onRandomChordSettingsChange} />

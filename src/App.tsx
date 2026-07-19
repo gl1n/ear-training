@@ -3,13 +3,15 @@ import { HomePage } from './home/HomePage'
 
 const EarTraining = lazy(() => import('./features/ear-training/Trainer').then((module) => ({ default: module.Trainer })))
 const FretboardPractice = lazy(() => import('./features/fretboard/FretboardPractice').then((module) => ({ default: module.FretboardPractice })))
+const MetronomePractice = lazy(() => import('./features/metronome/MetronomePractice').then((module) => ({ default: module.MetronomePractice })))
 
-type Route = 'home' | 'ear-training' | 'fretboard'
+type Route = 'home' | 'ear-training' | 'fretboard' | 'metronome'
 
 function readRoute(): Route {
   const path = window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '')
   if (path === 'ear-training') return 'ear-training'
   if (path === 'fretboard') return 'fretboard'
+  if (path === 'metronome') return 'metronome'
   return 'home'
 }
 
@@ -34,7 +36,11 @@ export function App() {
   useEffect(() => {
     document.title = route === 'home'
       ? '格林的音乐练习小屋'
-      : route === 'fretboard' ? '指板练习 · 格林的音乐练习小屋' : '练耳 · 格林的音乐练习小屋'
+      : route === 'fretboard'
+        ? '指板练习 · 格林的音乐练习小屋'
+        : route === 'metronome'
+          ? '节拍器 · 格林的音乐练习小屋'
+          : '练耳 · 格林的音乐练习小屋'
     window.scrollTo({ top: 0 })
   }, [route])
 
@@ -42,7 +48,11 @@ export function App() {
 
   return (
     <Suspense fallback={<RouteFallback />}>
-      {route === 'ear-training' ? <EarTraining /> : <FretboardPractice />}
+      {route === 'ear-training'
+        ? <EarTraining />
+        : route === 'fretboard'
+          ? <FretboardPractice />
+          : <MetronomePractice />}
     </Suspense>
   )
 }
