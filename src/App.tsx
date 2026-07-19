@@ -4,14 +4,16 @@ import { HomePage } from './home/HomePage'
 const EarTraining = lazy(() => import('./features/ear-training/Trainer').then((module) => ({ default: module.Trainer })))
 const FretboardPractice = lazy(() => import('./features/fretboard/FretboardPractice').then((module) => ({ default: module.FretboardPractice })))
 const MetronomePractice = lazy(() => import('./features/metronome/MetronomePractice').then((module) => ({ default: module.MetronomePractice })))
+const RhythmPractice = lazy(() => import('./features/rhythm/RhythmPractice').then((module) => ({ default: module.RhythmPractice })))
 
-type Route = 'home' | 'ear-training' | 'fretboard' | 'metronome'
+type Route = 'home' | 'ear-training' | 'fretboard' | 'metronome' | 'rhythm'
 
 function readRoute(): Route {
   const path = window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '')
   if (path === 'ear-training') return 'ear-training'
   if (path === 'fretboard') return 'fretboard'
   if (path === 'metronome') return 'metronome'
+  if (path === 'rhythm') return 'rhythm'
   return 'home'
 }
 
@@ -40,6 +42,8 @@ export function App() {
         ? '指板练习 · 格林的音乐练习小屋'
         : route === 'metronome'
           ? '节拍器 · 格林的音乐练习小屋'
+          : route === 'rhythm'
+            ? '节奏回声 · 格林的音乐练习小屋'
           : '练耳 · 格林的音乐练习小屋'
     window.scrollTo({ top: 0 })
   }, [route])
@@ -52,7 +56,9 @@ export function App() {
         ? <EarTraining />
         : route === 'fretboard'
           ? <FretboardPractice />
-          : <MetronomePractice />}
+          : route === 'metronome'
+            ? <MetronomePractice />
+            : <RhythmPractice />}
     </Suspense>
   )
 }

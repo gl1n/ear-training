@@ -129,7 +129,7 @@ a {
   width: min(68rem, 100%);
   margin: auto auto 0;
   gap: 1rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .entrance-card {
@@ -161,6 +161,7 @@ a {
 
 .entrance-card--amber { --card-accent: #fbbf24; }
 .entrance-card--sky { --card-accent: #38bdf8; }
+.entrance-card--violet { --card-accent: #a78bfa; }
 
 .entrance-card:hover {
   border-color: color-mix(in srgb, var(--card-accent) 42%, transparent);
@@ -237,6 +238,378 @@ a {
 .route-fallback span { color: var(--accent); font-family: Georgia, serif; font-size: 3rem; animation: fade-pulse 1.2s ease-in-out infinite; }
 .route-fallback p { margin: 0; font-size: 0.85rem; }
 
+.rhythm-practice {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.rhythm-session-bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(11rem, 1.35fr);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.rhythm-stat,
+.rhythm-level {
+  min-width: 0;
+  padding: 0.85rem 1rem;
+  border-right: 1px solid var(--border-subtle);
+}
+
+.rhythm-level {
+  border-right: 0;
+  background: rgba(167, 139, 250, 0.07);
+}
+
+.rhythm-stat > span,
+.rhythm-level > span {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+}
+
+.rhythm-stat strong,
+.rhythm-level strong {
+  font-size: 1.2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rhythm-stat small,
+.rhythm-level small {
+  margin-left: 0.3rem;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.62rem;
+}
+
+.rhythm-level small {
+  display: block;
+  margin: 0.15rem 0 0;
+  color: rgba(196, 181, 253, 0.62);
+}
+
+.rhythm-stage {
+  position: relative;
+  display: grid;
+  flex: 1;
+  min-height: 24rem;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(167, 139, 250, 0.18);
+  border-radius: 1.4rem;
+  padding: clamp(1.3rem, 4vw, 2.5rem);
+  background:
+    radial-gradient(circle at 50% 35%, rgba(167, 139, 250, 0.13), transparent 23rem),
+    linear-gradient(145deg, rgba(167, 139, 250, 0.055), rgba(255, 255, 255, 0.02));
+}
+
+.rhythm-stage::before {
+  position: absolute;
+  width: 30rem;
+  height: 30rem;
+  border: 1px solid rgba(167, 139, 250, 0.07);
+  border-radius: 999px;
+  content: "";
+  pointer-events: none;
+}
+
+.rhythm-stage-heading {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+.rhythm-stage-heading > span {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #c4b5fd;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.rhythm-stage-heading h2 {
+  margin: 0;
+  font-size: clamp(1.45rem, 4vw, 2.2rem);
+  letter-spacing: -0.035em;
+}
+
+.rhythm-stage-heading p {
+  margin: 0.35rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.rhythm-grid-wrap {
+  position: relative;
+  z-index: 1;
+  width: min(38rem, 100%);
+}
+
+.rhythm-beat-numbers {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 0 0.75rem;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.62rem;
+}
+
+.rhythm-beat-numbers span {
+  text-align: left;
+}
+
+.rhythm-grid {
+  position: relative;
+  display: grid;
+  height: 5.5rem;
+  grid-template-columns: repeat(16, 1fr);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  background: rgba(3, 6, 12, 0.46);
+}
+
+.rhythm-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-left: 1px solid rgba(255, 255, 255, 0.045);
+  transition: background-color 70ms ease;
+}
+
+.rhythm-cell:first-child {
+  border-left: 0;
+}
+
+.rhythm-cell--beat {
+  border-left-color: rgba(255, 255, 255, 0.14);
+}
+
+.rhythm-cell--active {
+  background: rgba(167, 139, 250, 0.15);
+  box-shadow: inset 3px 0 0 rgba(196, 181, 253, 0.75);
+}
+
+.rhythm-cell--target i {
+  width: clamp(0.85rem, 3vw, 1.25rem);
+  height: clamp(0.85rem, 3vw, 1.25rem);
+  border-radius: 999px;
+  background: #c4b5fd;
+  box-shadow: 0 0 20px rgba(167, 139, 250, 0.65);
+  animation: rhythm-note-in 140ms ease-out;
+}
+
+.rhythm-tap-mark {
+  position: absolute;
+  z-index: 2;
+  bottom: 0.55rem;
+  width: 0.35rem;
+  height: 0.9rem;
+  border-radius: 999px;
+  background: #f0abfc;
+  box-shadow: 0 0 12px rgba(240, 171, 252, 0.7);
+  transform: translateX(-50%);
+}
+
+.rhythm-pad {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: min(15rem, 70vw);
+  height: 5rem;
+  place-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.28);
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.rhythm-pad span {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.rhythm-pad small {
+  margin-top: 0.1rem;
+  font-size: 0.55rem;
+  letter-spacing: 0.18em;
+}
+
+.rhythm-pad--ready {
+  cursor: pointer;
+  border-color: rgba(167, 139, 250, 0.65);
+  background: linear-gradient(180deg, rgba(167, 139, 250, 0.32), rgba(124, 58, 237, 0.2));
+  box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.2), 0 14px 45px rgba(76, 29, 149, 0.22);
+  color: white;
+  animation: rhythm-pad-ready 1.2s ease-in-out infinite;
+}
+
+.rhythm-pad--ready:active {
+  background: rgba(196, 181, 253, 0.46);
+  transform: scale(0.975);
+}
+
+.rhythm-feedback {
+  display: grid;
+  grid-template-columns: auto minmax(9rem, 1fr) minmax(12rem, 1.5fr);
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  padding: 0.9rem 1rem;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.rhythm-feedback-score {
+  min-width: 4rem;
+  color: #c4b5fd;
+}
+
+.rhythm-feedback-score strong {
+  font-size: 2rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.05em;
+}
+
+.rhythm-feedback-score span {
+  margin-left: 0.15rem;
+  font-size: 0.7rem;
+}
+
+.rhythm-feedback-copy strong,
+.rhythm-feedback-copy span {
+  display: block;
+}
+
+.rhythm-feedback-copy strong {
+  font-size: 0.85rem;
+}
+
+.rhythm-feedback-copy span {
+  margin-top: 0.2rem;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+}
+
+.rhythm-result-grid {
+  display: grid;
+  height: 1.75rem;
+  grid-template-columns: repeat(16, 1fr);
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.rhythm-result {
+  height: 0.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.rhythm-result--perfect { background: #34d399; box-shadow: 0 0 10px rgba(52, 211, 153, 0.35); }
+.rhythm-result--close { background: #fbbf24; }
+.rhythm-result--miss { background: #fb7185; }
+
+.rhythm-controls {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1.5fr) auto auto auto;
+  align-items: end;
+  gap: 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  padding: 1rem;
+  background: var(--bg-surface);
+}
+
+.rhythm-setting > label,
+.rhythm-setting > span {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: var(--text-secondary);
+  font-size: 0.67rem;
+}
+
+.rhythm-setting label strong {
+  margin-left: 0.3rem;
+  color: white;
+  font-variant-numeric: tabular-nums;
+}
+
+.rhythm-setting input[type="range"] {
+  width: 100%;
+  accent-color: #a78bfa;
+}
+
+.rhythm-setting input:disabled,
+.rhythm-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.rhythm-difficulty-options {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.rhythm-difficulty-options button {
+  width: auto;
+  min-width: 4.6rem;
+  height: 2.2rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.55rem;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0 0.65rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.rhythm-difficulty-options button.is-selected {
+  border-color: rgba(167, 139, 250, 0.65);
+  background: rgba(167, 139, 250, 0.16);
+  color: #ddd6fe;
+}
+
+.rhythm-adaptive {
+  display: flex;
+  min-height: 2.2rem;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.rhythm-adaptive input {
+  accent-color: #a78bfa;
+}
+
+.rhythm-session-button {
+  min-height: 2.65rem;
+  background: #8b5cf6;
+  white-space: nowrap;
+}
+
+.rhythm-session-button:hover {
+  background: #a78bfa;
+}
+
+@keyframes rhythm-note-in {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes rhythm-pad-ready {
+  50% { box-shadow: 0 0 0 0.6rem rgba(167, 139, 250, 0), 0 14px 45px rgba(76, 29, 149, 0.25); }
+}
+
 @media (max-width: 720px) {
   .home-page { padding-top: 2.5rem; }
   .home-hero { margin-bottom: 2rem; }
@@ -244,6 +617,60 @@ a {
   .entrance-card { min-height: 19rem; }
   .home-footer > span:first-child { display: none; }
   .home-footer { justify-content: center; }
+
+  .rhythm-session-bar {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .rhythm-level {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .rhythm-stage {
+    min-height: 25rem;
+  }
+
+  .rhythm-feedback {
+    grid-template-columns: auto 1fr;
+  }
+
+  .rhythm-result-grid {
+    grid-column: 1 / -1;
+  }
+
+  .rhythm-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .rhythm-setting:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .rhythm-setting:nth-child(2) {
+    grid-column: 1 / -1;
+  }
+
+  .rhythm-difficulty-options {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .rhythm-difficulty-options button {
+    min-width: 0;
+    padding: 0 0.25rem;
+  }
+
+  .rhythm-session-button {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rhythm-cell--target i,
+  .rhythm-pad--ready {
+    animation: none;
+  }
 }
 
 .training-shell h1 {
