@@ -59,28 +59,24 @@ export function Trainer() {
   const [melodyCorrectDegrees, setMelodyCorrectDegrees] = useState<string[]>([])
   const [drawerOpen, setDrawerOpen] = useState(false)
   const { sessionSize, setSessionSize, sessionCompleted, beginSession, completeQuestion, finishSession, clearSessionGoal } = useSessionGoal(initial.sessionSize)
-  const [chordDegrees, setChordDegrees] = useState<ChordDegree[]>([1, 6, 4, 5])
+  const [chordDegrees, setChordDegrees] = useState<ChordDegree[]>(initial.chordDegrees)
   const [currentChord, setCurrentChord] = useState<PlayedChord | null>(null)
   const [currentChordPosition, setCurrentChordPosition] = useState(-1)
-  const [chordRhythm, setChordRhythm] = useState<ChordRhythm>({ bpm: 80, beatsPerChord: 4, countInBeats: 0, feel: 'breathe' })
+  const [chordRhythm, setChordRhythm] = useState<ChordRhythm>(initial.chordRhythm)
   const [currentChordBeat, setCurrentChordBeat] = useState(0)
   const [chordCountIn, setChordCountIn] = useState(false)
-  const [chordKey, setChordKey] = useState<ChordKey>('random')
-  const [chordMelodyEnabled, setChordMelodyEnabled] = useState(false)
-  const [chordPlaybackMode, setChordPlaybackMode] = useState<ChordPlaybackMode>('progression')
-  const [randomChordSettings, setRandomChordSettings] = useState<RandomChordSettings>({
-    degrees: [1, 2, 3, 4, 5, 6, 7],
-    qualities: ['triad', 'seventh'],
-    inversions: [0, 1, 2, 3],
-  })
+  const [chordKey, setChordKey] = useState<ChordKey>(initial.chordKey)
+  const [chordMelodyEnabled, setChordMelodyEnabled] = useState(initial.chordMelodyEnabled)
+  const [chordPlaybackMode, setChordPlaybackMode] = useState<ChordPlaybackMode>(initial.chordPlaybackMode)
+  const [randomChordSettings, setRandomChordSettings] = useState<RandomChordSettings>(initial.randomChordSettings)
   const [activeChordKeyLabel, setActiveChordKeyLabel] = useState<string | null>(null)
   const [chordDegreeQuiz, setChordDegreeQuiz] = useState<ChordDegreeQuiz | null>(null)
   const [chordDegreeHistory, setChordDegreeHistory] = useState<ChordDegreeHistory>(() => loadChordDegreeHistory())
-  const [chordDegreeKey, setChordDegreeKey] = useState<ChordDegreeKey>('c-major')
+  const [chordDegreeKey, setChordDegreeKey] = useState<ChordDegreeKey>(initial.chordDegreeKey)
   const [chordDegreeTonicMidi, setChordDegreeTonicMidi] = useState(60)
-  const [chordDegreeRange, setChordDegreeRange] = useState<ChordDegreeRange>('primary')
-  const [chordDegreeCustomDegrees, setChordDegreeCustomDegrees] = useState<number[]>([2, 3, 6])
-  const [chordDegreeInversionMode, setChordDegreeInversionMode] = useState<ChordDegreeInversionMode>('root')
+  const [chordDegreeRange, setChordDegreeRange] = useState<ChordDegreeRange>(initial.chordDegreeRange)
+  const [chordDegreeCustomDegrees, setChordDegreeCustomDegrees] = useState<number[]>(initial.chordDegreeCustomDegrees)
+  const [chordDegreeInversionMode, setChordDegreeInversionMode] = useState<ChordDegreeInversionMode>(initial.chordDegreeInversionMode)
   const [chordDegreeReplayCount, setChordDegreeReplayCount] = useState(0)
 
   const abortRef = useRef<AbortController | null>(null)
@@ -151,15 +147,25 @@ export function Trainer() {
 
   useAutoDismiss(challengeEncouragement, 1800, () => setChallengeEncouragement(null), challengeEncouragement?.key)
 
-  usePersistedSettings(
+  usePersistedSettings({
     speedPreset,
-    settings.enabledIntervalIds,
-    settings.direction,
+    enabledIntervalIds: settings.enabledIntervalIds,
+    direction: settings.direction,
     mode,
     scaleDegreeReviewEnabled,
     scaleDegreeMelodyEnabled,
     sessionSize,
-  )
+    chordDegrees,
+    chordRhythm,
+    chordKey,
+    chordMelodyEnabled,
+    chordPlaybackMode,
+    randomChordSettings,
+    chordDegreeKey,
+    chordDegreeRange,
+    chordDegreeCustomDegrees,
+    chordDegreeInversionMode,
+  })
 
   useEffect(() => {
     // Start fetching and decoding the samples after the initial screen has painted.

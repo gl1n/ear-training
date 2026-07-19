@@ -2,13 +2,18 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createAudioContext, unlockAudioContextSync } from '../audio/context'
 import { bpmFromTapTimes, clampBpm, MAX_BPM, MIN_BPM } from '../quiz/metronome'
 import { Button } from '../common/ui/Button'
+import {
+  loadMetronomePreferences,
+  usePersistedMetronomePreferences,
+} from '../hooks/usePersistedToolSettings'
 
 const BEAT_OPTIONS = [2, 3, 4, 6] as const
 
 export function MetronomePanel() {
-  const [bpm, setBpm] = useState(80)
-  const [beatsPerBar, setBeatsPerBar] = useState<(typeof BEAT_OPTIONS)[number]>(4)
-  const [accentEnabled, setAccentEnabled] = useState(true)
+  const [initialPreferences] = useState(loadMetronomePreferences)
+  const [bpm, setBpm] = useState(initialPreferences.bpm)
+  const [beatsPerBar, setBeatsPerBar] = useState<(typeof BEAT_OPTIONS)[number]>(initialPreferences.beatsPerBar)
+  const [accentEnabled, setAccentEnabled] = useState(initialPreferences.accentEnabled)
   const [isPlaying, setIsPlaying] = useState(false)
   const [activeBeat, setActiveBeat] = useState(0)
   const contextRef = useRef<AudioContext | null>(null)
@@ -19,6 +24,8 @@ export function MetronomePanel() {
   const bpmRef = useRef(bpm)
   const beatsRef = useRef(beatsPerBar)
   const accentRef = useRef(accentEnabled)
+
+  usePersistedMetronomePreferences({ bpm, beatsPerBar, accentEnabled })
 
   useEffect(() => { bpmRef.current = bpm }, [bpm])
   useEffect(() => { beatsRef.current = beatsPerBar }, [beatsPerBar])

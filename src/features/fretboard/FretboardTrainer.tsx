@@ -31,6 +31,10 @@ import { Button } from '../../common/ui/Button'
 import { Card } from '../../common/ui/Card'
 import { useGuitarInput } from '../../hooks/useGuitarInput'
 import type { GuitarPitchReading } from '../../audio/guitarPitch'
+import {
+  loadFretboardPreferences,
+  usePersistedFretboardPreferences,
+} from '../../hooks/usePersistedToolSettings'
 
 type GamePhase = 'idle' | 'playing' | 'feedback' | 'finished'
 type GameMode = 'region' | 'all-notes'
@@ -110,10 +114,11 @@ type FretboardTrainerProps = {
 }
 
 export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
+  const [initialPreferences] = useState(loadFretboardPreferences)
   const [phase, setPhase] = useState<GamePhase>('idle')
-  const [gameMode, setGameMode] = useState<GameMode>('region')
-  const [continuous, setContinuous] = useState(true)
-  const [cMajorOnly, setCMajorOnly] = useState(false)
+  const [gameMode, setGameMode] = useState<GameMode>(initialPreferences.gameMode)
+  const [continuous, setContinuous] = useState(initialPreferences.continuous)
+  const [cMajorOnly, setCMajorOnly] = useState(initialPreferences.cMajorOnly)
   const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS)
   const [question, setQuestion] = useState<FretboardQuestion>(() => createFretboardQuestion())
   const [round, setRound] = useState(EMPTY_ROUND)
@@ -131,6 +136,8 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
   const roundRegionCountsRef = useRef<FretboardRegionCounts>({})
   const fullscreenRef = useRef<HTMLDivElement | null>(null)
   const [fullscreen, setFullscreen] = useState(false)
+
+  usePersistedFretboardPreferences({ gameMode, continuous, cMajorOnly })
 
   const exitFullscreen = useCallback(async () => {
     setFullscreen(false)

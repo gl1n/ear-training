@@ -13,7 +13,7 @@ A browser-based music practice cabin with separate entrances for fretboard pract
 - **猜和弦** — Identify diatonic triad degrees with guided key establishment, custom degree sets, replay and comparison tools, progressive difficulty, and per-degree error history
 - **和弦进行** — Build harmonic intuition by looping configurable diatonic progressions
 
-Progress (mistake stats, best records, session history) is stored in `localStorage`. Piano samples load from CDN via [smplr](https://github.com/danigb/smplr) on first use.
+User preferences and progress (mistake stats, best records, session history) are stored in `localStorage`. Piano samples load from CDN via [smplr](https://github.com/danigb/smplr) on first use.
 
 ## Product design principles / 产品设计原则
 

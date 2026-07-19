@@ -4,7 +4,21 @@ import {
   type AppMode,
   type SpeedPreset,
 } from '../quiz/sequencer'
-import type { IntervalDirection } from '../quiz/intervals'
+import { ALL_INTERVAL_IDS, type IntervalDirection } from '../quiz/intervals'
+import type {
+  ChordDegree,
+  ChordInversion,
+  ChordKey,
+  ChordPlaybackMode,
+  ChordRhythm,
+  RandomChordQuality,
+  RandomChordSettings,
+} from '../quiz/chordProgression'
+import type {
+  ChordDegreeInversionMode,
+  ChordDegreeKey,
+  ChordDegreeRange,
+} from '../quiz/chordDegreeQuiz'
 import { useDebouncedPersist } from './useDebouncedPersist'
 import type { SessionSize } from './useSessionGoal'
 
@@ -13,14 +27,48 @@ import { readStorage, writeStorage } from '../utils/storage'
 
 const STORAGE_KEY = STORAGE_KEYS.settings
 
-type PersistedSettings = {
+export type EarTrainingPreferences = {
   speedPreset: SpeedPreset
   enabledIntervalIds: string[]
   direction: IntervalDirection
-  mode?: AppMode
-  scaleDegreeReviewEnabled?: boolean
-  scaleDegreeMelodyEnabled?: boolean
-  sessionSize?: SessionSize
+  mode: AppMode
+  scaleDegreeReviewEnabled: boolean
+  scaleDegreeMelodyEnabled: boolean
+  sessionSize: SessionSize
+  chordDegrees: ChordDegree[]
+  chordRhythm: ChordRhythm
+  chordKey: ChordKey
+  chordMelodyEnabled: boolean
+  chordPlaybackMode: ChordPlaybackMode
+  randomChordSettings: RandomChordSettings
+  chordDegreeKey: ChordDegreeKey
+  chordDegreeRange: ChordDegreeRange
+  chordDegreeCustomDegrees: number[]
+  chordDegreeInversionMode: ChordDegreeInversionMode
+}
+
+const DEFAULT_PREFERENCES: EarTrainingPreferences = {
+  speedPreset: 'medium',
+  enabledIntervalIds: [...ALL_INTERVAL_IDS],
+  direction: 'ascending',
+  mode: 'scaleDegree',
+  scaleDegreeReviewEnabled: false,
+  scaleDegreeMelodyEnabled: false,
+  sessionSize: 10,
+  chordDegrees: [1, 6, 4, 5],
+  chordRhythm: { bpm: 80, beatsPerChord: 4, countInBeats: 0, feel: 'breathe' },
+  chordKey: 'random',
+  chordMelodyEnabled: false,
+  chordPlaybackMode: 'progression',
+  randomChordSettings: {
+    degrees: [1, 2, 3, 4, 5, 6, 7],
+    qualities: ['triad', 'seventh'],
+    inversions: [0, 1, 2, 3],
+  },
+  chordDegreeKey: 'c-major',
+  chordDegreeRange: 'primary',
+  chordDegreeCustomDegrees: [2, 3, 6],
+  chordDegreeInversionMode: 'root',
 }
 
 function isSpeedPreset(value: unknown): value is SpeedPreset {
@@ -31,129 +79,132 @@ function isIntervalDirection(value: unknown): value is IntervalDirection {
   return value === 'ascending' || value === 'descending' || value === 'harmonic'
 }
 
-function parseDirection(parsed: Record<string, unknown>): IntervalDirection | null {
-  if ('direction' in parsed && isIntervalDirection(parsed.direction)) {
-    return parsed.direction
+function validArray<T>(
+  value: unknown,
+  isValid: (item: unknown) => item is T,
+  minimumLength = 1,
+  deduplicate = true,
+): T[] | null {
+  if (!Array.isArray(value) || value.length < minimumLength || !value.every(isValid)) return null
+  return deduplicate ? [...new Set(value)] : [...value]
+}
+
+function isChordDegree(value: unknown): value is ChordDegree {
+  return Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 7
+}
+
+function isChordInversion(value: unknown): value is ChordInversion {
+  return value === 0 || value === 1 || value === 2 || value === 3
+}
+
+function isChordQuality(value: unknown): value is RandomChordQuality {
+  return value === 'triad' || value === 'seventh'
+}
+
+function parseChordRhythm(value: unknown): ChordRhythm | null {
+  if (typeof value !== 'object' || value === null) return null
+  const rhythm = value as Record<string, unknown>
+  if (
+    typeof rhythm.bpm !== 'number' ||
+    rhythm.bpm < 40 ||
+    rhythm.bpm > 160 ||
+    ![1, 2, 4].includes(Number(rhythm.beatsPerChord)) ||
+    (rhythm.countInBeats !== 0 && rhythm.countInBeats !== 4)
+  ) return null
+  return {
+    bpm: rhythm.bpm,
+    beatsPerChord: rhythm.beatsPerChord as 1 | 2 | 4,
+    countInBeats: rhythm.countInBeats,
+    feel: rhythm.feel === 'sustain' ? 'sustain' : 'breathe',
   }
-
-  return null
 }
 
-function parseScaleDegreeReviewEnabled(record: Record<string, unknown>): boolean {
-  return record.scaleDegreeReviewEnabled === true
+function parseRandomChordSettings(value: unknown): RandomChordSettings | null {
+  if (typeof value !== 'object' || value === null) return null
+  const settings = value as Record<string, unknown>
+  const degrees = validArray(settings.degrees, isChordDegree)
+  const qualities = validArray(settings.qualities, isChordQuality)
+  const inversions = validArray(settings.inversions, isChordInversion)
+  return degrees && qualities && inversions ? { degrees, qualities, inversions } : null
 }
 
-function parseScaleDegreeMelodyEnabled(record: Record<string, unknown>): boolean {
-  return record.scaleDegreeMelodyEnabled === true
-}
-
-function loadPersistedSettings(): PersistedSettings | null {
+export function loadEarTrainingPreferences(): EarTrainingPreferences {
+  const defaults = structuredClone(DEFAULT_PREFERENCES)
   try {
     const raw = readStorage(STORAGE_KEY)
-    if (!raw) return null
+    if (!raw) return defaults
 
     const parsed: unknown = JSON.parse(raw)
-    if (
-      typeof parsed !== 'object' ||
-      parsed === null ||
-      !('speedPreset' in parsed) ||
-      !('enabledIntervalIds' in parsed)
-    ) {
-      return null
-    }
+    if (typeof parsed !== 'object' || parsed === null) return defaults
 
     const record = parsed as Record<string, unknown>
-    const { speedPreset, enabledIntervalIds } = record
-    if (!isSpeedPreset(speedPreset)) return null
-    if (
-      !Array.isArray(enabledIntervalIds) ||
-      !enabledIntervalIds.every((id) => typeof id === 'string')
-    ) {
-      return null
-    }
-
-    const direction = parseDirection(record) ?? 'ascending'
-    const mode =
-      'mode' in record ? normalizeAppMode(record.mode) ?? 'scaleDegree' : 'scaleDegree'
-    const scaleDegreeReviewEnabled = parseScaleDegreeReviewEnabled(record)
-    const scaleDegreeMelodyEnabled = parseScaleDegreeMelodyEnabled(record)
-    const sessionSize = record.sessionSize === 20 || record.sessionSize === 30 ? record.sessionSize : 10
+    const enabledIntervalIds = validArray(
+      record.enabledIntervalIds,
+      (id): id is string => typeof id === 'string' && ALL_INTERVAL_IDS.includes(id),
+      0,
+    )
+    const chordDegrees = validArray(record.chordDegrees, isChordDegree, 1, false)
+    const chordRhythm = parseChordRhythm(record.chordRhythm)
+    const randomChordSettings = parseRandomChordSettings(record.randomChordSettings)
+    const chordDegreeCustomDegrees = validArray(record.chordDegreeCustomDegrees, isChordDegree, 2)
 
     return {
-      speedPreset,
-      enabledIntervalIds,
-      direction,
-      mode,
-      scaleDegreeReviewEnabled,
-      scaleDegreeMelodyEnabled,
-      sessionSize,
+      speedPreset: isSpeedPreset(record.speedPreset) ? record.speedPreset : defaults.speedPreset,
+      enabledIntervalIds: enabledIntervalIds ?? defaults.enabledIntervalIds,
+      direction: isIntervalDirection(record.direction) ? record.direction : defaults.direction,
+      mode: normalizeAppMode(record.mode) ?? defaults.mode,
+      scaleDegreeReviewEnabled: typeof record.scaleDegreeReviewEnabled === 'boolean'
+        ? record.scaleDegreeReviewEnabled
+        : defaults.scaleDegreeReviewEnabled,
+      scaleDegreeMelodyEnabled: typeof record.scaleDegreeMelodyEnabled === 'boolean'
+        ? record.scaleDegreeMelodyEnabled
+        : defaults.scaleDegreeMelodyEnabled,
+      sessionSize: record.sessionSize === 20 || record.sessionSize === 30 ? record.sessionSize : 10,
+      chordDegrees: chordDegrees && chordDegrees.length >= 4 && chordDegrees.length <= 8
+        ? chordDegrees
+        : defaults.chordDegrees,
+      chordRhythm: chordRhythm ?? defaults.chordRhythm,
+      chordKey: record.chordKey === 'random' ||
+        (Number.isInteger(record.chordKey) && Number(record.chordKey) >= 0 && Number(record.chordKey) <= 11)
+        ? record.chordKey as ChordKey
+        : defaults.chordKey,
+      chordMelodyEnabled: typeof record.chordMelodyEnabled === 'boolean'
+        ? record.chordMelodyEnabled
+        : defaults.chordMelodyEnabled,
+      chordPlaybackMode: record.chordPlaybackMode === 'random-ear'
+        ? 'random-ear'
+        : defaults.chordPlaybackMode,
+      randomChordSettings: randomChordSettings ?? defaults.randomChordSettings,
+      chordDegreeKey: record.chordDegreeKey === 'random' ? 'random' : defaults.chordDegreeKey,
+      chordDegreeRange: ['primary', 'common', 'all', 'custom'].includes(String(record.chordDegreeRange))
+        ? record.chordDegreeRange as ChordDegreeRange
+        : defaults.chordDegreeRange,
+      chordDegreeCustomDegrees: chordDegreeCustomDegrees ?? defaults.chordDegreeCustomDegrees,
+      chordDegreeInversionMode: record.chordDegreeInversionMode === 'random'
+        ? 'random'
+        : defaults.chordDegreeInversionMode,
     }
   } catch {
-    return null
+    return defaults
   }
 }
 
-export function getInitialSettings(): {
-  speedPreset: SpeedPreset
-  mode: AppMode
-  scaleDegreeReviewEnabled: boolean
-  scaleDegreeMelodyEnabled: boolean
-  sessionSize: SessionSize
+export function getInitialSettings(): EarTrainingPreferences & {
   settings: ReturnType<typeof createDefaultSettings>
 } {
-  const persisted = loadPersistedSettings()
-  const speedPreset = persisted?.speedPreset ?? 'medium'
-  const mode = persisted?.mode ?? 'scaleDegree'
-  const scaleDegreeReviewEnabled = persisted?.scaleDegreeReviewEnabled ?? false
-  const scaleDegreeMelodyEnabled = persisted?.scaleDegreeMelodyEnabled ?? false
-  const sessionSize = persisted?.sessionSize ?? 10
-  const defaults = createDefaultSettings(speedPreset)
-
-  if (persisted && persisted.enabledIntervalIds.length > 0) {
-    return {
-      speedPreset,
-      mode,
-      scaleDegreeReviewEnabled,
-      scaleDegreeMelodyEnabled,
-      sessionSize,
-      settings: {
-        ...defaults,
-        enabledIntervalIds: persisted.enabledIntervalIds,
-        direction: persisted.direction,
-      },
-    }
+  const persisted = loadEarTrainingPreferences()
+  return {
+    ...persisted,
+    settings: {
+      ...createDefaultSettings(persisted.speedPreset),
+      enabledIntervalIds: persisted.enabledIntervalIds,
+      direction: persisted.direction,
+    },
   }
-
-  return { speedPreset, mode, scaleDegreeReviewEnabled, scaleDegreeMelodyEnabled, sessionSize, settings: defaults }
 }
 
-export function usePersistedSettings(
-  speedPreset: SpeedPreset,
-  enabledIntervalIds: string[],
-  direction: IntervalDirection,
-  mode: AppMode,
-  scaleDegreeReviewEnabled: boolean,
-  scaleDegreeMelodyEnabled: boolean,
-  sessionSize: SessionSize,
-) {
+export function usePersistedSettings(preferences: EarTrainingPreferences) {
   useDebouncedPersist(() => {
-    const data: PersistedSettings = {
-      speedPreset,
-      enabledIntervalIds,
-      direction,
-      mode,
-      scaleDegreeReviewEnabled,
-      scaleDegreeMelodyEnabled,
-      sessionSize,
-    }
-    writeStorage(STORAGE_KEY, JSON.stringify(data))
-  }, [
-    speedPreset,
-    enabledIntervalIds,
-    direction,
-    mode,
-    scaleDegreeReviewEnabled,
-    scaleDegreeMelodyEnabled,
-    sessionSize,
-  ])
+    writeStorage(STORAGE_KEY, JSON.stringify(preferences))
+  }, Object.values(preferences))
 }
