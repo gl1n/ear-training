@@ -7,7 +7,7 @@ A browser-based music practice cabin with separate entrances for fretboard pract
 - **独立首页** — Choose between fretboard practice, ear training, and the metronome without loading practice bundles up front
 - **指板练习** — Locate notes in random fretboard regions, freely audition notes, and review a heatmap built from the latest 200 answer records
 - **节拍器** — Keep time with adjustable BPM, meter accents, keyboard control, and tap tempo
-- **音阶漫游** — Loop seven modes in beat-synced 4/4 phrases while rotating evenly through all twelve movable-do tonics
+- **音阶漫游** — Loop major/minor pentatonic scales and seven modes in beat-synced 4/4 phrases while rotating evenly through all twelve movable-do tonics
 - **音程跟听** — Loop playback with spoken interval names (Web Speech API, zh-CN)
 - **音程辨认** — Interval challenge with reaction-weighted scoring and mistake-weighted question selection
 - **音级辨识** — Identify scale degrees in random major keys, with optional mistake review mode

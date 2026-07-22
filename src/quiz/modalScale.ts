@@ -1,4 +1,6 @@
 export const MODAL_SCALE_IDS = [
+  'minorPentatonic',
+  'majorPentatonic',
   'ionian',
   'aeolian',
   'dorian',
@@ -16,6 +18,7 @@ export type ModalScale = {
   englishLabel: string
   formula: string
   intervals: readonly number[]
+  degrees: readonly number[]
   color: string
 }
 
@@ -27,13 +30,15 @@ export type ScalePhraseNote = {
 }
 
 export const MODAL_SCALES: Record<ModalScaleId, ModalScale> = {
-  ionian: { id: 'ionian', label: '自然大调', englishLabel: 'Ionian', formula: '1 2 3 4 5 6 7', intervals: [0, 2, 4, 5, 7, 9, 11], color: '明亮、稳定' },
-  dorian: { id: 'dorian', label: '多利亚', englishLabel: 'Dorian', formula: '1 2 ♭3 4 5 6 ♭7', intervals: [0, 2, 3, 5, 7, 9, 10], color: '小调色彩，明亮六级' },
-  phrygian: { id: 'phrygian', label: '弗里几亚', englishLabel: 'Phrygian', formula: '1 ♭2 ♭3 4 5 ♭6 ♭7', intervals: [0, 1, 3, 5, 7, 8, 10], color: '紧张、异域感' },
-  lydian: { id: 'lydian', label: '利底亚', englishLabel: 'Lydian', formula: '1 2 3 ♯4 5 6 7', intervals: [0, 2, 4, 6, 7, 9, 11], color: '明亮、悬浮感' },
-  mixolydian: { id: 'mixolydian', label: '混合利底亚', englishLabel: 'Mixolydian', formula: '1 2 3 4 5 6 ♭7', intervals: [0, 2, 4, 5, 7, 9, 10], color: '大调色彩，松弛七级' },
-  aeolian: { id: 'aeolian', label: '自然小调', englishLabel: 'Aeolian', formula: '1 2 ♭3 4 5 ♭6 ♭7', intervals: [0, 2, 3, 5, 7, 8, 10], color: '柔和、忧郁' },
-  locrian: { id: 'locrian', label: '洛克里亚', englishLabel: 'Locrian', formula: '1 ♭2 ♭3 4 ♭5 ♭6 ♭7', intervals: [0, 1, 3, 5, 6, 8, 10], color: '不稳定、暗色' },
+  minorPentatonic: { id: 'minorPentatonic', label: '小调五声音阶', englishLabel: 'Minor Pentatonic', formula: '1 ♭3 4 5 ♭7', intervals: [0, 3, 5, 7, 10], degrees: [1, 3, 4, 5, 7], color: '摇滚、布鲁斯核心音阶' },
+  majorPentatonic: { id: 'majorPentatonic', label: '大调五声音阶', englishLabel: 'Major Pentatonic', formula: '1 2 3 5 6', intervals: [0, 2, 4, 7, 9], degrees: [1, 2, 3, 5, 6], color: '明亮、开放' },
+  ionian: { id: 'ionian', label: '自然大调', englishLabel: 'Ionian', formula: '1 2 3 4 5 6 7', intervals: [0, 2, 4, 5, 7, 9, 11], degrees: [1, 2, 3, 4, 5, 6, 7], color: '明亮、稳定' },
+  dorian: { id: 'dorian', label: '多利亚', englishLabel: 'Dorian', formula: '1 2 ♭3 4 5 6 ♭7', intervals: [0, 2, 3, 5, 7, 9, 10], degrees: [1, 2, 3, 4, 5, 6, 7], color: '小调色彩，明亮六级' },
+  phrygian: { id: 'phrygian', label: '弗里几亚', englishLabel: 'Phrygian', formula: '1 ♭2 ♭3 4 5 ♭6 ♭7', intervals: [0, 1, 3, 5, 7, 8, 10], degrees: [1, 2, 3, 4, 5, 6, 7], color: '紧张、异域感' },
+  lydian: { id: 'lydian', label: '利底亚', englishLabel: 'Lydian', formula: '1 2 3 ♯4 5 6 7', intervals: [0, 2, 4, 6, 7, 9, 11], degrees: [1, 2, 3, 4, 5, 6, 7], color: '明亮、悬浮感' },
+  mixolydian: { id: 'mixolydian', label: '混合利底亚', englishLabel: 'Mixolydian', formula: '1 2 3 4 5 6 ♭7', intervals: [0, 2, 4, 5, 7, 9, 10], degrees: [1, 2, 3, 4, 5, 6, 7], color: '大调色彩，松弛七级' },
+  aeolian: { id: 'aeolian', label: '自然小调', englishLabel: 'Aeolian', formula: '1 2 ♭3 4 5 ♭6 ♭7', intervals: [0, 2, 3, 5, 7, 8, 10], degrees: [1, 2, 3, 4, 5, 6, 7], color: '柔和、忧郁' },
+  locrian: { id: 'locrian', label: '洛克里亚', englishLabel: 'Locrian', formula: '1 ♭2 ♭3 4 ♭5 ♭6 ♭7', intervals: [0, 1, 3, 5, 6, 8, 10], degrees: [1, 2, 3, 4, 5, 6, 7], color: '不稳定、暗色' },
 }
 
 export const SCALE_PHRASE_STEPS = 16
@@ -41,17 +46,28 @@ export const SCALE_COUNT_IN_STEPS = 8
 export const SCALE_TONIC_MIN_MIDI = 55
 export const SCALE_TONIC_MAX_MIDI = 66
 
-const ASCENDING_DEGREE_LABELS = ['do', 're', 'mi', 'fa', 'sol', 'la', 'si', 'do'] as const
+const DEGREE_LABELS = ['do', 're', 'mi', 'fa', 'sol', 'la', 'si'] as const
 
 export function createScalePhrase(tonicMidi: number, scaleId: ModalScaleId): ScalePhraseNote[] {
   const scale = MODAL_SCALES[scaleId]
   const ascending = [...scale.intervals, 12]
   const intervals = [...ascending, ...scale.intervals.slice(1).reverse(), 0]
+  const ascendingLabels = [...scale.degrees.map((degree) => DEGREE_LABELS[degree - 1]!), 'do']
   const degreeLabels = [
-    ...ASCENDING_DEGREE_LABELS,
-    ...ASCENDING_DEGREE_LABELS.slice(1, -1).reverse(),
+    ...ascendingLabels,
+    ...scale.degrees.slice(1).reverse().map((degree) => DEGREE_LABELS[degree - 1]!),
     'do',
   ]
+
+  if (scale.intervals.length === 5) {
+    const steps = [0, 1, 2, 3, 4, 6, 8, 9, 10, 11, 12]
+    return intervals.map((interval, index) => ({
+      midi: tonicMidi + interval,
+      step: steps[index]!,
+      durationSteps: index === 5 ? 2 : index === intervals.length - 1 ? 4 : 0.86,
+      degreeLabel: degreeLabels[index]!,
+    }))
+  }
 
   return intervals.map((interval, step) => ({
     midi: tonicMidi + interval,

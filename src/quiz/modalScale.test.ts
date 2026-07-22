@@ -9,7 +9,7 @@ import {
 } from './modalScale'
 
 describe('createScalePhrase', () => {
-  it.each(MODAL_SCALE_IDS)('builds a two-bar %s round trip without repeating the upper tonic', (scaleId) => {
+  it.each(MODAL_SCALE_IDS.filter((scaleId) => !scaleId.endsWith('Pentatonic')))('builds a two-bar %s round trip without repeating the upper tonic', (scaleId) => {
     const phrase = createScalePhrase(60, scaleId)
     expect(phrase).toHaveLength(15)
     expect(phrase.map((note) => note.step)).toEqual(Array.from({ length: 15 }, (_, index) => index))
@@ -17,6 +17,15 @@ describe('createScalePhrase', () => {
     expect(phrase[7]?.midi).toBe(72)
     expect(phrase[8]?.midi).toBeLessThan(72)
     expect(phrase[14]).toMatchObject({ midi: 60, durationSteps: 2, degreeLabel: 'do' })
+  })
+
+  it.each(['minorPentatonic', 'majorPentatonic'] as const)('fits %s into two complete 4/4 bars', (scaleId) => {
+    const phrase = createScalePhrase(60, scaleId)
+    expect(phrase).toHaveLength(11)
+    expect(phrase.map((note) => note.step)).toEqual([0, 1, 2, 3, 4, 6, 8, 9, 10, 11, 12])
+    expect(phrase[0]?.midi).toBe(60)
+    expect(phrase[5]).toMatchObject({ midi: 72, durationSteps: 2, degreeLabel: 'do' })
+    expect(phrase[10]).toMatchObject({ midi: 60, durationSteps: 4, degreeLabel: 'do' })
   })
 })
 

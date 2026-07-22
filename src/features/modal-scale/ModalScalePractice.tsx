@@ -42,11 +42,6 @@ type ScheduledRound = {
   phrase: ScalePhraseNote[]
 }
 
-const DISPLAY_STEPS = [
-  'do', 're', 'mi', 'fa', 'sol', 'la', 'si', 'do',
-  'si', 'la', 'sol', 'fa', 'mi', 're', 'do', '—',
-] as const
-
 function phaseCopy(phase: ScalePhase, round: number): { kicker: string; title: string; detail: string } {
   if (phase === 'loading') return { kicker: '正在准备', title: '加载钢琴音色', detail: '首次使用可能需要片刻' }
   if (phase === 'count-in') return { kicker: '预备', title: '听四拍，找到律动', detail: '下一小节第一拍就是新的 do' }
@@ -153,7 +148,9 @@ export function ModalScalePractice() {
           scheduledRoundsRef.current.delete(roundIndex - 2)
         }
 
-        const note = scheduledRoundsRef.current.get(roundIndex)?.phrase[phraseStep]
+        const note = scheduledRoundsRef.current.get(roundIndex)?.phrase.find(
+          (candidate) => candidate.step === phraseStep,
+        )
         if (!note) return
         const eighthDuration = stepDurationSec(bpmRef.current, 2)
         void piano.playNote(note.midi, note.durationSteps * eighthDuration, 80, position.time).catch((error: unknown) => {
@@ -243,6 +240,10 @@ export function ModalScalePractice() {
   const isRunning = phase === 'loading' || phase === 'count-in' || phase === 'playing'
   const copy = phaseCopy(phase, round)
   const activeScale = MODAL_SCALES[scaleId]
+  const displayPhrase = createScalePhrase(60, scaleId)
+  const displaySteps = Array.from({ length: SCALE_PHRASE_STEPS }, (_, step) =>
+    displayPhrase.find((note) => note.step === step)?.degreeLabel ?? '—',
+  )
 
   return (
     <AppShell
@@ -274,10 +275,10 @@ export function ModalScalePractice() {
             </div>
 
             <div className="mt-8 grid grid-cols-8 gap-1.5" aria-label="两小节音阶乐句">
-              {DISPLAY_STEPS.map((degree, step) => (
+              {displaySteps.map((degree, step) => (
                 <span
                   key={`${degree}-${step}`}
-                  className={`rounded-lg border px-1 py-2 text-xs font-semibold transition sm:text-sm ${activePhraseStep === step && phase === 'playing' ? 'border-emerald-300/70 bg-emerald-300/20 text-emerald-100 shadow-[0_0_18px_rgba(52,211,153,0.18)]' : step === 15 ? 'border-transparent text-white/15' : 'border-white/8 bg-black/15 text-white/45'}`}
+                  className={`rounded-lg border px-1 py-2 text-xs font-semibold transition sm:text-sm ${activePhraseStep === step && phase === 'playing' ? 'border-emerald-300/70 bg-emerald-300/20 text-emerald-100 shadow-[0_0_18px_rgba(52,211,153,0.18)]' : degree === '—' ? 'border-transparent text-white/15' : 'border-white/8 bg-black/15 text-white/45'}`}
                 >
                   {degree}
                 </span>
