@@ -2,6 +2,7 @@ import { useDebouncedPersist } from './useDebouncedPersist'
 import { STORAGE_KEYS } from '../quiz/storageKeys'
 import { readStorage, writeStorage } from '../utils/storage'
 import { clampBpm } from '../quiz/metronome'
+import { isModalScaleId, type ModalScaleId } from '../quiz/modalScale'
 
 export type FretboardPreferences = {
   gameMode: 'region' | 'all-notes'
@@ -13,6 +14,11 @@ export type MetronomePreferences = {
   bpm: number
   beatsPerBar: 2 | 3 | 4 | 6
   accentEnabled: boolean
+}
+
+export type ModalScalePreferences = {
+  scaleId: ModalScaleId
+  clickEnabled: boolean
 }
 
 function readRecord(key: string): Record<string, unknown> | null {
@@ -58,5 +64,26 @@ export function loadMetronomePreferences(): MetronomePreferences {
 export function usePersistedMetronomePreferences(preferences: MetronomePreferences) {
   useDebouncedPersist(() => {
     writeStorage(STORAGE_KEYS.metronomeSettings, JSON.stringify(preferences))
+  }, Object.values(preferences))
+}
+
+export function usePersistedMetronomeBpm(bpm: number) {
+  useDebouncedPersist(() => {
+    const current = loadMetronomePreferences()
+    writeStorage(STORAGE_KEYS.metronomeSettings, JSON.stringify({ ...current, bpm: clampBpm(bpm) }))
+  }, [bpm])
+}
+
+export function loadModalScalePreferences(): ModalScalePreferences {
+  const record = readRecord(STORAGE_KEYS.modalScaleSettings)
+  return {
+    scaleId: isModalScaleId(record?.scaleId) ? record.scaleId : 'ionian',
+    clickEnabled: typeof record?.clickEnabled === 'boolean' ? record.clickEnabled : true,
+  }
+}
+
+export function usePersistedModalScalePreferences(preferences: ModalScalePreferences) {
+  useDebouncedPersist(() => {
+    writeStorage(STORAGE_KEYS.modalScaleSettings, JSON.stringify(preferences))
   }, Object.values(preferences))
 }

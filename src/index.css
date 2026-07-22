@@ -162,6 +162,7 @@ a {
 .entrance-card--amber { --card-accent: #fbbf24; }
 .entrance-card--sky { --card-accent: #38bdf8; }
 .entrance-card--violet { --card-accent: #a78bfa; }
+.entrance-card--emerald { --card-accent: #34d399; }
 
 .entrance-card:hover {
   border-color: color-mix(in srgb, var(--card-accent) 42%, transparent);
@@ -930,6 +931,23 @@ a {
 
 .animate-fade-pulse {
   animation: fade-pulse 2s ease-in-out infinite;
+}
+
+.scale-beat-active {
+  animation: scale-beat-pop 140ms ease-out;
+}
+
+.modal-scale-session-button {
+  background: #10b981;
+}
+
+.modal-scale-session-button:hover {
+  background: #34d399;
+}
+
+@keyframes scale-beat-pop {
+  from { transform: scale(0.82); }
+  to { transform: scale(1); }
 }
 
 @keyframes sound-bar {

@@ -5,8 +5,9 @@ const EarTraining = lazy(() => import('./features/ear-training/Trainer').then((m
 const FretboardPractice = lazy(() => import('./features/fretboard/FretboardPractice').then((module) => ({ default: module.FretboardPractice })))
 const MetronomePractice = lazy(() => import('./features/metronome/MetronomePractice').then((module) => ({ default: module.MetronomePractice })))
 const RhythmPractice = lazy(() => import('./features/rhythm/RhythmPractice').then((module) => ({ default: module.RhythmPractice })))
+const ModalScalePractice = lazy(() => import('./features/modal-scale/ModalScalePractice').then((module) => ({ default: module.ModalScalePractice })))
 
-type Route = 'home' | 'ear-training' | 'fretboard' | 'metronome' | 'rhythm'
+type Route = 'home' | 'ear-training' | 'fretboard' | 'metronome' | 'rhythm' | 'modal-scale'
 
 function readRoute(): Route {
   const path = window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '')
@@ -14,6 +15,7 @@ function readRoute(): Route {
   if (path === 'fretboard') return 'fretboard'
   if (path === 'metronome') return 'metronome'
   if (path === 'rhythm') return 'rhythm'
+  if (path === 'modal-scale') return 'modal-scale'
   return 'home'
 }
 
@@ -43,7 +45,9 @@ export function App() {
         : route === 'metronome'
           ? '节拍器 · 格林的音乐练习小屋'
           : route === 'rhythm'
-            ? '节奏回声 · 格林的音乐练习小屋'
+          ? '节奏回声 · 格林的音乐练习小屋'
+          : route === 'modal-scale'
+            ? '音阶漫游 · 格林的音乐练习小屋'
           : '练耳 · 格林的音乐练习小屋'
     window.scrollTo({ top: 0 })
   }, [route])
@@ -56,9 +60,11 @@ export function App() {
         ? <EarTraining />
         : route === 'fretboard'
           ? <FretboardPractice />
-          : route === 'metronome'
-            ? <MetronomePractice />
-            : <RhythmPractice />}
+        : route === 'metronome'
+          ? <MetronomePractice />
+          : route === 'rhythm'
+            ? <RhythmPractice />
+            : <ModalScalePractice />}
     </Suspense>
   )
 }

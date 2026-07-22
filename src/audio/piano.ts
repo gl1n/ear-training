@@ -10,8 +10,8 @@ const LOAD_TIMEOUT_MS = 60_000
 const MAX_INTERVAL_SEMITONES = 12
 
 export type Piano = {
-  playNote: (midi: number, durationSec: number, velocity?: number) => Promise<void>
-  playNotes: (midis: number[], durationSec: number, velocity?: number) => Promise<void>
+  playNote: (midi: number, durationSec: number, velocity?: number, time?: number) => Promise<void>
+  playNotes: (midis: number[], durationSec: number, velocity?: number, time?: number) => Promise<void>
   stop: () => void
 }
 
@@ -57,14 +57,14 @@ function waitWithTimeout<T>(promise: Promise<T>, signal?: AbortSignal): Promise<
 
 function wrapInstrument(ctx: AudioContext, piano: Smplr): Piano {
   return {
-    async playNote(midi: number, durationSec: number, velocity = 80) {
+    async playNote(midi: number, durationSec: number, velocity = 80, time?: number) {
       await unlockAudioContext(ctx)
-      piano.start({ note: midi, velocity, duration: durationSec, ampRelease: 0.08 })
+      piano.start({ note: midi, velocity, duration: durationSec, ampRelease: 0.08, time })
     },
-    async playNotes(midis: number[], durationSec: number, velocity = 80) {
+    async playNotes(midis: number[], durationSec: number, velocity = 80, time?: number) {
       await unlockAudioContext(ctx)
       for (const midi of midis) {
-        piano.start({ note: midi, velocity, duration: durationSec, ampRelease: 0.08 })
+        piano.start({ note: midi, velocity, duration: durationSec, ampRelease: 0.08, time })
       }
     },
     stop() {
@@ -75,11 +75,11 @@ function wrapInstrument(ctx: AudioContext, piano: Smplr): Piano {
 
 function createSynthFallback(ctx: AudioContext): Piano {
   const active = new Set<OscillatorNode>()
-  const play = async (midi: number, durationSec: number, velocity = 80) => {
+  const play = async (midi: number, durationSec: number, velocity = 80, time?: number) => {
     await unlockAudioContext(ctx)
     const oscillator = ctx.createOscillator()
     const gain = ctx.createGain()
-    const now = ctx.currentTime
+    const now = time ?? ctx.currentTime
     const volume = Math.max(0.025, Math.min(0.12, velocity / 900))
     oscillator.type = 'triangle'
     oscillator.frequency.value = 440 * 2 ** ((midi - 69) / 12)
@@ -94,8 +94,8 @@ function createSynthFallback(ctx: AudioContext): Piano {
   }
   return {
     playNote: play,
-    async playNotes(midis, durationSec, velocity) {
-      await Promise.all(midis.map((midi) => play(midi, durationSec, velocity)))
+    async playNotes(midis, durationSec, velocity, time) {
+      await Promise.all(midis.map((midi) => play(midi, durationSec, velocity, time)))
     },
     stop() {
       for (const oscillator of active) {

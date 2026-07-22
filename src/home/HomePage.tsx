@@ -20,6 +20,15 @@ const ENTRANCES = [
     tone: 'sky',
   },
   {
+    href: '#/modal-scale',
+    eyebrow: 'SCALE JOURNEY',
+    title: '音阶漫游',
+    description: '选定一种调式，让每一轮从新的 do 出发，在稳定的 4/4 拍中建立可移动的相对音感。',
+    detail: '七种调式 · 随机主音 · 节拍同步',
+    icon: '∞',
+    tone: 'emerald',
+  },
+  {
     href: '#/rhythm',
     eyebrow: 'RHYTHM ECHO',
     title: '节奏回声',

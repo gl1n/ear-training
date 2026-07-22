@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createAudioContext, unlockAudioContextSync } from '../audio/context'
+import { BeatScheduler } from '../audio/beatScheduler'
+import { scheduleMetronomeClick } from '../audio/metronomeClick'
 import { bpmFromTapTimes, clampBpm, MAX_BPM, MIN_BPM } from '../quiz/metronome'
 import { Button } from '../common/ui/Button'
 import {
@@ -17,9 +19,8 @@ export function MetronomePanel() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [activeBeat, setActiveBeat] = useState(0)
   const contextRef = useRef<AudioContext | null>(null)
-  const timerRef = useRef<number | null>(null)
-  const nextBeatTimeRef = useRef(0)
-  const nextBeatRef = useRef(0)
+  const schedulerRef = useRef<BeatScheduler | null>(null)
+  const oscillatorsRef = useRef(new Set<OscillatorNode>())
   const tapTimesRef = useRef<number[]>([])
   const bpmRef = useRef(bpm)
   const beatsRef = useRef(beatsPerBar)
@@ -27,39 +28,32 @@ export function MetronomePanel() {
 
   usePersistedMetronomePreferences({ bpm, beatsPerBar, accentEnabled })
 
-  useEffect(() => { bpmRef.current = bpm }, [bpm])
-  useEffect(() => { beatsRef.current = beatsPerBar }, [beatsPerBar])
+  useEffect(() => {
+    bpmRef.current = bpm
+    schedulerRef.current?.setBpm(bpm)
+  }, [bpm])
+  useEffect(() => {
+    beatsRef.current = beatsPerBar
+    schedulerRef.current?.setBeatsPerBar(beatsPerBar)
+  }, [beatsPerBar])
   useEffect(() => { accentRef.current = accentEnabled }, [accentEnabled])
 
   const playClick = useCallback((context: AudioContext, time: number, beat: number) => {
     const strong = beat === 0 && accentRef.current
     const secondary = beat === 3 && beatsRef.current === 6 && accentRef.current
-    const oscillator = context.createOscillator()
-    const gain = context.createGain()
-    oscillator.type = 'sine'
-    oscillator.frequency.setValueAtTime(strong ? 1500 : secondary ? 1040 : 760, time)
-    gain.gain.setValueAtTime(strong ? 0.25 : secondary ? 0.15 : 0.11, time)
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.045)
-    oscillator.connect(gain).connect(context.destination)
-    oscillator.start(time)
-    oscillator.stop(time + 0.05)
-
-    if (secondary) {
-      const overtone = context.createOscillator()
-      const overtoneGain = context.createGain()
-      overtone.type = 'sine'
-      overtone.frequency.setValueAtTime(1560, time)
-      overtoneGain.gain.setValueAtTime(0.035, time)
-      overtoneGain.gain.exponentialRampToValueAtTime(0.001, time + 0.06)
-      overtone.connect(overtoneGain).connect(context.destination)
-      overtone.start(time)
-      overtone.stop(time + 0.065)
+    for (const oscillator of scheduleMetronomeClick(context, time, { strong, secondary })) {
+      oscillatorsRef.current.add(oscillator)
+      oscillator.addEventListener('ended', () => oscillatorsRef.current.delete(oscillator), { once: true })
     }
   }, [])
 
   const stop = useCallback(() => {
-    if (timerRef.current !== null) window.clearInterval(timerRef.current)
-    timerRef.current = null
+    schedulerRef.current?.stop()
+    schedulerRef.current = null
+    for (const oscillator of oscillatorsRef.current) {
+      try { oscillator.stop() } catch { /* already stopped */ }
+    }
+    oscillatorsRef.current.clear()
     setIsPlaying(false)
     setActiveBeat(0)
   }, [])
@@ -70,21 +64,14 @@ export function MetronomePanel() {
       : createAudioContext()
     contextRef.current = context
     unlockAudioContextSync(context)
-    nextBeatRef.current = 0
-    nextBeatTimeRef.current = context.currentTime + 0.06
-
-    const schedule = () => {
-      while (nextBeatTimeRef.current < context.currentTime + 0.1) {
-        const beat = nextBeatRef.current
-        const time = nextBeatTimeRef.current
-        playClick(context, time, beat)
-        window.setTimeout(() => setActiveBeat(beat), Math.max(0, (time - context.currentTime) * 1000))
-        nextBeatTimeRef.current += 60 / bpmRef.current
-        nextBeatRef.current = (beat + 1) % beatsRef.current
-      }
-    }
-    schedule()
-    timerRef.current = window.setInterval(schedule, 25)
+    const scheduler = new BeatScheduler(context, {
+      bpm: bpmRef.current,
+      beatsPerBar: beatsRef.current,
+      onSchedule: ({ time, beat }) => playClick(context, time, beat),
+      onTick: ({ beat }) => setActiveBeat(beat),
+    })
+    schedulerRef.current = scheduler
+    scheduler.start()
     setIsPlaying(true)
   }, [playClick])
 
@@ -103,7 +90,10 @@ export function MetronomePanel() {
   }, [isPlaying, start, stop])
 
   useEffect(() => () => {
-    if (timerRef.current !== null) window.clearInterval(timerRef.current)
+    schedulerRef.current?.stop()
+    for (const oscillator of oscillatorsRef.current) {
+      try { oscillator.stop() } catch { /* already stopped */ }
+    }
     void contextRef.current?.close()
   }, [])
 
@@ -144,7 +134,7 @@ export function MetronomePanel() {
         <div>
           <p className="mb-2 text-xs font-medium text-[var(--text-secondary)]">每小节拍数</p>
           <div className="grid grid-cols-4 gap-2">
-            {BEAT_OPTIONS.map((beats) => <button type="button" key={beats} onClick={() => { setBeatsPerBar(beats); nextBeatRef.current = 0 }} className={`rounded-lg border py-2 text-sm font-semibold ${beatsPerBar === beats ? 'border-rose-400/60 bg-rose-400/15 text-rose-200' : 'border-[var(--border-subtle)] text-[var(--text-secondary)]'}`}>{beats}</button>)}
+            {BEAT_OPTIONS.map((beats) => <button type="button" key={beats} onClick={() => setBeatsPerBar(beats)} className={`rounded-lg border py-2 text-sm font-semibold ${beatsPerBar === beats ? 'border-rose-400/60 bg-rose-400/15 text-rose-200' : 'border-[var(--border-subtle)] text-[var(--text-secondary)]'}`}>{beats}</button>)}
           </div>
         </div>
         <div className="flex items-end justify-between gap-3">

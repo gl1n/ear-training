@@ -12,6 +12,7 @@ export const STORAGE_KEYS = {
   fretboardStats: 'ear-trainer:fretboard-stats',
   fretboardSettings: 'ear-trainer:fretboard-settings',
   metronomeSettings: 'ear-trainer:metronome-settings',
+  modalScaleSettings: 'ear-trainer:modal-scale-settings',
   challengeBest: {
     intervalSpeed: 'ear-trainer:challenge-best:intervalSpeed',
     scaleDegree: 'ear-trainer:challenge-best:scaleDegree',
