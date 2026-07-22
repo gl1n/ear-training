@@ -163,6 +163,7 @@ a {
 .entrance-card--sky { --card-accent: #38bdf8; }
 .entrance-card--violet { --card-accent: #a78bfa; }
 .entrance-card--emerald { --card-accent: #34d399; }
+.entrance-card--teal { --card-accent: #2dd4bf; }
 
 .entrance-card:hover {
   border-color: color-mix(in srgb, var(--card-accent) 42%, transparent);
@@ -863,6 +864,18 @@ a {
   background: rgb(248 113 113);
   box-shadow: 0 0 0 5px rgba(248, 113, 113, 0.12);
   animation: fretboard-wrong-flash 160ms ease-in-out 2;
+}
+
+.fretboard-cell--target-root span {
+  background: rgb(45 212 191);
+  color: rgb(4 47 46);
+  box-shadow: 0 0 0 5px rgba(45, 212, 191, 0.13), 0 0 25px rgba(45, 212, 191, 0.3);
+}
+
+.fretboard-cell--target-guide span {
+  background: rgb(250 204 21);
+  color: rgb(66 32 6);
+  box-shadow: 0 0 0 5px rgba(250, 204, 21, 0.12), 0 0 25px rgba(250, 204, 21, 0.25);
 }
 
 @keyframes fretboard-wrong-flash {

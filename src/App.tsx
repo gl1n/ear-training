@@ -6,13 +6,15 @@ const FretboardPractice = lazy(() => import('./features/fretboard/FretboardPract
 const MetronomePractice = lazy(() => import('./features/metronome/MetronomePractice').then((module) => ({ default: module.MetronomePractice })))
 const RhythmPractice = lazy(() => import('./features/rhythm/RhythmPractice').then((module) => ({ default: module.RhythmPractice })))
 const ModalScalePractice = lazy(() => import('./features/modal-scale/ModalScalePractice').then((module) => ({ default: module.ModalScalePractice })))
+const PentatonicPlayPractice = lazy(() => import('./features/pentatonic-play/PentatonicPlayPractice').then((module) => ({ default: module.PentatonicPlayPractice })))
 
-type Route = 'home' | 'ear-training' | 'fretboard' | 'metronome' | 'rhythm' | 'modal-scale'
+type Route = 'home' | 'ear-training' | 'fretboard' | 'pentatonic-play' | 'metronome' | 'rhythm' | 'modal-scale'
 
 function readRoute(): Route {
   const path = window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '')
   if (path === 'ear-training') return 'ear-training'
   if (path === 'fretboard') return 'fretboard'
+  if (path === 'pentatonic-play') return 'pentatonic-play'
   if (path === 'metronome') return 'metronome'
   if (path === 'rhythm') return 'rhythm'
   if (path === 'modal-scale') return 'modal-scale'
@@ -42,6 +44,8 @@ export function App() {
       ? '格林的音乐练习小屋'
       : route === 'fretboard'
         ? '指板练习 · 格林的音乐练习小屋'
+        : route === 'pentatonic-play'
+          ? '五声走位 · 格林的音乐练习小屋'
         : route === 'metronome'
           ? '节拍器 · 格林的音乐练习小屋'
           : route === 'rhythm'
@@ -60,6 +64,8 @@ export function App() {
         ? <EarTraining />
         : route === 'fretboard'
           ? <FretboardPractice />
+          : route === 'pentatonic-play'
+            ? <PentatonicPlayPractice />
         : route === 'metronome'
           ? <MetronomePractice />
           : route === 'rhythm'

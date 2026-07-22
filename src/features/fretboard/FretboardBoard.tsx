@@ -31,6 +31,8 @@ type FretboardBoardProps = {
   wholeBoard?: boolean
   foundCellKeys?: readonly string[]
   fullscreen?: boolean
+  markers?: Record<string, { label: string; tone: 'root' | 'guide' }>
+  displayOnly?: boolean
   onSelect: (cell: FretboardCell, answeredAt: number) => void
 }
 
@@ -195,6 +197,8 @@ export function FretboardBoard({
   wholeBoard = false,
   foundCellKeys = [],
   fullscreen = false,
+  markers = {},
+  displayOnly = false,
   onSelect,
 }: FretboardBoardProps) {
   const foundCells = new Set(foundCellKeys)
@@ -215,7 +219,8 @@ export function FretboardBoard({
             </span>,
             ...row.map((cell) => {
                 const key = fretboardCellKey(cell)
-                const active = showQuestion && (wholeBoard || isCellInRegion(cell, question))
+                const marker = markers[key]
+                const active = displayOnly ? Boolean(marker) : showQuestion && (wholeBoard || isCellInRegion(cell, question))
                 const found = foundCells.has(key)
                 const revealCorrect = revealAnswer && active && cell.note === question.targetNote
                 const errorRate = mistakeHeatmap[key] ?? 0
@@ -224,13 +229,17 @@ export function FretboardBoard({
                   question.region,
                   active && !wholeBoard,
                 )
-                const stateClass = found || revealCorrect
+                const stateClass = marker?.tone === 'root'
+                  ? 'fretboard-cell--target-root'
+                  : marker?.tone === 'guide'
+                    ? 'fretboard-cell--target-guide'
+                    : found || revealCorrect
                   ? 'fretboard-cell--correct'
                   : wrongCellKey === key
                     ? 'fretboard-cell--wrong'
                     : active
                       ? 'fretboard-cell--active'
-                      : showQuestion
+                      : showQuestion && !displayOnly
                         ? 'fretboard-cell--masked'
                         : ''
 
@@ -240,11 +249,11 @@ export function FretboardBoard({
                     type="button"
                     className={`fretboard-cell ${cell.fret === 0 ? 'fretboard-cell--open' : ''} ${stateClass} ${regionEdgeClass}`}
                     onClick={(event) => onSelect(cell, event.timeStamp)}
-                    disabled={showQuestion ? !canAnswer || !active || found : false}
-                    aria-label={`${stringIndex + 1} 弦，第 ${cell.fret} 品${showQuestion ? active ? wholeBoard ? '，全指板找音区域' : '，当前题目区域' : '，非题目区域' : ''}${found ? '，已找到' : ''}${errorRate ? `，错误率 ${Math.round(errorRate * 100)}%` : ''}`}
+                    disabled={displayOnly || (showQuestion ? !canAnswer || !active || found : false)}
+                    aria-label={`${stringIndex + 1} 弦，第 ${cell.fret} 品${marker ? `，指定 ${marker.label}` : ''}${showQuestion && !displayOnly ? active ? wholeBoard ? '，全指板找音区域' : '，当前题目区域' : '，非题目区域' : ''}${found ? '，已找到' : ''}${errorRate ? `，错误率 ${Math.round(errorRate * 100)}%` : ''}`}
                   >
                     {hasPositionMarker(cell) && <i className="fretboard-position-marker" aria-hidden="true" />}
-                    <span aria-hidden="true">{found || revealCorrect ? cell.note : ''}</span>
+                    <span aria-hidden="true">{marker?.label ?? (found || revealCorrect ? cell.note : '')}</span>
                   </button>
                 )
               }),

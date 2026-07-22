@@ -1,9 +1,14 @@
 export const GUITAR_ANALYSER_SIZE = 4096
-export const GUITAR_MIN_FREQUENCY = 75
-export const GUITAR_MAX_FREQUENCY = 1400
-export const GUITAR_MIN_CLARITY = 0.85
-export const GUITAR_MAX_CENTS_ERROR = 40
+const GUITAR_MIN_FREQUENCY = 75
+const GUITAR_MAX_FREQUENCY = 1400
+const GUITAR_MIN_CLARITY = 0.85
+const GUITAR_MAX_CENTS_ERROR = 40
 export const GUITAR_MIN_RMS = 0.008
+const GUITAR_HIGH_STRING_MIN_CLARITY = 0.78
+const GUITAR_HIGH_STRING_MIN_RMS = 0.004
+
+const HIGH_STRING_SENSITIVITY_START_HZ = 196
+const HIGH_STRING_SENSITIVITY_FULL_HZ = 330
 
 const STABLE_FRAME_COUNT = 3
 const RELEASE_FRAME_COUNT = 4
@@ -21,17 +26,32 @@ export function frequencyToMidi(frequency: number): number {
   return 69 + 12 * Math.log2(frequency / 440)
 }
 
+export function guitarDetectionThresholds(frequency: number): { minClarity: number; minRms: number } {
+  const highStringRatio = Math.min(1, Math.max(
+    0,
+    (frequency - HIGH_STRING_SENSITIVITY_START_HZ) /
+      (HIGH_STRING_SENSITIVITY_FULL_HZ - HIGH_STRING_SENSITIVITY_START_HZ),
+  ))
+  return {
+    minClarity: GUITAR_MIN_CLARITY +
+      (GUITAR_HIGH_STRING_MIN_CLARITY - GUITAR_MIN_CLARITY) * highStringRatio,
+    minRms: GUITAR_MIN_RMS +
+      (GUITAR_HIGH_STRING_MIN_RMS - GUITAR_MIN_RMS) * highStringRatio,
+  }
+}
+
 export function frequencyToGuitarPitch(
   frequency: number,
   clarity: number,
   rms: number,
 ): GuitarPitchReading | null {
+  const thresholds = guitarDetectionThresholds(frequency)
   if (
     !Number.isFinite(frequency)
     || frequency < GUITAR_MIN_FREQUENCY
     || frequency > GUITAR_MAX_FREQUENCY
-    || clarity < GUITAR_MIN_CLARITY
-    || rms < GUITAR_MIN_RMS
+    || clarity < thresholds.minClarity
+    || rms < thresholds.minRms
   ) {
     return null
   }
@@ -96,10 +116,4 @@ export class GuitarPitchGate {
     return reading
   }
 
-  reset(): void {
-    this.candidatePitchClass = null
-    this.candidateFrames = 0
-    this.releaseFrames = 0
-    this.emittedPitchClass = null
-  }
 }

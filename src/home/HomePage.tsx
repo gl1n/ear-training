@@ -11,6 +11,15 @@ const ENTRANCES = [
     tone: 'amber',
   },
   {
+    href: '#/pentatonic-play',
+    eyebrow: 'PENTATONIC PLAY',
+    title: '五声走位',
+    description: '守住指定的根音与骨干音位置，自由组织其余指法，在节拍里弹完一轮五声音阶。',
+    detail: '吉他输入 · 指定音位 · 合拍评价',
+    icon: '◇',
+    tone: 'teal',
+  },
+  {
     href: '#/ear-training',
     eyebrow: 'EAR TRAINING',
     title: '练耳',

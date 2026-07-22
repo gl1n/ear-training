@@ -4,6 +4,7 @@ import {
   GuitarPitchGate,
   frequencyToGuitarPitch,
   frequencyToMidi,
+  guitarDetectionThresholds,
   type GuitarPitchReading,
 } from './guitarPitch'
 
@@ -31,6 +32,22 @@ describe('guitar pitch detection', () => {
 
   it('accepts a stable lower-string reading with moderate clarity', () => {
     expect(frequencyToGuitarPitch(146.832, 0.86, 0.05)?.midi).toBe(50)
+  })
+
+  it('uses more sensitive thresholds for the first and second strings', () => {
+    const lowStringThresholds = guitarDetectionThresholds(146.832)
+    const secondStringThresholds = guitarDetectionThresholds(246.942)
+    const firstStringThresholds = guitarDetectionThresholds(329.628)
+
+    expect(secondStringThresholds.minRms).toBeLessThan(lowStringThresholds.minRms)
+    expect(firstStringThresholds.minRms).toBeLessThan(secondStringThresholds.minRms)
+    expect(frequencyToGuitarPitch(329.628, 0.8, 0.0045)?.midi).toBe(64)
+    expect(frequencyToGuitarPitch(146.832, 0.8, 0.0045)).toBeNull()
+  })
+
+  it('still rejects very quiet or unclear high-frequency noise', () => {
+    expect(frequencyToGuitarPitch(329.628, 0.7, 0.02)).toBeNull()
+    expect(frequencyToGuitarPitch(329.628, 0.99, 0.002)).toBeNull()
   })
 
   it('emits a stable pluck once and rearms after release', () => {
@@ -73,4 +90,5 @@ describe('guitar pitch detection', () => {
     expect(gate.update(b4, b4.rms)).toEqual(b4)
     expect(gate.update(b5, b5.rms)).toBeNull()
   })
+
 })
