@@ -7,6 +7,7 @@ import {
 } from '../fretboard/fretboard'
 
 export type PentatonicScaleId = 'major' | 'minor'
+export const PENTATONIC_REPETITIONS_PER_POSITION = 3
 
 export type PentatonicQuestion = {
   rootNote: FretboardNoteName
@@ -42,6 +43,20 @@ export function noteNameForPitchClass(value: number): FretboardNoteName {
 
 export function midiMatchesNoteName(midi: number, note: FretboardNoteName): boolean {
   return noteNameForPitchClass(midi) === note
+}
+
+export function advancePentatonicRepetition(completedRepetitions: number): {
+  completedRepetitions: number
+  positionComplete: boolean
+} {
+  const nextCompleted = Math.min(
+    Math.max(0, completedRepetitions) + 1,
+    PENTATONIC_REPETITIONS_PER_POSITION,
+  )
+  return {
+    completedRepetitions: nextCompleted,
+    positionComplete: nextCompleted === PENTATONIC_REPETITIONS_PER_POSITION,
+  }
 }
 
 function allFretboardCells(): FretboardCell[] {

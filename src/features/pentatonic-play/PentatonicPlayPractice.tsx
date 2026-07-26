@@ -7,7 +7,9 @@ import { useGuitarInput } from '../../hooks/useGuitarInput'
 import { FretboardBoard, type FretboardPluck } from '../fretboard/FretboardBoard'
 import type { FretboardQuestion } from '../fretboard/fretboard'
 import {
+  PENTATONIC_REPETITIONS_PER_POSITION,
   PENTATONIC_SCALES,
+  advancePentatonicRepetition,
   createPentatonicQuestion,
   midiMatchesNoteName,
   noteNameForPitchClass,
@@ -40,12 +42,14 @@ export function PentatonicPlayPractice() {
   const [phase, setPhase] = useState<Phase>('idle')
   const [question, setQuestion] = useState<PentatonicQuestion>(() => createPentatonicQuestion())
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [completedRepetitions, setCompletedRepetitions] = useState(0)
   const [completedRounds, setCompletedRounds] = useState(0)
   const [noteFeedback, setNoteFeedback] = useState<NoteFeedback>(null)
 
   const phaseRef = useRef<Phase>('idle')
   const questionRef = useRef(question)
   const currentIndexRef = useRef(0)
+  const completedRepetitionsRef = useRef(0)
   const scaleIdRef = useRef<PentatonicScaleId>('minor')
   const sessionRootNoteRef = useRef(question.rootNote)
   const previousQuestionKeyRef = useRef<string | undefined>(undefined)
@@ -70,7 +74,18 @@ export function PentatonicPlayPractice() {
     previousQuestionKeyRef.current = questionKey(next)
     questionRef.current = next
     currentIndexRef.current = 0
+    completedRepetitionsRef.current = 0
     setQuestion(next)
+    setCurrentIndex(0)
+    setCompletedRepetitions(0)
+    setNoteFeedback(null)
+    phaseRef.current = 'playing'
+    setPhase('playing')
+  }, [clearNextRoundTimer])
+
+  const repeatCurrentPosition = useCallback(() => {
+    clearNextRoundTimer()
+    currentIndexRef.current = 0
     setCurrentIndex(0)
     setNoteFeedback(null)
     phaseRef.current = 'playing'
@@ -105,10 +120,21 @@ export function PentatonicPlayPractice() {
 
     phaseRef.current = 'feedback'
     setPhase('feedback')
-    setNoteFeedback({ tone: 'correct', text: '五个音完成，即将进入下一轮' })
-    setCompletedRounds((current) => current + 1)
-    nextRoundTimerRef.current = window.setTimeout(beginRound, 1200)
-  }, [beginRound, resetRoundProgress])
+    const repetition = advancePentatonicRepetition(completedRepetitionsRef.current)
+    completedRepetitionsRef.current = repetition.completedRepetitions
+    setCompletedRepetitions(repetition.completedRepetitions)
+    if (repetition.positionComplete) {
+      setNoteFeedback({ tone: 'correct', text: '这个位置已完成 3 遍，即将进入下一轮' })
+      setCompletedRounds((current) => current + 1)
+      nextRoundTimerRef.current = window.setTimeout(beginRound, 1200)
+    } else {
+      setNoteFeedback({
+        tone: 'correct',
+        text: `第 ${repetition.completedRepetitions} 遍完成，准备再弹一遍`,
+      })
+      nextRoundTimerRef.current = window.setTimeout(repeatCurrentPosition, 800)
+    }
+  }, [beginRound, repeatCurrentPosition, resetRoundProgress])
 
   const guitarInput = useGuitarInput({ onPitch: handlePitch })
   const { start: startGuitarInput, stop: stopGuitarInput } = guitarInput
@@ -120,7 +146,9 @@ export function PentatonicPlayPractice() {
     setPhase('idle')
     setNoteFeedback(null)
     currentIndexRef.current = 0
+    completedRepetitionsRef.current = 0
     setCurrentIndex(0)
+    setCompletedRepetitions(0)
   }, [clearNextRoundTimer, stopGuitarInput])
 
   const startSession = useCallback((nextScaleId: PentatonicScaleId) => {
@@ -142,8 +170,10 @@ export function PentatonicPlayPractice() {
     previousQuestionKeyRef.current = questionKey(firstQuestion)
     questionRef.current = firstQuestion
     currentIndexRef.current = 0
+    completedRepetitionsRef.current = 0
     setQuestion(firstQuestion)
     setCurrentIndex(0)
+    setCompletedRepetitions(0)
     phaseRef.current = 'playing'
     setPhase('playing')
 
@@ -204,10 +234,11 @@ export function PentatonicPlayPractice() {
         )
       )}
     >
-      <section className="grid grid-cols-2 gap-2" aria-label="当前练习状态">
+      <section className="grid grid-cols-3 gap-2" aria-label="当前练习状态">
         {[
           { label: '已完成轮次', value: String(completedRounds) },
-          { label: '当前轮进度', value: `${Math.min(currentIndex, 5)}/5` },
+          { label: '本位置重复', value: `${completedRepetitions}/${PENTATONIC_REPETITIONS_PER_POSITION}` },
+          { label: '当前遍进度', value: `${Math.min(currentIndex, 5)}/5` },
         ].map((item) => (
           <div key={item.label} className="rounded-xl border border-[var(--border-subtle)] bg-white/[0.035] px-3 py-3 text-center">
             <p className="text-[10px] font-semibold tracking-wider text-[var(--text-secondary)]">{item.label}</p>
@@ -218,7 +249,11 @@ export function PentatonicPlayPractice() {
 
       <Card className="overflow-hidden border-teal-300/15 bg-[linear-gradient(145deg,rgba(45,212,191,.08),rgba(255,255,255,.025))] p-4 sm:p-6">
         <p className="text-xs font-bold tracking-[0.18em] text-teal-300">
-          {phase === 'feedback' ? `第 ${completedRounds} 轮完成` : `${question.rootNote} ${scale.label}`}
+          {phase === 'feedback'
+            ? completedRepetitions === PENTATONIC_REPETITIONS_PER_POSITION
+              ? `第 ${completedRounds} 轮完成`
+              : `第 ${completedRepetitions} 遍完成`
+            : `${question.rootNote} ${scale.label} · 第 ${completedRepetitions + 1} 遍`}
         </p>
 
         <div className="my-5 grid grid-cols-5 gap-2" aria-label={`按顺序弹奏：${question.notes.join('，')}`}>
@@ -255,7 +290,7 @@ export function PentatonicPlayPractice() {
             <span className="flex items-center gap-2"><i className={`size-2 rounded-full ${guitarInput.status === 'listening' ? 'animate-pulse bg-emerald-400' : 'bg-white/25'}`} />{microphoneCopy}</span>
           </div>
           <div className={`min-h-14 rounded-xl border px-4 py-3 text-sm ${noteFeedback?.tone === 'wrong' ? 'border-red-400/30 bg-red-500/10 text-red-200' : 'border-teal-300/15 bg-teal-300/[0.045] text-teal-100'}`} aria-live="polite">
-            {noteFeedback?.text ?? '按顺序弹完五个音；弹错从根音重新开始'}
+            {noteFeedback?.text ?? '每个位置连续完成 3 遍；弹错从当前遍的根音重新开始'}
           </div>
         </div>
 

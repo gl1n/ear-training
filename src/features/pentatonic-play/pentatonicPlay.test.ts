@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  PENTATONIC_REPETITIONS_PER_POSITION,
+  advancePentatonicRepetition,
   createPentatonicQuestion,
   midiMatchesNoteName,
   PENTATONIC_SCALES,
@@ -38,6 +40,17 @@ describe('pentatonic guitar play', () => {
     expect(first.rootNote).toBe('A')
     expect(second.rootNote).toBe('A')
     expect(questionKey(second)).not.toBe(questionKey(first))
+  })
+
+  it('requires three completed repetitions before advancing the position', () => {
+    const first = advancePentatonicRepetition(0)
+    const second = advancePentatonicRepetition(first.completedRepetitions)
+    const third = advancePentatonicRepetition(second.completedRepetitions)
+
+    expect(PENTATONIC_REPETITIONS_PER_POSITION).toBe(3)
+    expect(first).toEqual({ completedRepetitions: 1, positionComplete: false })
+    expect(second).toEqual({ completedRepetitions: 2, positionComplete: false })
+    expect(third).toEqual({ completedRepetitions: 3, positionComplete: true })
   })
 
 })
