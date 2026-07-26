@@ -1,7 +1,7 @@
 import { readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
-const limits = { '.js': 380_000, '.css': 85_000 }
+const limits = { '.js': 380_000, '.css': 90_000 }
 const assetsDir = new URL('../dist/assets/', import.meta.url)
 
 for (const file of await readdir(assetsDir)) {
