@@ -129,9 +129,16 @@ function loadStats(): FretboardStats {
 
 function StatLine({ label, stat }: { label: string; stat: FretboardStat }) {
   return (
-    <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-white/6 py-2.5 last:border-0">
+    <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 border-b border-white/6 py-2.5 last:border-0">
       <span className="truncate text-sm font-medium text-white">{label}</span>
       <span className="text-xs tabular-nums text-[var(--text-secondary)]">{Math.round(accuracy(stat) * 100)}%</span>
+      <span
+        className="min-w-12 text-right text-xs tabular-nums text-[var(--text-secondary)]"
+        title={`答对 ${stat.correct} 次，共 ${stat.attempts} 个样本`}
+        aria-label={`答对 ${stat.correct} 次，共 ${stat.attempts} 个样本`}
+      >
+        {stat.correct}/{stat.attempts}
+      </span>
       <span className="w-14 text-right text-xs tabular-nums text-[var(--text-secondary)]">{(averageReactionMs(stat) / 1000).toFixed(1)}s</span>
     </div>
   )
@@ -724,9 +731,9 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
         <div className="grid gap-4 sm:grid-cols-2">
           <Card className="p-4 sm:p-5">
             <div className="mb-2 flex items-center justify-between">
-              <h3 className="font-semibold">薄弱音名</h3><span className="text-xs text-[var(--text-secondary)]">正确率 · 平均耗时</span>
+              <h3 className="font-semibold">薄弱音名</h3><span className="text-xs text-[var(--text-secondary)]">正确率 · 答对/样本 · 平均耗时</span>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4">
               <section>
                 <h4 className="border-b border-white/8 pb-2 text-xs font-semibold tracking-wider text-amber-200">本轮</h4>
                 {weakestRoundNotes.length
@@ -743,7 +750,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
           </Card>
           <Card className="p-4 sm:p-5">
             <div className="mb-2 flex items-center justify-between">
-              <h3 className="font-semibold">薄弱区域</h3><span className="text-xs text-[var(--text-secondary)]">正确率 · 平均耗时</span>
+              <h3 className="font-semibold">薄弱区域</h3><span className="text-xs text-[var(--text-secondary)]">正确率 · 答对/样本 · 平均耗时</span>
             </div>
             {weakestRegions.length ? weakestRegions.map((item) => <StatLine key={item.label} {...item} />) : <p className="py-6 text-center text-sm text-[var(--text-secondary)]">每个 3 × 4 区域会独立记录</p>}
           </Card>
