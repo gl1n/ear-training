@@ -4,6 +4,7 @@ import {
   EMPTY_FRETBOARD_STATS,
   FRETBOARD_RECORD_LIMIT,
   createFretboardQuestion,
+  fretboardAnswersForTargetNotes,
   fretboardCellForDetectedMidi,
   fretboardCellsInRegion,
   fretboardCellsForNote,
@@ -155,7 +156,12 @@ describe('fretboard quiz', () => {
     expect(next.notes[question.targetNote]).toEqual({ attempts: 1, correct: 1, totalReactionMs: 420 })
     expect(next.regions[regionId(question.region)]).toEqual({ attempts: 1, correct: 1, totalReactionMs: 420 })
     expect(next.questions[questionId(question)]).toEqual({ attempts: 1, correct: 1, totalReactionMs: 420 })
-    expect(next.answers).toEqual([{ position: { stringIndex: 0, fret: 1 }, correct: true, recordedAt: expect.any(Number) }])
+    expect(next.answers).toEqual([{
+      position: { stringIndex: 0, fret: 1 },
+      correct: true,
+      recordedAt: expect.any(Number),
+      targetNote: question.targetNote,
+    }])
     expect(EMPTY_FRETBOARD_STATS.notes[question.targetNote]).toBeUndefined()
   })
 
@@ -191,6 +197,7 @@ describe('fretboard quiz', () => {
       position: { stringIndex: 3, fret: 7 },
       correct: false,
       recordedAt: 1234,
+      targetNote: 'A',
     }])
     expect(fretboardMistakeHeatmap(next.answers, 1234)).toEqual({ '3:7': 1 })
   })
@@ -294,5 +301,32 @@ describe('fretboard quiz', () => {
       '2:5': 0,
       '0:1': 0.5,
     })
+  })
+
+  it('filters heatmap answers by target note rather than the selected position note', () => {
+    const answers = [
+      {
+        position: { stringIndex: 0, fret: 2 },
+        correct: false,
+        recordedAt: 1,
+        targetNote: 'C' as const,
+      },
+      {
+        position: { stringIndex: 0, fret: 1 },
+        correct: false,
+        recordedAt: 2,
+        targetNote: 'C♯' as const,
+      },
+      {
+        position: { stringIndex: 1, fret: 1 },
+        correct: true,
+        recordedAt: 3,
+      },
+    ]
+
+    expect(fretboardAnswersForTargetNotes(answers, C_MAJOR_NOTE_NAMES)).toEqual([
+      answers[0],
+      answers[2],
+    ])
   })
 })

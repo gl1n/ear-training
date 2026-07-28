@@ -54,6 +54,8 @@ export type FretboardAnswerRecord = {
   position: Pick<FretboardCell, 'stringIndex' | 'fret'>
   correct: boolean
   recordedAt: number
+  /** Optional for compatibility with answer records saved before target notes were persisted. */
+  targetNote?: FretboardNoteName
 }
 
 export type FretboardWrongSelectionRecord = {
@@ -267,10 +269,23 @@ export function recentFretboardAnswers(
         && answer.position.fret <= 12
         && typeof answer.correct === 'boolean'
         && typeof answer.recordedAt === 'number'
-        && Number.isFinite(answer.recordedAt),
+        && Number.isFinite(answer.recordedAt)
+        && (
+          answer.targetNote === undefined
+          || FRETBOARD_NOTE_NAMES.includes(answer.targetNote as FretboardNoteName)
+        )
       )
     })
     .slice(-FRETBOARD_RECORD_LIMIT)
+}
+
+export function fretboardAnswersForTargetNotes(
+  answers: readonly FretboardAnswerRecord[],
+  targetNotes: readonly FretboardNoteName[],
+): FretboardAnswerRecord[] {
+  return answers.filter((answer) => (
+    answer.targetNote === undefined || targetNotes.includes(answer.targetNote)
+  ))
 }
 
 function smoothedErrorRate(stat: FretboardStat): number {
@@ -354,6 +369,7 @@ export function recordFretboardAnswer(
         position: { stringIndex: selectedCell.stringIndex, fret: selectedCell.fret },
         correct,
         recordedAt,
+        targetNote: question.targetNote,
       },
     ]),
     mistakes: correct ? recentMistakes : recentFretboardMistakes([
@@ -407,6 +423,7 @@ export function recordFretboardTimeout(
         position: { stringIndex: cell.stringIndex, fret: cell.fret },
         correct: false,
         recordedAt,
+        targetNote: question.targetNote,
       })),
     ]),
     mistakes: recentFretboardMistakes([

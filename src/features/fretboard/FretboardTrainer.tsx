@@ -6,11 +6,11 @@ import {
   accuracy,
   averageReactionMs,
   createFretboardQuestion,
+  fretboardAnswersForTargetNotes,
   fretboardCellForDetectedMidi,
   fretboardCellsForNote,
   fretboardMistakeHeatmap,
   formatRegion,
-  noteAt,
   recentFretboardAnswers,
   recentFretboardMistakes,
   recordFretboardAnswer,
@@ -44,6 +44,34 @@ const SLOW_ANSWER_MS = 5_000
 const EMPTY_ROUND = { score: 0, streak: 0, bestStreak: 0, answered: 0, totalReactionMs: 0 }
 
 type PerformanceSummary = { attempts: number; correct: number; totalReactionMs: number }
+type NoteStats = Partial<Record<FretboardNoteName, FretboardStat>>
+
+function recordNoteResult(
+  stats: NoteStats,
+  note: FretboardNoteName,
+  correct: boolean,
+  reactionMs: number,
+): NoteStats {
+  const current = stats[note]
+  return {
+    ...stats,
+    [note]: {
+      attempts: (current?.attempts ?? 0) + 1,
+      correct: (current?.correct ?? 0) + (correct ? 1 : 0),
+      totalReactionMs: (current?.totalReactionMs ?? 0) + reactionMs,
+    },
+  }
+}
+
+function weakestNoteStats(
+  stats: NoteStats,
+  allowedNotes: readonly FretboardNoteName[],
+) {
+  return allowedNotes
+    .flatMap((note) => stats[note] ? [{ label: note, stat: stats[note] }] : [])
+    .sort((a, b) => accuracy(a.stat) - accuracy(b.stat) || b.stat.attempts - a.stat.attempts)
+    .slice(0, 6)
+}
 
 function summarizeHistory(
   stats: FretboardStats,
@@ -128,6 +156,8 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
   const [guitarHint, setGuitarHint] = useState<string | null>(null)
   const [stats, setStats] = useState<FretboardStats>(loadStats)
   const [historyBeforeRound, setHistoryBeforeRound] = useState<PerformanceSummary | null>(null)
+  const [roundNoteStats, setRoundNoteStats] = useState<NoteStats>({})
+  const [historyNotesBeforeRound, setHistoryNotesBeforeRound] = useState<NoteStats | null>(null)
   const statsRef = useRef(stats)
   const deadlineRef = useRef(0)
   const questionStartedAtRef = useRef(0)
@@ -239,6 +269,8 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
       statsRef.current,
       cMajorOnly ? C_MAJOR_NOTE_NAMES : FRETBOARD_NOTE_NAMES,
     ))
+    setHistoryNotesBeforeRound(statsRef.current.notes)
+    setRoundNoteStats({})
     setRound(EMPTY_ROUND)
     setWrongCellKey(null)
     setFoundCellKeys([])
@@ -286,6 +318,12 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
         answered: current.answered + 1,
         totalReactionMs: current.totalReactionMs + SLOW_ANSWER_MS,
       }))
+      setRoundNoteStats((current) => recordNoteResult(
+        current,
+        question.targetNote,
+        false,
+        SLOW_ANSWER_MS,
+      ))
     }, Math.max(0, SLOW_ANSWER_MS - elapsedMs))
 
     return () => window.clearTimeout(timer)
@@ -322,6 +360,12 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
 
       setPhase('feedback')
       if (!questionTimedOutRef.current) {
+        setRoundNoteStats((current) => recordNoteResult(
+          current,
+          question.targetNote,
+          true,
+          reactionMs,
+        ))
         setRound((current) => {
           const streak = current.streak + 1
           return {
@@ -343,8 +387,13 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
 
     setPhase('feedback')
     setWrongCellKey(correct ? null : `${cell.stringIndex}:${cell.fret}`)
-    const resolvesTimedOutQuestion = correct && questionTimedOutRef.current
-    if (!resolvesTimedOutQuestion) {
+    if (!questionTimedOutRef.current) {
+      setRoundNoteStats((current) => recordNoteResult(
+        current,
+        question.targetNote,
+        correct,
+        reactionMs,
+      ))
       setRound((current) => {
         const streak = correct ? current.streak + 1 : 0
         return {
@@ -396,12 +445,19 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
     }
   }, [gameMode, guitarInputStatus, stopGuitarInput])
 
-  const weakestNotes = useMemo(
-    () => (cMajorOnly ? C_MAJOR_NOTE_NAMES : FRETBOARD_NOTE_NAMES)
-      .flatMap((note) => stats.notes[note] ? [{ label: note, stat: stats.notes[note] }] : [])
-      .sort((a, b) => accuracy(a.stat) - accuracy(b.stat) || b.stat.attempts - a.stat.attempts)
-      .slice(0, 6),
-    [cMajorOnly, stats.notes],
+  const allowedNotes = cMajorOnly ? C_MAJOR_NOTE_NAMES : FRETBOARD_NOTE_NAMES
+  const weakestRoundNotes = useMemo(
+    () => weakestNoteStats(roundNoteStats, allowedNotes),
+    [allowedNotes, roundNoteStats],
+  )
+  const weakestHistoricalNotes = useMemo(
+    () => weakestNoteStats(
+      phase === 'finished' && historyNotesBeforeRound
+        ? historyNotesBeforeRound
+        : stats.notes,
+      allowedNotes,
+    ),
+    [allowedNotes, historyNotesBeforeRound, phase, stats.notes],
   )
   const weakestRegions = useMemo(
     () => Object.entries(stats.regions)
@@ -412,12 +468,10 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
   )
   const averageMs = round.answered === 0 ? 0 : round.totalReactionMs / round.answered
   const mistakeHeatmap = useMemo(() => {
-    const heatmap = fretboardMistakeHeatmap(stats.answers)
-    if (!cMajorOnly) return heatmap
-    return Object.fromEntries(Object.entries(heatmap).filter(([key]) => {
-      const [stringIndex, fret] = key.split(':').map(Number)
-      return C_MAJOR_NOTE_NAMES.includes(noteAt(stringIndex, fret))
-    }))
+    const answers = cMajorOnly
+      ? fretboardAnswersForTargetNotes(stats.answers, C_MAJOR_NOTE_NAMES)
+      : stats.answers
+    return fretboardMistakeHeatmap(answers)
   }, [cMajorOnly, stats.answers])
   const roundActive = phase === 'playing' || phase === 'feedback'
   const showStats = phase === 'idle' || phase === 'finished'
@@ -672,7 +726,20 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
             <div className="mb-2 flex items-center justify-between">
               <h3 className="font-semibold">薄弱音名</h3><span className="text-xs text-[var(--text-secondary)]">正确率 · 平均耗时</span>
             </div>
-            {weakestNotes.length ? weakestNotes.map((item) => <StatLine key={item.label} {...item} />) : <p className="py-6 text-center text-sm text-[var(--text-secondary)]">完成第一轮后显示音名统计</p>}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <section>
+                <h4 className="border-b border-white/8 pb-2 text-xs font-semibold tracking-wider text-amber-200">本轮</h4>
+                {weakestRoundNotes.length
+                  ? weakestRoundNotes.map((item) => <StatLine key={item.label} {...item} />)
+                  : <p className="py-6 text-center text-sm text-[var(--text-secondary)]">本轮尚无作答</p>}
+              </section>
+              <section>
+                <h4 className="border-b border-white/8 pb-2 text-xs font-semibold tracking-wider text-[var(--text-secondary)]">历史</h4>
+                {weakestHistoricalNotes.length
+                  ? weakestHistoricalNotes.map((item) => <StatLine key={item.label} {...item} />)
+                  : <p className="py-6 text-center text-sm text-[var(--text-secondary)]">完成第一轮后显示历史统计</p>}
+              </section>
+            </div>
           </Card>
           <Card className="p-4 sm:p-5">
             <div className="mb-2 flex items-center justify-between">
