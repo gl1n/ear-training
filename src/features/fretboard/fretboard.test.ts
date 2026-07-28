@@ -2,19 +2,23 @@ import { describe, expect, it } from 'vitest'
 import {
   C_MAJOR_NOTE_NAMES,
   EMPTY_FRETBOARD_STATS,
+  FRETBOARD_NOTE_SAMPLE_LIMIT,
   FRETBOARD_RECORD_LIMIT,
+  aggregateFretboardNoteStats,
   createFretboardQuestion,
-  fretboardAnswersForTargetNotes,
+  fretboardAnswersFromNoteSamples,
   fretboardCellForDetectedMidi,
   fretboardCellsInRegion,
   fretboardCellsForNote,
   fretboardMistakeHeatmap,
+  fretboardNoteSamplesForTargetNotes,
   midiAt,
   noteAt,
   randomFretboardNote,
   recordFretboardAnswer,
   recordFretboardTimeout,
   recentFretboardMistakes,
+  recentFretboardNoteSamples,
   regionId,
   questionId,
 } from './fretboard'
@@ -154,9 +158,19 @@ describe('fretboard quiz', () => {
     const next = recordFretboardAnswer(EMPTY_FRETBOARD_STATS, question, cell, true, 420)
 
     expect(next.notes[question.targetNote]).toEqual({ attempts: 1, correct: 1, totalReactionMs: 420 })
+    expect(next.noteSamples).toEqual([{
+      targetNote: question.targetNote,
+      correct: true,
+      reactionMs: 420,
+      recordedAt: expect.any(Number),
+      positions: [{
+        position: { stringIndex: 0, fret: 1 },
+        correct: true,
+      }],
+    }])
     expect(next.regions[regionId(question.region)]).toEqual({ attempts: 1, correct: 1, totalReactionMs: 420 })
     expect(next.questions[questionId(question)]).toEqual({ attempts: 1, correct: 1, totalReactionMs: 420 })
-    expect(next.answers).toEqual([{
+    expect(fretboardAnswersFromNoteSamples(next.noteSamples)).toEqual([{
       position: { stringIndex: 0, fret: 1 },
       correct: true,
       recordedAt: expect.any(Number),
@@ -177,7 +191,10 @@ describe('fretboard quiz', () => {
       region: question.region,
       recordedAt: 1234,
     }])
-    expect(fretboardMistakeHeatmap(next.answers, 1234)).toEqual({ '2:5': 1 })
+    expect(fretboardMistakeHeatmap(
+      fretboardAnswersFromNoteSamples(next.noteSamples),
+      1234,
+    )).toEqual({ '2:5': 1 })
   })
 
   it('records a timeout as an incorrect attempt without requiring a selected cell', () => {
@@ -191,15 +208,28 @@ describe('fretboard quiz', () => {
       recordedAt: 1234,
     }])
     expect(next.notes.A).toEqual({ attempts: 1, correct: 0, totalReactionMs: 5000 })
+    expect(next.noteSamples).toEqual([{
+      targetNote: 'A',
+      correct: false,
+      reactionMs: 5000,
+      recordedAt: 1234,
+      positions: [{
+        position: { stringIndex: 3, fret: 7 },
+        correct: false,
+      }],
+    }])
     expect(next.regions[regionId(question.region)]).toEqual({ attempts: 1, correct: 0, totalReactionMs: 5000 })
     expect(next.questions[questionId(question)]).toEqual({ attempts: 1, correct: 0, totalReactionMs: 5000 })
-    expect(next.answers).toEqual([{
+    expect(fretboardAnswersFromNoteSamples(next.noteSamples)).toEqual([{
       position: { stringIndex: 3, fret: 7 },
       correct: false,
       recordedAt: 1234,
       targetNote: 'A',
     }])
-    expect(fretboardMistakeHeatmap(next.answers, 1234)).toEqual({ '3:7': 1 })
+    expect(fretboardMistakeHeatmap(
+      fretboardAnswersFromNoteSamples(next.noteSamples),
+      1234,
+    )).toEqual({ '3:7': 1 })
   })
 
   it('can review a timeout based on its incorrect answer statistics', () => {
@@ -214,9 +244,11 @@ describe('fretboard quiz', () => {
     const question = { region: { stringStart: 0, fretStart: 0 }, targetNote: 'C' as const }
     const next = recordFretboardTimeout(EMPTY_FRETBOARD_STATS, question, 5000, 1234, true)
 
-    expect(next.answers).toHaveLength(6)
-    expect(next.answers.every((answer) => answer.correct === false)).toBe(true)
-    expect(fretboardMistakeHeatmap(next.answers, 1234)).toEqual({
+    const answers = fretboardAnswersFromNoteSamples(next.noteSamples)
+    expect(next.noteSamples).toHaveLength(1)
+    expect(answers).toHaveLength(6)
+    expect(answers.every((answer) => answer.correct === false)).toBe(true)
+    expect(fretboardMistakeHeatmap(answers, 1234)).toEqual({
       '0:8': 1,
       '1:1': 1,
       '2:5': 1,
@@ -286,47 +318,97 @@ describe('fretboard quiz', () => {
     expect(retained[0]?.recordedAt).toBe(1)
   })
 
-  it('builds the heatmap from the latest 200 valid answer records', () => {
+  it('does not apply a separate global record limit when building the heatmap', () => {
     const answers = [
-      ...Array.from({ length: 199 }, (_, recordedAt) => ({
+      { position: { stringIndex: 5, fret: 12 }, correct: false, recordedAt: 0 },
+      ...Array.from({ length: 200 }, (_, recordedAt) => ({
         position: { stringIndex: 2, fret: 5 },
         correct: true,
-        recordedAt,
+        recordedAt: recordedAt + 1,
       })),
       { position: { stringIndex: 0, fret: 1 }, correct: false, recordedAt: 200 },
       { position: { stringIndex: 0, fret: 1 }, correct: true, recordedAt: 201 },
     ]
 
     expect(fretboardMistakeHeatmap(answers, 999_999_999)).toEqual({
+      '5:12': 1,
       '2:5': 0,
       '0:1': 0.5,
     })
   })
 
-  it('filters heatmap answers by target note rather than the selected position note', () => {
-    const answers = [
+  it('keeps the latest 30 samples independently for every target note', () => {
+    const samples = [
+      ...Array.from({ length: FRETBOARD_NOTE_SAMPLE_LIMIT + 2 }, (_, index) => ({
+        targetNote: 'F♯' as const,
+        correct: index > 1,
+        reactionMs: 100 + index,
+        recordedAt: index,
+        positions: [{
+          position: { stringIndex: 0, fret: 2 },
+          correct: index > 1,
+        }],
+      })),
+      ...Array.from({ length: 3 }, (_, index) => ({
+        targetNote: 'E' as const,
+        correct: index !== 0,
+        reactionMs: 200 + index,
+        recordedAt: 100 + index,
+        positions: [{
+          position: { stringIndex: 0, fret: 0 },
+          correct: index !== 0,
+        }],
+      })),
+    ]
+
+    const retained = recentFretboardNoteSamples(samples)
+    expect(retained.filter((sample) => sample.targetNote === 'F♯')).toHaveLength(30)
+    expect(retained.filter((sample) => sample.targetNote === 'E')).toHaveLength(3)
+    expect(retained.find((sample) => sample.targetNote === 'F♯')?.recordedAt).toBe(2)
+    expect(aggregateFretboardNoteStats(retained)).toEqual({
+      'F♯': {
+        attempts: 30,
+        correct: 30,
+        totalReactionMs: 3_495,
+      },
+      E: {
+        attempts: 3,
+        correct: 2,
+        totalReactionMs: 603,
+      },
+    })
+    expect(fretboardMistakeHeatmap(fretboardAnswersFromNoteSamples(retained))).toEqual({
+      '0:2': 0,
+      '0:0': 1 / 3,
+    })
+  })
+
+  it('filters heatmap samples by target note rather than the selected position note', () => {
+    const samples = [
       {
-        position: { stringIndex: 0, fret: 2 },
-        correct: false,
-        recordedAt: 1,
         targetNote: 'C' as const,
-      },
-      {
-        position: { stringIndex: 0, fret: 1 },
         correct: false,
-        recordedAt: 2,
-        targetNote: 'C♯' as const,
+        reactionMs: 500,
+        recordedAt: 1,
+        positions: [{
+          position: { stringIndex: 0, fret: 2 },
+          correct: false,
+        }],
       },
       {
-        position: { stringIndex: 1, fret: 1 },
-        correct: true,
-        recordedAt: 3,
+        targetNote: 'C♯' as const,
+        correct: false,
+        reactionMs: 500,
+        recordedAt: 2,
+        positions: [{
+          position: { stringIndex: 0, fret: 1 },
+          correct: false,
+        }],
       },
     ]
 
-    expect(fretboardAnswersForTargetNotes(answers, C_MAJOR_NOTE_NAMES)).toEqual([
-      answers[0],
-      answers[2],
-    ])
+    expect(fretboardMistakeHeatmap(fretboardAnswersFromNoteSamples(
+      fretboardNoteSamplesForTargetNotes(samples, C_MAJOR_NOTE_NAMES),
+    ))).toEqual({ '0:2': 1 })
   })
 })

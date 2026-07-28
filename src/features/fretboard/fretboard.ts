@@ -44,9 +44,9 @@ export type FretboardStat = {
 
 export type FretboardStats = {
   notes: Partial<Record<FretboardNoteName, FretboardStat>>
+  noteSamples: FretboardNoteSample[]
   regions: Record<string, FretboardStat>
   questions: Record<string, FretboardStat>
-  answers: FretboardAnswerRecord[]
   mistakes: FretboardMistakeRecord[]
 }
 
@@ -56,6 +56,17 @@ export type FretboardAnswerRecord = {
   recordedAt: number
   /** Optional for compatibility with answer records saved before target notes were persisted. */
   targetNote?: FretboardNoteName
+}
+
+export type FretboardNoteSample = {
+  targetNote: FretboardNoteName
+  correct: boolean
+  reactionMs: number
+  recordedAt: number
+  positions: Array<{
+    position: Pick<FretboardCell, 'stringIndex' | 'fret'>
+    correct: boolean
+  }>
 }
 
 export type FretboardWrongSelectionRecord = {
@@ -77,12 +88,13 @@ export type FretboardMistakeRecord = FretboardWrongSelectionRecord | FretboardTi
 
 export const EMPTY_FRETBOARD_STATS: FretboardStats = {
   notes: {},
+  noteSamples: [],
   regions: {},
   questions: {},
-  answers: [],
   mistakes: [],
 }
 export const FRETBOARD_RECORD_LIMIT = 200
+export const FRETBOARD_NOTE_SAMPLE_LIMIT = 30
 
 // From the first (high E) string to the sixth (low E) string.
 const OPEN_STRING_PITCH_CLASSES = [4, 11, 7, 2, 9, 4]
@@ -250,42 +262,84 @@ export function recentFretboardMistakes(
     .slice(-FRETBOARD_RECORD_LIMIT)
 }
 
-export function recentFretboardAnswers(
-  answers: readonly unknown[],
-  _now: number = Date.now(),
-): FretboardAnswerRecord[] {
-  void _now // Kept for compatibility with callers that previously supplied a retention cutoff time.
-  return answers
-    .filter((value): value is FretboardAnswerRecord => {
-      if (!value || typeof value !== 'object') return false
-      const answer = value as Partial<FretboardAnswerRecord>
-      return Boolean(
-        answer.position
-        && Number.isInteger(answer.position.stringIndex)
-        && answer.position.stringIndex >= 0
-        && answer.position.stringIndex <= 5
-        && Number.isInteger(answer.position.fret)
-        && answer.position.fret >= 0
-        && answer.position.fret <= 12
-        && typeof answer.correct === 'boolean'
-        && typeof answer.recordedAt === 'number'
-        && Number.isFinite(answer.recordedAt)
-        && (
-          answer.targetNote === undefined
-          || FRETBOARD_NOTE_NAMES.includes(answer.targetNote as FretboardNoteName)
-        )
-      )
-    })
-    .slice(-FRETBOARD_RECORD_LIMIT)
+export function fretboardNoteSamplesForTargetNotes(
+  samples: readonly FretboardNoteSample[],
+  targetNotes: readonly FretboardNoteName[],
+): FretboardNoteSample[] {
+  return samples.filter((sample) => targetNotes.includes(sample.targetNote))
 }
 
-export function fretboardAnswersForTargetNotes(
-  answers: readonly FretboardAnswerRecord[],
-  targetNotes: readonly FretboardNoteName[],
+export function recentFretboardNoteSamples(
+  samples: readonly unknown[],
+): FretboardNoteSample[] {
+  const validSamples = samples.flatMap((value): FretboardNoteSample[] => {
+    if (!value || typeof value !== 'object') return []
+    const sample = value as Partial<FretboardNoteSample>
+    const valid = Boolean(
+      FRETBOARD_NOTE_NAMES.includes(sample.targetNote as FretboardNoteName)
+      && typeof sample.correct === 'boolean'
+      && typeof sample.reactionMs === 'number'
+      && Number.isFinite(sample.reactionMs)
+      && sample.reactionMs >= 0
+      && typeof sample.recordedAt === 'number'
+      && Number.isFinite(sample.recordedAt)
+    )
+    if (!valid) return []
+    const positions = Array.isArray(sample.positions)
+      ? sample.positions.filter((entry) => (
+        entry
+        && Number.isInteger(entry.position?.stringIndex)
+        && entry.position.stringIndex >= 0
+        && entry.position.stringIndex <= 5
+        && Number.isInteger(entry.position.fret)
+        && entry.position.fret >= 0
+        && entry.position.fret <= 12
+        && typeof entry.correct === 'boolean'
+      ))
+      : []
+    return [{
+      targetNote: sample.targetNote as FretboardNoteName,
+      correct: sample.correct as boolean,
+      reactionMs: sample.reactionMs as number,
+      recordedAt: sample.recordedAt as number,
+      positions,
+    }]
+  })
+  const counts: Partial<Record<FretboardNoteName, number>> = {}
+  const retained: FretboardNoteSample[] = []
+
+  for (let index = validSamples.length - 1; index >= 0; index -= 1) {
+    const sample = validSamples[index]!
+    const count = counts[sample.targetNote] ?? 0
+    if (count >= FRETBOARD_NOTE_SAMPLE_LIMIT) continue
+    counts[sample.targetNote] = count + 1
+    retained.push(sample)
+  }
+
+  return retained.reverse()
+}
+
+export function fretboardAnswersFromNoteSamples(
+  samples: readonly FretboardNoteSample[],
 ): FretboardAnswerRecord[] {
-  return answers.filter((answer) => (
-    answer.targetNote === undefined || targetNotes.includes(answer.targetNote)
-  ))
+  return samples.flatMap((sample) => sample.positions.map((entry) => ({
+    ...entry,
+    recordedAt: sample.recordedAt,
+    targetNote: sample.targetNote,
+  })))
+}
+
+export function aggregateFretboardNoteStats(
+  samples: readonly FretboardNoteSample[],
+): Partial<Record<FretboardNoteName, FretboardStat>> {
+  return samples.reduce<Partial<Record<FretboardNoteName, FretboardStat>>>((stats, sample) => ({
+    ...stats,
+    [sample.targetNote]: updateStat(
+      stats[sample.targetNote],
+      sample.correct,
+      sample.reactionMs,
+    ),
+  }), {})
 }
 
 function smoothedErrorRate(stat: FretboardStat): number {
@@ -349,12 +403,22 @@ export function recordFretboardAnswer(
   const id = regionId(question.region)
   const exactQuestionId = questionId(question)
   const recentMistakes = recentFretboardMistakes(stats.mistakes, recordedAt)
-  const recentAnswers = recentFretboardAnswers(stats.answers, recordedAt)
-  return {
-    notes: {
-      ...stats.notes,
-      [question.targetNote]: updateStat(stats.notes[question.targetNote], correct, reactionMs),
+  const noteSamples = recentFretboardNoteSamples([
+    ...(stats.noteSamples ?? []),
+    {
+      targetNote: question.targetNote,
+      correct,
+      reactionMs,
+      recordedAt,
+      positions: [{
+        position: { stringIndex: selectedCell.stringIndex, fret: selectedCell.fret },
+        correct,
+      }],
     },
+  ])
+  return {
+    notes: aggregateFretboardNoteStats(noteSamples),
+    noteSamples,
     regions: {
       ...stats.regions,
       [id]: updateStat(stats.regions[id], correct, reactionMs),
@@ -363,15 +427,6 @@ export function recordFretboardAnswer(
       ...stats.questions,
       [exactQuestionId]: updateStat(stats.questions[exactQuestionId], correct, reactionMs),
     },
-    answers: recentFretboardAnswers([
-      ...recentAnswers,
-      {
-        position: { stringIndex: selectedCell.stringIndex, fret: selectedCell.fret },
-        correct,
-        recordedAt,
-        targetNote: question.targetNote,
-      },
-    ]),
     mistakes: correct ? recentMistakes : recentFretboardMistakes([
       ...recentMistakes,
       {
@@ -394,7 +449,6 @@ export function recordFretboardTimeout(
 ): FretboardStats {
   const id = regionId(question.region)
   const exactQuestionId = questionId(question)
-  const recentAnswers = recentFretboardAnswers(stats.answers, recordedAt)
   const targetCells = fretboardCellsForNote(question.targetNote).filter((cell) => (
     wholeBoard || (
       cell.stringIndex >= question.region.stringStart
@@ -403,12 +457,23 @@ export function recordFretboardTimeout(
       && cell.fret <= question.region.fretStart + 3
     )
   ))
+  const noteSamples = recentFretboardNoteSamples([
+    ...(stats.noteSamples ?? []),
+    {
+      targetNote: question.targetNote,
+      correct: false,
+      reactionMs,
+      recordedAt,
+      positions: targetCells.map((cell) => ({
+        position: { stringIndex: cell.stringIndex, fret: cell.fret },
+        correct: false,
+      })),
+    },
+  ])
 
   return {
-    notes: {
-      ...stats.notes,
-      [question.targetNote]: updateStat(stats.notes[question.targetNote], false, reactionMs),
-    },
+    notes: aggregateFretboardNoteStats(noteSamples),
+    noteSamples,
     regions: {
       ...stats.regions,
       [id]: updateStat(stats.regions[id], false, reactionMs),
@@ -417,15 +482,6 @@ export function recordFretboardTimeout(
       ...stats.questions,
       [exactQuestionId]: updateStat(stats.questions[exactQuestionId], false, reactionMs),
     },
-    answers: recentFretboardAnswers([
-      ...recentAnswers,
-      ...targetCells.map((cell) => ({
-        position: { stringIndex: cell.stringIndex, fret: cell.fret },
-        correct: false,
-        recordedAt,
-        targetNote: question.targetNote,
-      })),
-    ]),
     mistakes: recentFretboardMistakes([
       ...recentFretboardMistakes(stats.mistakes, recordedAt),
       {
@@ -440,9 +496,10 @@ export function recordFretboardTimeout(
 
 export function fretboardMistakeHeatmap(
   answers: readonly FretboardAnswerRecord[],
-  now: number = Date.now(),
+  _now: number = Date.now(),
 ): Record<string, number> {
-  const totals = recentFretboardAnswers(answers, now).reduce<Record<string, { attempts: number; errors: number }>>(
+  void _now // Kept for compatibility; retention is now governed by per-note samples.
+  const totals = answers.reduce<Record<string, { attempts: number; errors: number }>>(
     (distribution, answer) => {
       const key = `${answer.position.stringIndex}:${answer.position.fret}`
       const current = distribution[key] ?? { attempts: 0, errors: 0 }
