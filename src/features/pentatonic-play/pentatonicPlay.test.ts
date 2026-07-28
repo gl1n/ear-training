@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   PENTATONIC_REPETITIONS_PER_POSITION,
   advancePentatonicRepetition,
+  createPentatonicRun,
   createPentatonicQuestion,
   midiMatchesNoteName,
   PENTATONIC_SCALES,
@@ -51,6 +52,16 @@ describe('pentatonic guitar play', () => {
     expect(first).toEqual({ completedRepetitions: 1, positionComplete: false })
     expect(second).toEqual({ completedRepetitions: 2, positionComplete: false })
     expect(third).toEqual({ completedRepetitions: 3, positionComplete: true })
+  })
+
+  it('builds one continuous ascending and descending run', () => {
+    expect(createPentatonicRun(['1', '2', '3', '5', '6'])).toEqual([
+      '1', '2', '3', '5', '6', '5', '3', '2', '1',
+    ])
+  })
+
+  it('rejects an incomplete scale when building a run', () => {
+    expect(() => createPentatonicRun(['1', '2', '3'])).toThrow()
   })
 
 })

@@ -8,6 +8,7 @@ import {
 
 export type PentatonicScaleId = 'major' | 'minor'
 export const PENTATONIC_REPETITIONS_PER_POSITION = 3
+export const PENTATONIC_RUN_INDEXES = [0, 1, 2, 3, 4, 3, 2, 1, 0] as const
 
 export type PentatonicQuestion = {
   rootNote: FretboardNoteName
@@ -43,6 +44,11 @@ export function noteNameForPitchClass(value: number): FretboardNoteName {
 
 export function midiMatchesNoteName(midi: number, note: FretboardNoteName): boolean {
   return noteNameForPitchClass(midi) === note
+}
+
+export function createPentatonicRun<T>(values: readonly T[]): T[] {
+  if (values.length !== 5) throw new Error('A pentatonic run requires exactly five values')
+  return PENTATONIC_RUN_INDEXES.map((index) => values[index]!)
 }
 
 export function advancePentatonicRepetition(completedRepetitions: number): {

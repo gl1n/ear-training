@@ -16,6 +16,13 @@ export type MetronomePreferences = {
   accentEnabled: boolean
 }
 
+export type PentatonicPlayPreferences = {
+  scaleId: 'major' | 'minor'
+  bpm: number
+  clickEnabled: boolean
+  autoIncreaseBpm: boolean
+}
+
 export type ModalScalePreferences = {
   scaleId: ModalScaleId
   clickEnabled: boolean
@@ -44,6 +51,23 @@ export function loadFretboardPreferences(): FretboardPreferences {
 export function usePersistedFretboardPreferences(preferences: FretboardPreferences) {
   useDebouncedPersist(() => {
     writeStorage(STORAGE_KEYS.fretboardSettings, JSON.stringify(preferences))
+  }, Object.values(preferences))
+}
+
+export function loadPentatonicPlayPreferences(): PentatonicPlayPreferences {
+  const record = readRecord(STORAGE_KEYS.pentatonicPlaySettings)
+  const rawBpm = typeof record?.bpm === 'number' && Number.isFinite(record.bpm) ? record.bpm : 80
+  return {
+    scaleId: record?.scaleId === 'major' ? 'major' : 'minor',
+    bpm: clampBpm(rawBpm),
+    clickEnabled: typeof record?.clickEnabled === 'boolean' ? record.clickEnabled : true,
+    autoIncreaseBpm: typeof record?.autoIncreaseBpm === 'boolean' ? record.autoIncreaseBpm : true,
+  }
+}
+
+export function usePersistedPentatonicPlayPreferences(preferences: PentatonicPlayPreferences) {
+  useDebouncedPersist(() => {
+    writeStorage(STORAGE_KEYS.pentatonicPlaySettings, JSON.stringify(preferences))
   }, Object.values(preferences))
 }
 

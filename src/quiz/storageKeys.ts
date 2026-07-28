@@ -11,6 +11,7 @@ export const STORAGE_KEYS = {
   chordDegreeHistory: 'ear-trainer:chord-degree-history',
   fretboardStats: 'ear-trainer:fretboard-stats',
   fretboardSettings: 'ear-trainer:fretboard-settings',
+  pentatonicPlaySettings: 'ear-trainer:pentatonic-play-settings',
   metronomeSettings: 'ear-trainer:metronome-settings',
   modalScaleSettings: 'ear-trainer:modal-scale-settings',
   challengeBest: {

@@ -4,6 +4,7 @@ import { loadEarTrainingPreferences } from './usePersistedSettings'
 import {
   loadFretboardPreferences,
   loadMetronomePreferences,
+  loadPentatonicPlayPreferences,
 } from './usePersistedToolSettings'
 
 function createLocalStorageMock(initial: Record<string, string> = {}) {
@@ -96,6 +97,12 @@ describe('persisted user settings', () => {
         beatsPerBar: 6,
         accentEnabled: false,
       }),
+      [STORAGE_KEYS.pentatonicPlaySettings]: JSON.stringify({
+        scaleId: 'major',
+        bpm: 128,
+        clickEnabled: false,
+        autoIncreaseBpm: false,
+      }),
     }))
 
     expect(loadFretboardPreferences()).toEqual({
@@ -107,6 +114,12 @@ describe('persisted user settings', () => {
       bpm: 220,
       beatsPerBar: 6,
       accentEnabled: false,
+    })
+    expect(loadPentatonicPlayPreferences()).toEqual({
+      scaleId: 'major',
+      bpm: 128,
+      clickEnabled: false,
+      autoIncreaseBpm: false,
     })
   })
 })
