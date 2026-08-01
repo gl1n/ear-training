@@ -8,6 +8,7 @@ A browser-based music practice cabin with separate entrances for fretboard pract
 - **指板练习** — Locate notes in random fretboard regions, freely audition notes, and review note performance and a heatmap built from the latest 30 samples per target note
 - **节拍器** — Keep time with adjustable BPM, meter accents, keyboard control, and tap tempo
 - **五声走位** — Practice ascending and descending major/minor pentatonic runs with guitar input, a non-scoring metronome companion, three clean repetitions per position, and optional automatic tempo increases
+- **和弦寻音** — Given a random maj7, 7, m7, or m7♭5 chord, find its third and seventh through microphone input or the mobile-friendly virtual fretboard, with clean-answer and reaction-time stats
 - **音阶漫游** — Loop major/minor pentatonic scales and seven modes in beat-synced 4/4 phrases while rotating evenly through all twelve movable-do tonics
 - **音程跟听** — Loop playback with spoken interval names (Web Speech API, zh-CN)
 - **音程辨认** — Interval challenge with reaction-weighted scoring and mistake-weighted question selection

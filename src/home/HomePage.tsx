@@ -20,6 +20,15 @@ const ENTRANCES = [
     tone: 'teal',
   },
   {
+    href: '#/chord-tone-play',
+    eyebrow: 'CHORD TONES',
+    title: '和弦寻音',
+    description: '看见一个七和弦，在吉他上依次弹出它的 3 音与 7 音，建立和弦与指板之间的直接连接。',
+    detail: '吉他输入 · 3 音与 7 音 · 任意八度',
+    icon: 'Ⅲ',
+    tone: 'violet',
+  },
+  {
     href: '#/ear-training',
     eyebrow: 'EAR TRAINING',
     title: '练耳',

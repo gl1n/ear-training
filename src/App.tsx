@@ -7,14 +7,16 @@ const MetronomePractice = lazy(() => import('./features/metronome/MetronomePract
 const RhythmPractice = lazy(() => import('./features/rhythm/RhythmPractice').then((module) => ({ default: module.RhythmPractice })))
 const ModalScalePractice = lazy(() => import('./features/modal-scale/ModalScalePractice').then((module) => ({ default: module.ModalScalePractice })))
 const PentatonicPlayPractice = lazy(() => import('./features/pentatonic-play/PentatonicPlayPractice').then((module) => ({ default: module.PentatonicPlayPractice })))
+const ChordTonePlayPractice = lazy(() => import('./features/chord-tone-play/ChordTonePlayPractice').then((module) => ({ default: module.ChordTonePlayPractice })))
 
-type Route = 'home' | 'ear-training' | 'fretboard' | 'pentatonic-play' | 'metronome' | 'rhythm' | 'modal-scale'
+type Route = 'home' | 'ear-training' | 'fretboard' | 'pentatonic-play' | 'chord-tone-play' | 'metronome' | 'rhythm' | 'modal-scale'
 
 function readRoute(): Route {
   const path = window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '')
   if (path === 'ear-training') return 'ear-training'
   if (path === 'fretboard') return 'fretboard'
   if (path === 'pentatonic-play') return 'pentatonic-play'
+  if (path === 'chord-tone-play') return 'chord-tone-play'
   if (path === 'metronome') return 'metronome'
   if (path === 'rhythm') return 'rhythm'
   if (path === 'modal-scale') return 'modal-scale'
@@ -46,6 +48,8 @@ export function App() {
         ? '指板练习 · 格林的音乐练习小屋'
         : route === 'pentatonic-play'
           ? '五声走位 · 格林的音乐练习小屋'
+        : route === 'chord-tone-play'
+          ? '和弦寻音 · 格林的音乐练习小屋'
         : route === 'metronome'
           ? '节拍器 · 格林的音乐练习小屋'
           : route === 'rhythm'
@@ -66,6 +70,8 @@ export function App() {
           ? <FretboardPractice />
           : route === 'pentatonic-play'
             ? <PentatonicPlayPractice />
+          : route === 'chord-tone-play'
+            ? <ChordTonePlayPractice />
         : route === 'metronome'
           ? <MetronomePractice />
           : route === 'rhythm'
