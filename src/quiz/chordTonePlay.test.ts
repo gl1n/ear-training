@@ -3,6 +3,7 @@ import {
   CHORD_TONE_ROOTS,
   buildChordToneQuestion,
   classifyChordToneAnswer,
+  createChordToneProgression,
   createChordToneQuestion,
   formatChordToneReactionMs,
 } from './chordTonePlay'
@@ -55,5 +56,25 @@ describe('chord tone pair questions', () => {
   it('formats completed-question reaction time in seconds', () => {
     expect(formatChordToneReactionMs(2_349)).toBe('2.3s')
     expect(formatChordToneReactionMs(null)).toBe('—')
+  })
+
+  it('creates diatonic seventh-chord questions from a progression', () => {
+    const progression = createChordToneProgression(() => 0)
+
+    expect(progression.keyName).toBe('C 大调')
+    expect(progression.name).toBe('ii–V–I')
+    expect(progression.degreeLabels).toEqual(['ii', 'V', 'I'])
+    expect(progression.questions.map((question) => question.symbol)).toEqual([
+      'Dm7', 'G7', 'Cmaj7',
+    ])
+  })
+
+  it('uses the key signature spelling for progression roots', () => {
+    const progression = createChordToneProgression(() => 0.999)
+
+    expect(progression.keyName).toBe('B♭ 大调')
+    expect(progression.questions.map((question) => question.symbol)).toEqual([
+      'B♭maj7', 'Am7♭5', 'Dm7', 'Gm7', 'Cm7', 'F7', 'B♭maj7',
+    ])
   })
 })

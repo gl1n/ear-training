@@ -9,8 +9,9 @@ import { useGuitarInput } from '../../hooks/useGuitarInput'
 import {
   chromaticNoteName,
   classifyChordToneAnswer,
-  createChordToneQuestion,
+  createChordToneProgression,
   formatChordToneReactionMs,
+  type ChordToneProgression,
   type ChordToneQuestion,
   type TargetChordToneDegree,
 } from '../../quiz/chordTonePlay'
@@ -63,7 +64,9 @@ function detectedPitchLabel(reading: GuitarPitchReading | null): string {
 }
 
 export function ChordTonePlayPractice() {
-  const [question, setQuestion] = useState<ChordToneQuestion>(() => createChordToneQuestion())
+  const [progression, setProgression] = useState<ChordToneProgression>(() => createChordToneProgression())
+  const [progressionPosition, setProgressionPosition] = useState(0)
+  const [question, setQuestion] = useState<ChordToneQuestion>(() => progression.questions[0]!)
   const [answeredDegrees, setAnsweredDegrees] = useState<Set<TargetChordToneDegree>>(() => new Set())
   const [isRunning, setIsRunning] = useState(false)
   const [referencePlaying, setReferencePlaying] = useState(false)
@@ -75,8 +78,11 @@ export function ChordTonePlayPractice() {
   const [foundCellKeys, setFoundCellKeys] = useState<string[]>([])
   const [fretboardMarkers, setFretboardMarkers] = useState<Record<string, { label: string; tone: 'guide' }>>({})
   const [pluck, setPluck] = useState<FretboardPluck>(EMPTY_PLUCK)
+  const [boardFullscreen, setBoardFullscreen] = useState(false)
 
   const questionRef = useRef(question)
+  const progressionRef = useRef(progression)
+  const progressionPositionRef = useRef(0)
   const answeredDegreesRef = useRef(new Set<TargetChordToneDegree>())
   const isRunningRef = useRef(false)
   const referencePlayingRef = useRef(false)
@@ -86,6 +92,7 @@ export function ChordTonePlayPractice() {
   const referenceTokenRef = useRef(0)
   const activeReactionStartedAtRef = useRef<number | null>(null)
   const accumulatedReactionMsRef = useRef(0)
+  const boardFullscreenRef = useRef<HTMLDivElement | null>(null)
 
   const pianoSettings = useMemo(() => ({
     ...createDefaultSettings(),
@@ -100,6 +107,56 @@ export function ChordTonePlayPractice() {
   } = useAudioEngine()
 
   useEffect(() => { questionRef.current = question }, [question])
+
+  const exitBoardFullscreen = useCallback(async () => {
+    setBoardFullscreen(false)
+    try {
+      screen.orientation.unlock()
+    } catch {
+      // Direction locking is optional and is not available in every browser.
+    }
+    if (document.fullscreenElement) {
+      await document.exitFullscreen().catch(() => undefined)
+    }
+  }, [])
+
+  const enterBoardFullscreen = useCallback(async () => {
+    setBoardFullscreen(true)
+    const container = boardFullscreenRef.current
+    if (container?.requestFullscreen && !document.fullscreenElement) {
+      await container.requestFullscreen({ navigationUI: 'hide' }).catch(() => undefined)
+    }
+    try {
+      await screen.orientation.lock('landscape')
+    } catch {
+      // Portrait phones use the shared CSS rotation fallback.
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) setBoardFullscreen(false)
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && boardFullscreen) void exitBoardFullscreen()
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [boardFullscreen, exitBoardFullscreen])
+
+  useEffect(() => {
+    if (!boardFullscreen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [boardFullscreen])
 
   const clearTimers = useCallback(() => {
     if (nextQuestionTimerRef.current !== null) window.clearTimeout(nextQuestionTimerRef.current)
@@ -220,8 +277,11 @@ export function ChordTonePlayPractice() {
       })
       nextQuestionTimerRef.current = window.setTimeout(() => {
         if (!isRunningRef.current) return
-        const next = createChordToneQuestion(Math.random, activeQuestion.id)
-        prepareQuestion(next)
+        const activeProgression = progressionRef.current
+        const nextPosition = (progressionPositionRef.current + 1) % activeProgression.questions.length
+        progressionPositionRef.current = nextPosition
+        setProgressionPosition(nextPosition)
+        prepareQuestion(activeProgression.questions[nextPosition]!)
         nextQuestionTimerRef.current = null
       }, NEXT_QUESTION_DELAY_MS)
       return
@@ -260,8 +320,12 @@ export function ChordTonePlayPractice() {
     isRunningRef.current = true
     setIsRunning(true)
     setStats(EMPTY_STATS)
-    const next = createChordToneQuestion(Math.random, questionRef.current.id)
-    prepareQuestion(next)
+    const nextProgression = createChordToneProgression()
+    progressionRef.current = nextProgression
+    progressionPositionRef.current = 0
+    setProgression(nextProgression)
+    setProgressionPosition(0)
+    prepareQuestion(nextProgression.questions[0]!)
     if (inputMode === 'microphone' && guitarInput.status !== 'listening') void startGuitarInput()
   }, [clearTimers, guitarInput.status, inputMode, prepareQuestion, startGuitarInput])
 
@@ -356,7 +420,19 @@ export function ChordTonePlayPractice() {
 
       <Card className="flex flex-1 flex-col gap-6 border-sky-300/10 p-5 sm:p-7">
         <div className="text-center">
-          <p className="text-xs font-semibold tracking-[.16em] text-sky-300">{question.qualityLabel}</p>
+          <p className="text-xs font-medium text-[var(--text-secondary)]">{progression.keyName} · {progression.name}</p>
+          <div className="mx-auto mt-3 flex max-w-xl items-center justify-center gap-1.5" aria-label={`当前和弦进行 ${progression.name}`}>
+            {progression.degreeLabels.map((degree, index) => (
+              <span
+                key={`${degree}:${index}`}
+                className={`rounded-full border px-2 py-1 text-xs font-bold transition ${index === progressionPosition ? 'border-sky-400 bg-sky-400/15 text-sky-300' : 'border-[var(--border-subtle)] text-[var(--text-secondary)]'}`}
+                style={{ minWidth: '2.25rem' }}
+              >
+                {degree}
+              </span>
+            ))}
+          </div>
+          <p className="mt-4 text-xs font-semibold tracking-[.16em] text-sky-300">{question.qualityLabel}</p>
           <h2 className="mt-2 text-5xl font-black tracking-tight sm:text-6xl">{question.symbol}</h2>
           <p className="mt-3 text-sm text-[var(--text-secondary)]">依次弹出两个单音 · 顺序不限 · 任意八度</p>
         </div>
@@ -402,22 +478,55 @@ export function ChordTonePlayPractice() {
         </div>
 
         {inputMode === 'fretboard' && (
-          <div className="rounded-2xl border border-[var(--border-subtle)] bg-black/10 p-2 sm:p-4">
-            <p className="mb-3 text-center text-xs text-[var(--text-secondary)]">
-              {referencePlaying ? '参考和弦播放结束后即可点击指板' : canAnswer ? '点击任意八度的目标音' : '准备下一题…'}
-            </p>
-            <FretboardBoard
-              question={boardQuestion}
-              showQuestion
-              canAnswer={canAnswer}
-              revealAnswer={false}
-              wrongCellKey={wrongCellKey}
-              pluck={pluck}
-              wholeBoard
-              foundCellKeys={foundCellKeys}
-              markers={fretboardMarkers}
-              onSelect={(cell) => handleFretboardSelect(cell)}
-            />
+          <div
+            ref={boardFullscreenRef}
+            className={`fretboard-focus-shell${boardFullscreen ? ' fretboard-focus-shell--fullscreen fixed inset-0 z-[100] h-dvh w-screen overflow-hidden bg-[#080d14]' : ''}`}
+          >
+            <div className={`rounded-2xl border border-[var(--border-subtle)] bg-[#080d14] p-2 sm:p-4 ${boardFullscreen ? 'flex h-full flex-col !p-3' : ''}`}>
+              <div className={`flex items-center justify-between gap-3 ${boardFullscreen ? 'mb-2 min-h-11' : 'mb-3'}`}>
+                <div>
+                  <p className={`font-semibold ${boardFullscreen ? 'text-base text-white' : 'text-xs text-[var(--text-secondary)]'}`}>
+                    {boardFullscreen
+                      ? `${question.symbol} · 已找到 ${answeredDegrees.size} / 2`
+                      : referencePlaying
+                        ? '参考和弦播放结束后即可点击指板'
+                        : canAnswer
+                          ? '点击任意八度的目标音'
+                          : '准备下一题…'}
+                  </p>
+                  {boardFullscreen && (
+                    <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                      {question.tones[3].degreeLabel} {answeredDegrees.has('3') ? question.tones[3].noteName : '·'}
+                      {' · '}
+                      {question.tones[7].degreeLabel} {answeredDegrees.has('7') ? question.tones[7].noteName : '·'}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs font-bold text-amber-200 transition hover:border-amber-300/50 hover:bg-amber-300/15"
+                  onClick={() => void (boardFullscreen ? exitBoardFullscreen() : enterBoardFullscreen())}
+                  aria-label={boardFullscreen ? '退出旋转指板' : '旋转并全屏显示指板'}
+                  aria-pressed={boardFullscreen}
+                >
+                  <span aria-hidden="true">{boardFullscreen ? '↙' : '↗'}</span>
+                  {boardFullscreen ? '退出旋转' : '旋转全屏'}
+                </button>
+              </div>
+              <FretboardBoard
+                question={boardQuestion}
+                showQuestion
+                canAnswer={canAnswer}
+                revealAnswer={false}
+                wrongCellKey={wrongCellKey}
+                pluck={pluck}
+                wholeBoard
+                foundCellKeys={foundCellKeys}
+                fullscreen={boardFullscreen}
+                markers={fretboardMarkers}
+                onSelect={(cell) => handleFretboardSelect(cell)}
+              />
+            </div>
           </div>
         )}
 
@@ -428,7 +537,7 @@ export function ChordTonePlayPractice() {
             </p>
           ) : (
             <p className="text-sm leading-6 text-[var(--text-secondary)]">
-              {isRunning ? '参考和弦结束后开始拨弦，已经找对的音会被保留。' : '题目随机来自 maj7、7、m7 与 m7♭5。开始后会播放一次参考和弦。'}
+              {isRunning ? '参考和弦结束后开始拨弦，答完后会沿当前和弦进行进入下一题。' : '每局随机选择调性与常见和弦进行，并按进行顺序循环出题。'}
             </p>
           )}
         </div>

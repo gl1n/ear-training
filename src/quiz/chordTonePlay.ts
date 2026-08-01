@@ -35,6 +35,14 @@ export type ChordToneQuestion = {
   targetDegrees: readonly ['3', '7']
 }
 
+export type ChordToneProgression = {
+  id: string
+  name: string
+  keyName: string
+  degreeLabels: string[]
+  questions: ChordToneQuestion[]
+}
+
 export type ChordToneAnswerClassification =
   | { kind: 'target'; tone: ChordTone }
   | { kind: 'other-chord-tone'; tone: ChordTone }
@@ -93,6 +101,29 @@ const NATURAL_PITCH_CLASSES: Record<(typeof LETTERS)[number], number> = {
   B: 11,
 }
 const DEGREES: readonly ChordToneDegree[] = ['1', '3', '5', '7']
+const DIATONIC_QUALITY_BY_DEGREE: readonly ChordToneQuality[] = [
+  'maj7', 'm7', 'm7', 'maj7', '7', 'm7', 'm7b5',
+]
+const ROMAN_DEGREE_LABELS = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'viiø'] as const
+
+const PROGRESSION_KEYS: readonly { name: string; roots: readonly string[] }[] = [
+  { name: 'C 大调', roots: ['C', 'D', 'E', 'F', 'G', 'A', 'B'] },
+  { name: 'G 大调', roots: ['G', 'A', 'B', 'C', 'D', 'E', 'F♯'] },
+  { name: 'D 大调', roots: ['D', 'E', 'F♯', 'G', 'A', 'B', 'C♯'] },
+  { name: 'A 大调', roots: ['A', 'B', 'C♯', 'D', 'E', 'F♯', 'G♯'] },
+  { name: 'E 大调', roots: ['E', 'F♯', 'G♯', 'A', 'B', 'C♯', 'D♯'] },
+  { name: 'F 大调', roots: ['F', 'G', 'A', 'B♭', 'C', 'D', 'E'] },
+  { name: 'B♭ 大调', roots: ['B♭', 'C', 'D', 'E♭', 'F', 'G', 'A'] },
+]
+
+const PROGRESSION_PRESETS: readonly { id: string; name: string; degrees: readonly number[] }[] = [
+  { id: '251', name: 'ii–V–I', degrees: [2, 5, 1] },
+  { id: '1625', name: 'I–vi–ii–V', degrees: [1, 6, 2, 5] },
+  { id: '1564', name: 'I–V–vi–IV', degrees: [1, 5, 6, 4] },
+  { id: '6415', name: 'vi–IV–I–V', degrees: [6, 4, 1, 5] },
+  { id: '4536251', name: 'IV–V–iii–vi–ii–V–I', degrees: [4, 5, 3, 6, 2, 5, 1] },
+  { id: '1736251', name: 'I–viiø–iii–vi–ii–V–I', degrees: [1, 7, 3, 6, 2, 5, 1] },
+]
 
 function normalizePitchClass(value: number): number {
   return ((value % 12) + 12) % 12
@@ -157,6 +188,31 @@ export function createChordToneQuestion(
   }
 
   return question
+}
+
+export function createChordToneProgression(
+  random: () => number = Math.random,
+): ChordToneProgression {
+  const key = PROGRESSION_KEYS[Math.floor(random() * PROGRESSION_KEYS.length)]!
+  const preset = PROGRESSION_PRESETS[Math.floor(random() * PROGRESSION_PRESETS.length)]!
+  const questions = preset.degrees.map((degree) => {
+    const rootName = key.roots[degree - 1]!
+    const rootPitchClass = CHORD_TONE_ROOTS.find((root) => root.name === rootName)?.pitchClass
+      ?? normalizePitchClass(NATURAL_PITCH_CLASSES[rootName[0] as (typeof LETTERS)[number]] +
+        (rootName.includes('♯') ? 1 : rootName.includes('♭') ? -1 : 0))
+    return buildChordToneQuestion(
+      { name: rootName, pitchClass: rootPitchClass },
+      DIATONIC_QUALITY_BY_DEGREE[degree - 1]!,
+    )
+  })
+
+  return {
+    id: `${key.name}:${preset.id}`,
+    name: preset.name,
+    keyName: key.name,
+    degreeLabels: preset.degrees.map((degree) => ROMAN_DEGREE_LABELS[degree - 1]!),
+    questions,
+  }
 }
 
 export function classifyChordToneAnswer(
