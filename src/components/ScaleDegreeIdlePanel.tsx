@@ -176,7 +176,7 @@ export function ScaleDegreeIdlePanel({
         <p className="mt-1 text-sm text-[var(--text-secondary)]">三种训练共享同一套大调音级体系，答错纠正后继续完成本轮。</p>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-3" role="radiogroup" aria-label="音级训练方式">
+      <div className="grid gap-3 sm:grid-cols-3" role="radiogroup" aria-label="音级训练方式">
         <button type="button" role="radio" aria-checked={scaleDegreeTrainingMode === 'single'} disabled={isRunning} onClick={() => onScaleDegreeTrainingModeChange('single')} className={`rounded-2xl border p-5 text-left transition ${scaleDegreeTrainingMode === 'single' ? 'border-sky-400 bg-sky-400/10 ring-1 ring-sky-400/20' : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-white/20'}`}>
           <span className="flex items-center justify-between"><strong className="text-lg">单音定位</strong><span className={`h-3 w-3 rounded-full ${scaleDegreeTrainingMode === 'single' ? 'bg-sky-400 shadow-[0_0_0_4px_rgba(56,189,248,.15)]' : 'bg-white/15'}`} /></span>
           <span className="mt-2 block text-sm leading-6 text-[var(--text-secondary)]">听一个音，判断它是当前调性的第几级。适合建立稳定的调性感。</span>

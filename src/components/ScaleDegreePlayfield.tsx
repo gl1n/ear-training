@@ -180,13 +180,13 @@ export function ScaleDegreePlayfield({
             {crossRegisterQuiz.degrees.map((degree, index) => (
               <div
                 key={`${degree}-${index}`}
-                className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-4 text-center"
+                className="rounded-xl border border-[var(--border-subtle)] bg-emerald-500/10 px-4 py-4 text-center"
               >
                 <p className="text-xs text-[var(--text-secondary)]">
                   第 {index + 1} 音 · {getRegisterLabel(index)}
                 </p>
                 <p className="mt-1 text-2xl font-bold text-emerald-200">{degree}</p>
-                <p className="mt-1 text-xs uppercase tracking-wide text-emerald-100/65">
+                <p className="mt-1 text-xs uppercase tracking-wide text-[var(--text-secondary)]">
                   {DEGREE_SOLFEGE_LABELS[String(degree) as (typeof DEGREE_OPTION_IDS)[number]]}
                 </p>
               </div>
@@ -226,7 +226,7 @@ export function ScaleDegreePlayfield({
           <Button
             disabled={isReplayBusy}
             onClick={onNextQuestion}
-            className="mx-auto min-w-36"
+            className="mx-auto"
           >
             {isLastQuestion ? '查看结果' : '下一题'}
           </Button>
