@@ -30,8 +30,6 @@ export type MajorKeySession = {
 
 export const MELODY_NOTE_COUNT = 3
 export const CROSS_REGISTER_NOTE_COUNT = 2
-/** 跨音区两音至少相隔纯五度，避免贴着音区分界线却听起来仍在同一区域。 */
-export const CROSS_REGISTER_MIN_DISTANCE_SEMITONES = 7
 export const SCALE_DEGREE_REGISTERS = ['low', 'middle', 'high'] as const
 export type ScaleDegreeRegister = (typeof SCALE_DEGREE_REGISTERS)[number]
 
@@ -344,8 +342,8 @@ function buildMelodyQuiz(
 }
 
 /**
- * 跨音区题从低、中、高三个音区随机选择两个，并随机决定播放方向；
- * 不允许两个音为同一音级，也会过滤听感上过近的音区边界组合。
+ * 跨音区题以当前调的 do 为音区边界，从低、中、高三个音区随机选择两个，
+ * 并随机决定播放方向；不允许两个音为同一音级。
  */
 export function randomCrossRegisterScaleDegreeQuiz(
   session: MajorKeySession,
@@ -356,42 +354,42 @@ export function randomCrossRegisterScaleDegreeQuiz(
   const [lowerRegister, upperRegister] = pickUniform(CROSS_REGISTER_PAIRS)!
   const lowerIndex = SCALE_DEGREE_REGISTERS.indexOf(lowerRegister)
   const upperIndex = SCALE_DEGREE_REGISTERS.indexOf(upperRegister)
+  const lowerStart = session.tonicMidi + (lowerIndex - 1) * 12
+  const upperStart = session.tonicMidi + (upperIndex - 1) * 12
   const lowerMidis = listDiatonicMidisInRange(
     session.tonicPitchClass,
-    rootMin + lowerIndex * 12,
-    Math.min(rootMin + lowerIndex * 12 + 11, rootMax),
+    Math.max(lowerStart, rootMin),
+    Math.min(lowerStart + 11, rootMax),
   )
   const upperMidis = listDiatonicMidisInRange(
     session.tonicPitchClass,
-    rootMin + upperIndex * 12,
-    Math.min(rootMin + upperIndex * 12 + 11, rootMax),
+    Math.max(upperStart, rootMin),
+    Math.min(upperStart + 11, rootMax),
   )
 
   if (lowerMidis.length === 0 || upperMidis.length === 0) {
     throw new Error('音域不足以生成跨音区题目')
   }
 
-  const lowerMidi = pickRandomNoteMidi(
-    lowerMidis,
-    session.tonicPitchClass,
-    null,
-    sessionDegreeWeights,
-  )
-  const lowerDegree = midiToDegree(session.tonicPitchClass, lowerMidi)!
-  const differentDegreeMidis = upperMidis.filter(
-    (midi) =>
-      midi - lowerMidi >= CROSS_REGISTER_MIN_DISTANCE_SEMITONES &&
-      midiToDegree(session.tonicPitchClass, midi) !== lowerDegree,
-  )
-  if (differentDegreeMidis.length === 0) {
+  const validPairs = lowerMidis.flatMap((lowerMidi) => {
+    const lowerDegree = midiToDegree(session.tonicPitchClass, lowerMidi)!
+    return upperMidis
+      .filter((upperMidi) =>
+        midiToDegree(session.tonicPitchClass, upperMidi) !== lowerDegree,
+      )
+      .map((upperMidi) => [lowerMidi, upperMidi] as const)
+  })
+  if (validPairs.length === 0) {
     throw new Error('音域不足以生成音高距离清晰的跨音区题目')
   }
-  const upperMidi = pickRandomNoteMidi(
-    differentDegreeMidis,
-    session.tonicPitchClass,
-    lowerMidi,
-    sessionDegreeWeights,
-  )
+
+  const [lowerMidi, upperMidi] = pickWeighted(validPairs, ([candidateLower, candidateUpper]) => {
+    const lowerDegree = midiToDegree(session.tonicPitchClass, candidateLower)!
+    const upperDegree = midiToDegree(session.tonicPitchClass, candidateUpper)!
+    return (sessionDegreeWeights?.[lowerDegree] ?? 1) *
+      (sessionDegreeWeights?.[upperDegree] ?? 1)
+  })!
+  const lowerDegree = midiToDegree(session.tonicPitchClass, lowerMidi)!
   const upperDegree = midiToDegree(session.tonicPitchClass, upperMidi)!
   const upward = Math.random() < 0.5
   const noteMidis: [number, number] = upward

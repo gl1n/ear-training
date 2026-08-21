@@ -184,7 +184,7 @@ export function ScaleDegreeIdlePanel({
         </button>
         <button type="button" role="radio" aria-checked={scaleDegreeTrainingMode === 'crossRegister'} disabled={isRunning} onClick={() => onScaleDegreeTrainingModeChange('crossRegister')} className={`rounded-2xl border p-5 text-left transition ${scaleDegreeTrainingMode === 'crossRegister' ? 'border-sky-400 bg-sky-400/10 ring-1 ring-sky-400/20' : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-white/20'}`}>
           <span className="flex items-center justify-between"><strong className="text-lg">跨音区定位</strong><span className={`h-3 w-3 rounded-full ${scaleDegreeTrainingMode === 'crossRegister' ? 'bg-sky-400 shadow-[0_0_0_4px_rgba(56,189,248,.15)]' : 'bg-white/15'}`} /></span>
-          <span className="mt-2 block text-sm leading-6 text-[var(--text-secondary)]">从低、中、高音区随机选择两个音区并双向播放，再按顺序判断音级。</span>
+          <span className="mt-2 block text-sm leading-6 text-[var(--text-secondary)]">以当前调的 do 划分低、中、高音区，随机跨区播放两音，再按顺序判断音级。</span>
           <span className="mt-4 block text-xs font-medium text-[var(--text-secondary)]">基础跨区训练</span>
         </button>
         <button type="button" role="radio" aria-checked={melodyEnabled} disabled={isRunning} onClick={() => onScaleDegreeTrainingModeChange('melody')} className={`rounded-2xl border p-5 text-left transition ${melodyEnabled ? 'border-sky-400 bg-sky-400/10 ring-1 ring-sky-400/20' : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-white/20'}`}>

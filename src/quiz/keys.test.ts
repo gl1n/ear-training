@@ -6,7 +6,6 @@ import {
 } from './stats'
 import {
   DEGREE_OPTION_IDS,
-  CROSS_REGISTER_MIN_DISTANCE_SEMITONES,
   SCALE_DEGREE_REGISTERS,
   NOTE_KEY_QUIZ_SPAN_SEMITONES,
   createMajorKeySession,
@@ -45,15 +44,13 @@ describe('randomCrossRegisterScaleDegreeQuiz', () => {
         expect(quiz.sequenceType).toBe('crossRegister')
         for (let noteIndex = 0; noteIndex < quiz.noteMidis.length; noteIndex++) {
           const registerIndex = SCALE_DEGREE_REGISTERS.indexOf(quiz.registers[noteIndex]!)
-          expect(quiz.noteMidis[noteIndex]).toBeGreaterThanOrEqual(48 + registerIndex * 12)
-          expect(quiz.noteMidis[noteIndex]).toBeLessThanOrEqual(59 + registerIndex * 12)
+          const registerStart = session.tonicMidi + (registerIndex - 1) * 12
+          expect(quiz.noteMidis[noteIndex]).toBeGreaterThanOrEqual(registerStart)
+          expect(quiz.noteMidis[noteIndex]).toBeLessThanOrEqual(registerStart + 11)
           expect(midiToDegree(session.tonicPitchClass, quiz.noteMidis[noteIndex]!)).toBe(
             quiz.degrees[noteIndex],
           )
         }
-        expect(Math.abs(quiz.noteMidis[1] - quiz.noteMidis[0])).toBeGreaterThanOrEqual(
-          CROSS_REGISTER_MIN_DISTANCE_SEMITONES,
-        )
         expect(quiz.degrees[0]).not.toBe(quiz.degrees[1])
       }
     })
@@ -66,6 +63,24 @@ describe('randomCrossRegisterScaleDegreeQuiz', () => {
       'middle-high',
       'high-middle',
     ]))
+  })
+
+  it('uses the current tonic as the register boundary in F major', () => {
+    const session = { tonicMidi: 65, tonicPitchClass: 5, label: 'F 大调' }
+    const random = vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(31.5 / 42)
+      .mockReturnValueOnce(0)
+
+    try {
+      const quiz = randomCrossRegisterScaleDegreeQuiz(session, 48, 85)
+
+      expect(quiz.noteMidis).toEqual([62, 67])
+      expect(quiz.degrees).toEqual([6, 2])
+      expect(quiz.registers).toEqual(['low', 'middle'])
+    } finally {
+      random.mockRestore()
+    }
   })
 })
 
