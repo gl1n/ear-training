@@ -1,4 +1,4 @@
-import { DEGREE_OPTION_IDS, DEGREE_SOLFEGE_LABELS, isMelodyScaleDegreeQuiz, type ScaleDegreeQuiz } from '../quiz/keys'
+import { DEGREE_OPTION_IDS, DEGREE_SOLFEGE_LABELS, isCrossRegisterScaleDegreeQuiz, isSequenceScaleDegreeQuiz, type ScaleDegreeQuiz, type ScaleDegreeTrainingMode } from '../quiz/keys'
 import { type TrainerState } from '../quiz/sequencer'
 import { type SessionStats } from '../quiz/stats'
 import { usePracticePlayfieldState } from '../hooks/usePracticePlayfieldState'
@@ -20,15 +20,18 @@ type ScaleDegreePlayfieldProps = {
   currentKeyLabel: string | null
   encouragement: PracticeEncouragement | null
   correctionWrongSelection: string | null
-  melodyEnabled?: boolean
+  trainingMode?: ScaleDegreeTrainingMode
   melodyCorrectDegrees?: string[]
   currentQuiz?: ScaleDegreeQuiz | null
   isReplayBusy?: boolean
   loadProgress: number | null
   loadIndeterminate: boolean
   loadError: string | null
+  isLastQuestion?: boolean
   onSelect: (degree: string) => void
+  onPlayDo?: () => void
   onReplayMelody?: () => void
+  onNextQuestion?: () => void
   onRetry?: () => void
 }
 
@@ -39,15 +42,18 @@ export function ScaleDegreePlayfield({
   currentKeyLabel,
   encouragement,
   correctionWrongSelection,
-  melodyEnabled = false,
+  trainingMode = 'single',
   melodyCorrectDegrees = [],
   currentQuiz = null,
   isReplayBusy = false,
   loadProgress,
   loadIndeterminate,
   loadError,
+  isLastQuestion = false,
   onSelect,
+  onPlayDo,
   onReplayMelody,
+  onNextQuestion,
   onRetry,
 }: ScaleDegreePlayfieldProps) {
   const {
@@ -59,21 +65,42 @@ export function ScaleDegreePlayfield({
     currentQuestion,
     isListening,
   } = usePracticePlayfieldState(state, sessionStats)
+  const sequenceEnabled = trainingMode !== 'single'
+  const sequenceNoteCount = trainingMode === 'crossRegister' ? 2 : 3
+  const crossRegisterQuiz =
+    currentQuiz !== null && isCrossRegisterScaleDegreeQuiz(currentQuiz) ? currentQuiz : null
+  const getRegisterLabel = (index: number) => {
+    const register = crossRegisterQuiz?.registers[index]
+    if (register === 'high') return '高音区'
+    if (register === 'middle') return '中音区'
+    return '低音区'
+  }
+  const isReviewingAnswer =
+    trainingMode === 'crossRegister' &&
+    state === 'answer_revealed' &&
+    crossRegisterQuiz !== null
   const canAnswer = !isReplayBusy && (
-    melodyEnabled
+    sequenceEnabled
       ? state === 'playing_note' || state === 'awaiting_answer' || state === 'answer_correction'
       : baseCanAnswer)
   const canReplayMelody =
-    melodyEnabled &&
+    sequenceEnabled &&
     currentQuiz !== null &&
-    isMelodyScaleDegreeQuiz(currentQuiz) &&
-    (state === 'awaiting_answer' || state === 'answer_correction')
-  const melodyPrompt =
-    melodyEnabled && canAnswer
-      ? `选择第 ${melodyCorrectDegrees.length + 1} 个音的音级`
-      : melodyEnabled
-        ? '聆听旋律'
-        : '选择音级'
+    isSequenceScaleDegreeQuiz(currentQuiz) &&
+    (state === 'awaiting_answer' || state === 'answer_correction' || state === 'answer_revealed')
+  const canPlayDo =
+    trainingMode === 'crossRegister' &&
+    currentQuiz !== null &&
+    (state === 'awaiting_answer' || state === 'answer_correction' || state === 'answer_revealed')
+  const melodyPrompt = isReviewingAnswer
+    ? '最终答案'
+    : sequenceEnabled && canAnswer
+    ? trainingMode === 'crossRegister'
+      ? `选择${getRegisterLabel(melodyCorrectDegrees.length)}音的音级`
+      : `选择第 ${melodyCorrectDegrees.length + 1} 个音的音级`
+    : sequenceEnabled
+      ? trainingMode === 'crossRegister' ? '聆听跨音区双音' : '聆听旋律'
+      : '选择音级'
 
   const renderDegree = (degree: string) => (
     <ChallengeAnswerButton
@@ -83,12 +110,12 @@ export function ScaleDegreePlayfield({
       isListening={isListening && !canAnswer}
       isCorrectAnswer={
         isWrong &&
-        !melodyEnabled &&
+        !sequenceEnabled &&
         lastQuiz !== null &&
         String(lastQuiz.degree) === degree
       }
       isWrongSelection={
-        (isCorrection || (isWrong && melodyEnabled)) &&
+        (isCorrection || (isWrong && sequenceEnabled)) &&
         correctionWrongSelection === degree
       }
       onClick={() => onSelect(degree)}
@@ -122,7 +149,8 @@ export function ScaleDegreePlayfield({
           <PracticePhaseIndicator
             state={state}
             variant="scaleDegree"
-            melodyEnabled={melodyEnabled}
+            melodyEnabled={sequenceEnabled}
+            sequenceNoteCount={sequenceNoteCount}
           />
         }
       />
@@ -147,7 +175,26 @@ export function ScaleDegreePlayfield({
           {melodyPrompt}
         </p>
 
-        {melodyEnabled && melodyCorrectDegrees.length > 0 && (
+        {isReviewingAnswer && (
+          <div className="mx-auto grid w-full max-w-sm grid-cols-2 gap-3">
+            {crossRegisterQuiz.degrees.map((degree, index) => (
+              <div
+                key={`${degree}-${index}`}
+                className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-4 text-center"
+              >
+                <p className="text-xs text-[var(--text-secondary)]">
+                  第 {index + 1} 音 · {getRegisterLabel(index)}
+                </p>
+                <p className="mt-1 text-2xl font-bold text-emerald-200">{degree}</p>
+                <p className="mt-1 text-xs uppercase tracking-wide text-emerald-100/65">
+                  {DEGREE_SOLFEGE_LABELS[String(degree) as (typeof DEGREE_OPTION_IDS)[number]]}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!isReviewingAnswer && sequenceEnabled && melodyCorrectDegrees.length > 0 && (
           <div className="mx-auto flex items-center justify-center gap-2">
             {melodyCorrectDegrees.map((degree, index) => (
               <span
@@ -160,25 +207,39 @@ export function ScaleDegreePlayfield({
           </div>
         )}
 
-        {canReplayMelody && (
+        {(canPlayDo || canReplayMelody) && (
+          <div className="mx-auto flex flex-wrap items-center justify-center gap-2">
+            {canPlayDo && (
+              <Button variant="ghost" disabled={isReplayBusy} onClick={onPlayDo}>
+                ♪ 播放 do
+              </Button>
+            )}
+            {canReplayMelody && (
+              <Button variant="ghost" disabled={isReplayBusy} onClick={onReplayMelody}>
+                {isReplayBusy ? '重听中…' : trainingMode === 'crossRegister' ? '重听双音' : '重听旋律'}
+              </Button>
+            )}
+          </div>
+        )}
+
+        {isReviewingAnswer && (
           <Button
-            variant="ghost"
             disabled={isReplayBusy}
-            onClick={onReplayMelody}
-            className="mx-auto"
+            onClick={onNextQuestion}
+            className="mx-auto min-w-36"
           >
-            {isReplayBusy ? '重听中…' : '重听旋律'}
+            {isLastQuestion ? '查看结果' : '下一题'}
           </Button>
         )}
 
-        <div className="mx-auto flex w-full max-w-md flex-col gap-2 sm:gap-2.5">
+        {!isReviewingAnswer && <div className="mx-auto flex w-full max-w-md flex-col gap-2 sm:gap-2.5">
           <div className="grid grid-cols-4 gap-2 sm:gap-2.5">
             {DEGREE_OPTION_IDS.slice(0, 4).map(renderDegree)}
           </div>
           <div className="grid grid-cols-3 gap-2 px-[12.5%] sm:gap-2.5">
             {DEGREE_OPTION_IDS.slice(4).map(renderDegree)}
           </div>
-        </div>
+        </div>}
       </div>
     </Card>
   )

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createAudioContext, unlockAudioContextSync } from '../audio/context'
 import { createPiano, type Piano } from '../audio/piano'
 import { getQuizPitchKey, type Quiz } from '../quiz/intervals'
-import { getMelodyScaleDegreeQuizKey, type MelodyScaleDegreeQuiz } from '../quiz/keys'
+import { getScaleDegreeSequenceQuizKey, type SequenceScaleDegreeQuiz } from '../quiz/keys'
 import { replayMelodyScaleDegreeQuiz, replayQuiz, stopPlayback, type Settings } from '../quiz/sequencer'
 import { isAbortError } from '../utils/abort'
 
@@ -183,7 +183,7 @@ export function useAudioEngine() {
   )
 
   const handlePlayMelodyQuiz = useCallback(
-    async (quiz: MelodyScaleDegreeQuiz, settings: Settings, replayBlocked: boolean) => {
+    async (quiz: SequenceScaleDegreeQuiz, settings: Settings, replayBlocked: boolean) => {
       if (replayBlocked || replayingQuizKey !== null) {
         return
       }
@@ -193,7 +193,7 @@ export function useAudioEngine() {
 
       const controller = new AbortController()
       replayAbortRef.current = controller
-      const pitchKey = getMelodyScaleDegreeQuizKey(quiz)
+      const pitchKey = getScaleDegreeSequenceQuizKey(quiz)
       setReplayingQuizKey(pitchKey)
 
       try {

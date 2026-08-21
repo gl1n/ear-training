@@ -1,13 +1,13 @@
 import {
   formatMelodyDegrees,
   formatMelodySolfege,
-  type MelodyScaleDegreeQuiz,
+  type SequenceScaleDegreeQuiz,
 } from '../quiz/keys'
 
 type PlayableMelodyAnswerCardVariant = 'compact' | 'prominent'
 
 type PlayableMelodyAnswerCardProps = {
-  quiz: MelodyScaleDegreeQuiz
+  quiz: SequenceScaleDegreeQuiz
   variant?: PlayableMelodyAnswerCardVariant
   isPlaying?: boolean
   disabled?: boolean
@@ -60,13 +60,14 @@ export function PlayableMelodyAnswerCard({
   const degreeLabel = formatMelodyDegrees(quiz.degrees)
   const solfegeLabel = formatMelodySolfege(quiz.degrees)
   const playing = isPlaying
+  const sequenceLabel = quiz.sequenceType === 'crossRegister' ? '跨音区' : '旋律'
 
   return (
     <button
       type="button"
       onClick={onPlay}
       disabled={disabled || playing}
-      aria-label={`回放旋律 ${degreeLabel}，${quiz.keyLabel}`}
+      aria-label={`回放${sequenceLabel} ${degreeLabel}，${quiz.keyLabel}`}
       className={`group ${styles.button}`}
     >
       <div className="flex items-center justify-center gap-2">
@@ -86,7 +87,7 @@ export function PlayableMelodyAnswerCard({
         <p className="mt-2 text-xs text-[var(--text-secondary)]">{subtitle}</p>
       )}
 
-      <p className={`mt-1 ${styles.name}`}>旋律 {degreeLabel}</p>
+      <p className={`mt-1 ${styles.name}`}>{sequenceLabel} {degreeLabel}</p>
       <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{solfegeLabel}</p>
       <p className="mt-1 text-xs text-[var(--text-secondary)]/80">{quiz.keyLabel}</p>
     </button>

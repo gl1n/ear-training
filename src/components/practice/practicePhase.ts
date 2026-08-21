@@ -7,6 +7,7 @@ export function getPracticePhase(state: TrainerState) {
   if (LISTENING_STATES.includes(state)) return 'listening' as const
   if (state === 'awaiting_answer') return 'answer' as const
   if (state === 'answer_correction') return 'correction' as const
+  if (state === 'answer_revealed') return 'review' as const
   if (state === 'feedback_incorrect') return 'wrong' as const
   return 'idle' as const
 }

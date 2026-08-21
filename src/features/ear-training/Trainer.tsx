@@ -6,7 +6,7 @@ import { getInitialSettings, usePersistedSettings } from '../../hooks/usePersist
 import { useTrainingStats } from '../../hooks/useTrainingStats'
 import { useSessionGoal } from '../../hooks/useSessionGoal'
 import { ALL_INTERVAL_IDS, type IntervalDirection, type Quiz } from '../../quiz/intervals'
-import { isMelodyScaleDegreeQuiz, type ScaleDegreeQuiz, type MelodyScaleDegreeQuiz } from '../../quiz/keys'
+import { isSequenceScaleDegreeQuiz, type ScaleDegreeQuiz, type SequenceScaleDegreeQuiz, type ScaleDegreeTrainingMode } from '../../quiz/keys'
 import { getTotalAnswerCount } from '../../quiz/stats'
 import {
   buildIntervalSpeedLoopCallbacks,
@@ -53,8 +53,8 @@ export function Trainer() {
   const [scaleDegreeReviewEnabled, setScaleDegreeReviewEnabled] = useState(
     initial.scaleDegreeReviewEnabled,
   )
-  const [scaleDegreeMelodyEnabled, setScaleDegreeMelodyEnabled] = useState(
-    initial.scaleDegreeMelodyEnabled,
+  const [scaleDegreeTrainingMode, setScaleDegreeTrainingMode] = useState<ScaleDegreeTrainingMode>(
+    initial.scaleDegreeTrainingMode,
   )
   const [melodyCorrectDegrees, setMelodyCorrectDegrees] = useState<string[]>([])
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -106,6 +106,7 @@ export function Trainer() {
     setLoadProgress,
     setLoadIndeterminate,
     setLoadError,
+    playMidi,
   } = useAudioEngine()
   const {
     sessionStats,
@@ -153,7 +154,7 @@ export function Trainer() {
     direction: settings.direction,
     mode,
     scaleDegreeReviewEnabled,
-    scaleDegreeMelodyEnabled,
+    scaleDegreeTrainingMode,
     sessionSize,
     chordDegrees,
     chordRhythm,
@@ -225,13 +226,13 @@ export function Trainer() {
       if (LISTENING_STATES.includes(nextState)) {
         setChallengeEncouragement(null)
         setCorrectionWrongSelection(null)
-        if (mode === 'scaleDegree' && scaleDegreeMelodyEnabled && nextState === 'playing_root') {
+        if (mode === 'scaleDegree' && scaleDegreeTrainingMode !== 'single' && nextState === 'playing_root') {
           resetMelodyProgress()
         }
       }
       setState(nextState)
     },
-    [mode, scaleDegreeMelodyEnabled, resetMelodyProgress],
+    [mode, scaleDegreeTrainingMode, resetMelodyProgress],
   )
 
   const handleMelodyNoteResolved = useCallback((noteIndex: number, degree: number, correct: boolean) => {
@@ -269,17 +270,21 @@ export function Trainer() {
   )
 
   const handlePlayMelodyQuiz = useCallback(
-    (quiz: MelodyScaleDegreeQuiz) => {
+    (quiz: SequenceScaleDegreeQuiz) => {
       void replayMelodyQuizAudio(quiz, settings, replayBlocked)
     },
     [replayMelodyQuizAudio, replayBlocked, settings],
   )
 
   const handleReplayCurrentMelody = useCallback(() => {
-    if (currentScaleDegreeQuiz && isMelodyScaleDegreeQuiz(currentScaleDegreeQuiz)) {
+    if (currentScaleDegreeQuiz && isSequenceScaleDegreeQuiz(currentScaleDegreeQuiz)) {
       void replayMelodyQuizAudio(currentScaleDegreeQuiz, settings, false)
     }
   }, [currentScaleDegreeQuiz, replayMelodyQuizAudio, settings])
+
+  const handlePlayScaleDegreeDo = useCallback(() => {
+    if (currentScaleDegreeQuiz) playMidi(currentScaleDegreeQuiz.tonicMidi)
+  }, [currentScaleDegreeQuiz, playMidi])
 
   const start = useCallback(async () => {
     if (mode !== 'scaleDegree' && mode !== 'chordDegree' && mode !== 'chordProgression' && settings.enabledIntervalIds.length === 0) {
@@ -305,7 +310,8 @@ export function Trainer() {
       setLastScaleDegreeQuiz(null)
       setCurrentKeyLabel(null)
       setScaleDegreeGameStarted(false)
-      clearNewBestRecord(scaleDegreeMelodyEnabled ? 'scaleDegreeMelody' : 'scaleDegree')
+      if (scaleDegreeTrainingMode === 'single') clearNewBestRecord('scaleDegree')
+      if (scaleDegreeTrainingMode === 'melody') clearNewBestRecord('scaleDegreeMelody')
     }
     if (mode === 'chordDegree') setChordDegreeQuiz(null)
 
@@ -393,9 +399,11 @@ export function Trainer() {
               waitForChallengeAnswer(signal).then((answer) => ({
                 selectedDegree: answer,
               })),
+            waitForNextQuestion: (signal) =>
+              waitForChallengeAnswer(signal).then(() => undefined),
             onAnswerCorrectionStart: handleAnswerCorrectionStart,
-            onMelodyNoteResolved: handleMelodyNoteResolved,
-            melodyEnabled: scaleDegreeMelodyEnabled,
+            onSequenceNoteResolved: handleMelodyNoteResolved,
+            trainingMode: scaleDegreeTrainingMode,
             setLastScaleDegreeQuiz,
             recordScaleDegreeQuizMistake,
             appendSessionScaleDegreeMistake,
@@ -411,7 +419,7 @@ export function Trainer() {
           scaleDegreeMistakeStoreRef.current,
           scaleDegreeMelodyMistakeStoreRef.current,
           scaleDegreeReviewEnabled,
-          scaleDegreeMelodyEnabled,
+          scaleDegreeTrainingMode,
         )
       } else {
         await runIntervalFollowLoop(
@@ -436,10 +444,10 @@ export function Trainer() {
         if (mode === 'intervalSpeed') {
           finalizeChallengeSession(sessionStatsRef.current, 'intervalSpeed')
         }
-        if (mode === 'scaleDegree') {
+        if (mode === 'scaleDegree' && scaleDegreeTrainingMode !== 'crossRegister') {
           finalizeChallengeSession(
             sessionStatsRef.current,
-            scaleDegreeMelodyEnabled ? 'scaleDegreeMelody' : 'scaleDegree',
+            scaleDegreeTrainingMode === 'single' ? 'scaleDegree' : 'scaleDegreeMelody',
           )
         }
 
@@ -464,7 +472,7 @@ export function Trainer() {
     chordDegreeCustomDegrees,
     chordDegreeInversionMode,
     scaleDegreeReviewEnabled,
-    scaleDegreeMelodyEnabled,
+    scaleDegreeTrainingMode,
     resetChallengeAnswerState,
     resetSessionState,
     settings,
@@ -521,7 +529,9 @@ export function Trainer() {
       }
       if (!isRunning || !/^Digit[1-9]$/.test(event.code)) return
       const digit = Number(event.code.slice(-1))
-      if (mode === 'scaleDegree' && digit <= 7) handleAnswerSelect(String(digit))
+      if (mode === 'scaleDegree' && state !== 'answer_revealed' && digit <= 7) {
+        handleAnswerSelect(String(digit))
+      }
       if (mode === 'chordDegree') {
         const enabledDegrees = getChordDegreesForRange(chordDegreeRange, chordDegreeCustomDegrees)
         if (enabledDegrees.some((degree) => degree === digit)) handleAnswerSelect(String(digit))
@@ -533,7 +543,7 @@ export function Trainer() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [chordDegreeCustomDegrees, chordDegreeRange, handleAnswerSelect, handleToggle, isRunning, mode, settings.enabledIntervalIds])
+  }, [chordDegreeCustomDegrees, chordDegreeRange, handleAnswerSelect, handleToggle, isRunning, mode, settings.enabledIntervalIds, state])
 
   const handleScaleDegreeHome = useCallback(() => {
     setLastScaleDegreeQuiz(null)
@@ -724,8 +734,8 @@ export function Trainer() {
         sessionScaleDegreeMelodyMistakes={sessionScaleDegreeMelodyMistakes}
         scaleDegreeReviewEnabled={scaleDegreeReviewEnabled}
         onScaleDegreeReviewChange={setScaleDegreeReviewEnabled}
-        scaleDegreeMelodyEnabled={scaleDegreeMelodyEnabled}
-        onScaleDegreeMelodyChange={setScaleDegreeMelodyEnabled}
+        scaleDegreeTrainingMode={scaleDegreeTrainingMode}
+        onScaleDegreeTrainingModeChange={setScaleDegreeTrainingMode}
         melodyCorrectDegrees={melodyCorrectDegrees}
         sessionStats={sessionStats}
         sessionSize={sessionSize}
@@ -748,6 +758,7 @@ export function Trainer() {
         onPlayQuiz={handlePlayQuiz}
         onPlayMelodyQuiz={handlePlayMelodyQuiz}
         onReplayCurrentMelody={handleReplayCurrentMelody}
+        onPlayScaleDegreeDo={handlePlayScaleDegreeDo}
         onScaleDegreeHome={handleScaleDegreeHome}
         chordDegrees={chordDegrees}
         currentChord={currentChord}

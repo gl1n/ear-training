@@ -1,6 +1,6 @@
 import type { MutableRefObject } from 'react'
 import type { Quiz } from './intervals'
-import { formatMelodyDegrees, type MajorKeySession, type ScaleDegreeQuiz } from './keys'
+import { formatMelodyDegrees, type MajorKeySession, type ScaleDegreeQuiz, type ScaleDegreeTrainingMode } from './keys'
 import type { ScaleDegreeMistakeRecord } from './scaleDegreeMistakeStats'
 import type { ScaleDegreeMelodyMistakeRecord } from './scaleDegreeMelodyMistakeStats'
 import {
@@ -78,9 +78,10 @@ type ScaleDegreeHandlerDeps = ChallengeHandlerDeps & {
   onQuiz?: ScaleDegreeCallbacks['onQuiz']
   waitForGameStart: ScaleDegreeCallbacks['waitForGameStart']
   waitForAnswer: ScaleDegreeCallbacks['waitForAnswer']
+  waitForNextQuestion?: ScaleDegreeCallbacks['waitForNextQuestion']
   onAnswerCorrectionStart?: (wrongSelection: string) => void
-  onMelodyNoteResolved?: ScaleDegreeCallbacks['onMelodyNoteResolved']
-  melodyEnabled?: boolean
+  onSequenceNoteResolved?: ScaleDegreeCallbacks['onSequenceNoteResolved']
+  trainingMode?: ScaleDegreeTrainingMode
   setLastScaleDegreeQuiz: (quiz: ScaleDegreeQuiz) => void
   recordScaleDegreeQuizMistake: (record: ScaleDegreeMistakeRecord) => void
   appendSessionScaleDegreeMistake: (record: ScaleDegreeMistakeRecord) => void
@@ -95,9 +96,10 @@ export function buildScaleDegreeLoopCallbacks({
   onQuiz,
   waitForGameStart,
   waitForAnswer,
+  waitForNextQuestion,
   onAnswerCorrectionStart,
-  onMelodyNoteResolved,
-  melodyEnabled = false,
+  onSequenceNoteResolved,
+  trainingMode = 'single',
   setLastScaleDegreeQuiz,
   recordScaleDegreeQuizMistake,
   appendSessionScaleDegreeMistake,
@@ -115,13 +117,14 @@ export function buildScaleDegreeLoopCallbacks({
     onQuiz,
     waitForGameStart,
     waitForAnswer,
+    waitForNextQuestion,
     onAnswerCorrectionStart,
-    onMelodyNoteResolved,
-    onMelodyGroupSubmitted: (quiz, correct) => {
+    onSequenceNoteResolved,
+    onSequenceGroupSubmitted: (quiz, correct) => {
       setLastScaleDegreeQuiz(quiz)
       const pattern = formatMelodyDegrees(quiz.degrees)
 
-      if (!correct) {
+      if (!correct && trainingMode === 'melody') {
         const record: ScaleDegreeMelodyMistakeRecord = { pattern }
         recordScaleDegreeMelodyQuizMistake(record)
         appendSessionScaleDegreeMelodyMistake(record)
@@ -133,7 +136,7 @@ export function buildScaleDegreeLoopCallbacks({
     onAnswerSubmitted: (quiz, answer, correct) => {
       setLastScaleDegreeQuiz(quiz)
 
-      if (melodyEnabled) {
+      if (trainingMode !== 'single') {
         if (!correct && answer.selectedDegree !== '') {
           onAnswerCorrectionStart?.(answer.selectedDegree)
         }

@@ -29,6 +29,19 @@ export type MajorKeySession = {
 }
 
 export const MELODY_NOTE_COUNT = 3
+export const CROSS_REGISTER_NOTE_COUNT = 2
+/** 跨音区两音至少相隔纯五度，避免贴着音区分界线却听起来仍在同一区域。 */
+export const CROSS_REGISTER_MIN_DISTANCE_SEMITONES = 7
+export const SCALE_DEGREE_REGISTERS = ['low', 'middle', 'high'] as const
+export type ScaleDegreeRegister = (typeof SCALE_DEGREE_REGISTERS)[number]
+
+const CROSS_REGISTER_PAIRS: readonly (readonly [ScaleDegreeRegister, ScaleDegreeRegister])[] = [
+  ['low', 'middle'],
+  ['low', 'high'],
+  ['middle', 'high'],
+]
+
+export type ScaleDegreeTrainingMode = 'single' | 'crossRegister' | 'melody'
 
 export type ScaleDegreeQuiz = {
   tonicMidi: number
@@ -41,12 +54,34 @@ export type ScaleDegreeQuiz = {
 export type MelodyScaleDegreeQuiz = ScaleDegreeQuiz & {
   noteMidis: readonly [number, number, number]
   degrees: readonly [number, number, number]
+  sequenceType: 'melody'
 }
+
+export type CrossRegisterScaleDegreeQuiz = ScaleDegreeQuiz & {
+  noteMidis: readonly [number, number]
+  degrees: readonly [number, number]
+  registers: readonly [ScaleDegreeRegister, ScaleDegreeRegister]
+  sequenceType: 'crossRegister'
+}
+
+export type SequenceScaleDegreeQuiz = MelodyScaleDegreeQuiz | CrossRegisterScaleDegreeQuiz
 
 export function isMelodyScaleDegreeQuiz(
   quiz: ScaleDegreeQuiz,
 ): quiz is MelodyScaleDegreeQuiz {
-  return 'noteMidis' in quiz && Array.isArray(quiz.noteMidis)
+  return 'sequenceType' in quiz && quiz.sequenceType === 'melody'
+}
+
+export function isCrossRegisterScaleDegreeQuiz(
+  quiz: ScaleDegreeQuiz,
+): quiz is CrossRegisterScaleDegreeQuiz {
+  return 'sequenceType' in quiz && quiz.sequenceType === 'crossRegister'
+}
+
+export function isSequenceScaleDegreeQuiz(
+  quiz: ScaleDegreeQuiz,
+): quiz is SequenceScaleDegreeQuiz {
+  return isMelodyScaleDegreeQuiz(quiz) || isCrossRegisterScaleDegreeQuiz(quiz)
 }
 
 export function formatMelodyDegrees(degrees: readonly number[]): string {
@@ -59,9 +94,12 @@ export function formatMelodySolfege(degrees: readonly number[]): string {
     .join(' · ')
 }
 
-export function getMelodyScaleDegreeQuizKey(quiz: MelodyScaleDegreeQuiz): string {
-  return `melody:${quiz.tonicMidi}:${quiz.noteMidis.join('-')}`
+export function getScaleDegreeSequenceQuizKey(quiz: SequenceScaleDegreeQuiz): string {
+  return `${quiz.sequenceType}:${quiz.tonicMidi}:${quiz.noteMidis.join('-')}`
 }
+
+/** @deprecated Use getScaleDegreeSequenceQuizKey. */
+export const getMelodyScaleDegreeQuizKey = getScaleDegreeSequenceQuizKey
 
 export function formatMajorKeyLabel(tonicMidi: number): string {
   const pitchName = midiToNoteName(tonicMidi).replace(/\d+$/, '')
@@ -299,8 +337,83 @@ function buildMelodyQuiz(
     degree: degrees[2],
     noteMidis,
     degrees,
+    sequenceType: 'melody',
     keyLabel: session.label,
     previousNoteMidi,
+  }
+}
+
+/**
+ * 跨音区题从低、中、高三个音区随机选择两个，并随机决定播放方向；
+ * 不允许两个音为同一音级，也会过滤听感上过近的音区边界组合。
+ */
+export function randomCrossRegisterScaleDegreeQuiz(
+  session: MajorKeySession,
+  rootMin: number,
+  rootMax: number,
+  sessionDegreeWeights?: SessionDegreeWeights,
+): CrossRegisterScaleDegreeQuiz {
+  const [lowerRegister, upperRegister] = pickUniform(CROSS_REGISTER_PAIRS)!
+  const lowerIndex = SCALE_DEGREE_REGISTERS.indexOf(lowerRegister)
+  const upperIndex = SCALE_DEGREE_REGISTERS.indexOf(upperRegister)
+  const lowerMidis = listDiatonicMidisInRange(
+    session.tonicPitchClass,
+    rootMin + lowerIndex * 12,
+    Math.min(rootMin + lowerIndex * 12 + 11, rootMax),
+  )
+  const upperMidis = listDiatonicMidisInRange(
+    session.tonicPitchClass,
+    rootMin + upperIndex * 12,
+    Math.min(rootMin + upperIndex * 12 + 11, rootMax),
+  )
+
+  if (lowerMidis.length === 0 || upperMidis.length === 0) {
+    throw new Error('音域不足以生成跨音区题目')
+  }
+
+  const lowerMidi = pickRandomNoteMidi(
+    lowerMidis,
+    session.tonicPitchClass,
+    null,
+    sessionDegreeWeights,
+  )
+  const lowerDegree = midiToDegree(session.tonicPitchClass, lowerMidi)!
+  const differentDegreeMidis = upperMidis.filter(
+    (midi) =>
+      midi - lowerMidi >= CROSS_REGISTER_MIN_DISTANCE_SEMITONES &&
+      midiToDegree(session.tonicPitchClass, midi) !== lowerDegree,
+  )
+  if (differentDegreeMidis.length === 0) {
+    throw new Error('音域不足以生成音高距离清晰的跨音区题目')
+  }
+  const upperMidi = pickRandomNoteMidi(
+    differentDegreeMidis,
+    session.tonicPitchClass,
+    lowerMidi,
+    sessionDegreeWeights,
+  )
+  const upperDegree = midiToDegree(session.tonicPitchClass, upperMidi)!
+  const upward = Math.random() < 0.5
+  const noteMidis: [number, number] = upward
+    ? [lowerMidi, upperMidi]
+    : [upperMidi, lowerMidi]
+  const degrees: [number, number] = upward
+    ? [lowerDegree, upperDegree]
+    : [upperDegree, lowerDegree]
+  const registers: [ScaleDegreeRegister, ScaleDegreeRegister] = upward
+    ? [lowerRegister, upperRegister]
+    : [upperRegister, lowerRegister]
+
+  return {
+    tonicMidi: session.tonicMidi,
+    noteMidi: noteMidis[1],
+    degree: degrees[1],
+    noteMidis,
+    degrees,
+    registers,
+    sequenceType: 'crossRegister',
+    keyLabel: session.label,
+    previousNoteMidi: null,
   }
 }
 

@@ -6,6 +6,8 @@ import {
 } from './stats'
 import {
   DEGREE_OPTION_IDS,
+  CROSS_REGISTER_MIN_DISTANCE_SEMITONES,
+  SCALE_DEGREE_REGISTERS,
   NOTE_KEY_QUIZ_SPAN_SEMITONES,
   createMajorKeySession,
   getDiatonicSpanInRange,
@@ -16,6 +18,7 @@ import {
   scaleDegreeQuizFromMistake,
   randomScaleDegreeQuiz,
   randomMelodyScaleDegreeQuiz,
+  randomCrossRegisterScaleDegreeQuiz,
   melodyScaleDegreeQuizFromMistake,
   formatMelodyDegrees,
   formatMajorKeyLabel,
@@ -26,6 +29,43 @@ import {
 describe('getTonicChordRootRange', () => {
   it('centers chord roots in the middle of the playable range', () => {
     expect(getTonicChordRootRange(48, 85)).toEqual({ min: 56, max: 70 })
+  })
+})
+
+describe('randomCrossRegisterScaleDegreeQuiz', () => {
+  it('plays clearly separated notes across all register pairs and directions', () => {
+    const session = { tonicMidi: 60, tonicPitchClass: 0, label: 'C 大调' }
+    const directions = new Set<string>()
+
+    withSeededRandom(0xc0ff_ee12, () => {
+      for (let i = 0; i < 200; i++) {
+        const quiz = randomCrossRegisterScaleDegreeQuiz(session, 48, 85)
+        directions.add(quiz.registers.join('-'))
+
+        expect(quiz.sequenceType).toBe('crossRegister')
+        for (let noteIndex = 0; noteIndex < quiz.noteMidis.length; noteIndex++) {
+          const registerIndex = SCALE_DEGREE_REGISTERS.indexOf(quiz.registers[noteIndex]!)
+          expect(quiz.noteMidis[noteIndex]).toBeGreaterThanOrEqual(48 + registerIndex * 12)
+          expect(quiz.noteMidis[noteIndex]).toBeLessThanOrEqual(59 + registerIndex * 12)
+          expect(midiToDegree(session.tonicPitchClass, quiz.noteMidis[noteIndex]!)).toBe(
+            quiz.degrees[noteIndex],
+          )
+        }
+        expect(Math.abs(quiz.noteMidis[1] - quiz.noteMidis[0])).toBeGreaterThanOrEqual(
+          CROSS_REGISTER_MIN_DISTANCE_SEMITONES,
+        )
+        expect(quiz.degrees[0]).not.toBe(quiz.degrees[1])
+      }
+    })
+
+    expect(directions).toEqual(new Set([
+      'low-middle',
+      'middle-low',
+      'low-high',
+      'high-low',
+      'middle-high',
+      'high-middle',
+    ]))
   })
 })
 

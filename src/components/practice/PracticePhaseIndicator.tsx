@@ -8,6 +8,7 @@ type PracticePhaseIndicatorProps = {
   state: TrainerState
   variant: PracticePhaseVariant
   melodyEnabled?: boolean
+  sequenceNoteCount?: number
 }
 
 function getPhase(state: TrainerState) {
@@ -18,12 +19,13 @@ function getListeningLabel(
   state: TrainerState,
   variant: PracticePhaseVariant,
   melodyEnabled: boolean,
+  sequenceNoteCount: number,
 ): string {
   if (variant === 'scaleDegree') {
     if (melodyEnabled) {
       if (state === 'playing_root') return '第一音'
       if (state === 'playing_second') return '第二音'
-      if (state === 'playing_note') return '第三音'
+      if (state === 'playing_note') return sequenceNoteCount === 2 ? '第二音' : '第三音'
       return '聆听'
     }
 
@@ -39,6 +41,7 @@ export function PracticePhaseIndicator({
   state,
   variant,
   melodyEnabled = false,
+  sequenceNoteCount = 3,
 }: PracticePhaseIndicatorProps) {
   const phase = getPhase(state)
 
@@ -52,7 +55,7 @@ export function PracticePhaseIndicator({
   }
 
   if (phase === 'listening') {
-    const label = getListeningLabel(state, variant, melodyEnabled)
+    const label = getListeningLabel(state, variant, melodyEnabled, sequenceNoteCount)
     const listeningTextClass = variant === 'scaleDegree' ? 'text-sky-200' : 'text-sky-300'
     const wrapperClass =
       variant === 'scaleDegree'
@@ -99,6 +102,15 @@ export function PracticePhaseIndicator({
       <span className={correctionClass}>
         <span className="h-2 w-2 rounded-full bg-amber-400" />
         请重新选择
+      </span>
+    )
+  }
+
+  if (phase === 'review') {
+    return (
+      <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-sm font-medium text-emerald-200 ring-1 ring-emerald-400/25">
+        <span className="h-2 w-2 rounded-full bg-emerald-400" />
+        答案回顾
       </span>
     )
   }

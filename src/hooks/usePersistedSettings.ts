@@ -21,6 +21,7 @@ import type {
 } from '../quiz/chordDegreeQuiz'
 import { useDebouncedPersist } from './useDebouncedPersist'
 import type { SessionSize } from './useSessionGoal'
+import type { ScaleDegreeTrainingMode } from '../quiz/keys'
 
 import { STORAGE_KEYS } from '../quiz/storageKeys'
 import { readStorage, writeStorage } from '../utils/storage'
@@ -33,7 +34,7 @@ export type EarTrainingPreferences = {
   direction: IntervalDirection
   mode: AppMode
   scaleDegreeReviewEnabled: boolean
-  scaleDegreeMelodyEnabled: boolean
+  scaleDegreeTrainingMode: ScaleDegreeTrainingMode
   sessionSize: SessionSize
   chordDegrees: ChordDegree[]
   chordRhythm: ChordRhythm
@@ -53,7 +54,7 @@ const DEFAULT_PREFERENCES: EarTrainingPreferences = {
   direction: 'ascending',
   mode: 'scaleDegree',
   scaleDegreeReviewEnabled: false,
-  scaleDegreeMelodyEnabled: false,
+  scaleDegreeTrainingMode: 'single',
   sessionSize: 10,
   chordDegrees: [1, 6, 4, 5],
   chordRhythm: { bpm: 80, beatsPerChord: 4, countInBeats: 0, feel: 'breathe' },
@@ -77,6 +78,10 @@ function isSpeedPreset(value: unknown): value is SpeedPreset {
 
 function isIntervalDirection(value: unknown): value is IntervalDirection {
   return value === 'ascending' || value === 'descending' || value === 'harmonic'
+}
+
+function isScaleDegreeTrainingMode(value: unknown): value is ScaleDegreeTrainingMode {
+  return value === 'single' || value === 'crossRegister' || value === 'melody'
 }
 
 function validArray<T>(
@@ -156,9 +161,11 @@ export function loadEarTrainingPreferences(): EarTrainingPreferences {
       scaleDegreeReviewEnabled: typeof record.scaleDegreeReviewEnabled === 'boolean'
         ? record.scaleDegreeReviewEnabled
         : defaults.scaleDegreeReviewEnabled,
-      scaleDegreeMelodyEnabled: typeof record.scaleDegreeMelodyEnabled === 'boolean'
-        ? record.scaleDegreeMelodyEnabled
-        : defaults.scaleDegreeMelodyEnabled,
+      scaleDegreeTrainingMode: isScaleDegreeTrainingMode(record.scaleDegreeTrainingMode)
+        ? record.scaleDegreeTrainingMode
+        : record.scaleDegreeMelodyEnabled === true
+          ? 'melody'
+          : defaults.scaleDegreeTrainingMode,
       sessionSize: record.sessionSize === 20 || record.sessionSize === 30 ? record.sessionSize : 10,
       chordDegrees: chordDegrees && chordDegrees.length >= 4 && chordDegrees.length <= 8
         ? chordDegrees

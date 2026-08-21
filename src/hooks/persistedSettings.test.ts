@@ -29,7 +29,7 @@ describe('persisted user settings', () => {
         direction: 'harmonic',
         mode: 'chordProgression',
         scaleDegreeReviewEnabled: true,
-        scaleDegreeMelodyEnabled: true,
+        scaleDegreeTrainingMode: 'crossRegister',
         sessionSize: 30,
         chordDegrees: [4, 5, 3, 6, 2, 5, 1],
         chordRhythm: { bpm: 125, beatsPerChord: 2, countInBeats: 4, feel: 'sustain' },
@@ -53,6 +53,7 @@ describe('persisted user settings', () => {
       enabledIntervalIds: [],
       direction: 'harmonic',
       mode: 'chordProgression',
+      scaleDegreeTrainingMode: 'crossRegister',
       sessionSize: 30,
       chordDegrees: [4, 5, 3, 6, 2, 5, 1],
       chordRhythm: { bpm: 125, beatsPerChord: 2, countInBeats: 4, feel: 'sustain' },
@@ -64,6 +65,14 @@ describe('persisted user settings', () => {
       chordDegreeCustomDegrees: [2, 5, 7],
       chordDegreeInversionMode: 'random',
     })
+  })
+
+  it('migrates the legacy melody toggle to the melody training mode', () => {
+    vi.stubGlobal('localStorage', createLocalStorageMock({
+      [STORAGE_KEYS.settings]: JSON.stringify({ scaleDegreeMelodyEnabled: true }),
+    }))
+
+    expect(loadEarTrainingPreferences().scaleDegreeTrainingMode).toBe('melody')
   })
 
   it('keeps valid legacy fields while invalid new fields fall back independently', () => {

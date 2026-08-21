@@ -12,7 +12,7 @@ import { StatusHero } from '../../components/StatusHero'
 import { Button } from '../../common/ui/Button'
 import { SegmentedControl } from '../../common/ui/SegmentedControl'
 import type { Quiz } from '../../quiz/intervals'
-import type { ScaleDegreeQuiz, MelodyScaleDegreeQuiz } from '../../quiz/keys'
+import type { ScaleDegreeQuiz, ScaleDegreeTrainingMode, SequenceScaleDegreeQuiz } from '../../quiz/keys'
 import type { ScaleDegreeMistakeStatsStore } from '../../quiz/scaleDegreeMistakeStats'
 import type { ScaleDegreeMelodyMistakeStatsStore } from '../../quiz/scaleDegreeMelodyMistakeStats'
 import type { TrainingStatsViewModel } from '../../hooks/useTrainingStats'
@@ -56,8 +56,8 @@ type PracticeViewProps = {
   sessionScaleDegreeMelodyMistakes: ScaleDegreeMelodyMistakeStatsStore
   scaleDegreeReviewEnabled: boolean
   onScaleDegreeReviewChange: (enabled: boolean) => void
-  scaleDegreeMelodyEnabled: boolean
-  onScaleDegreeMelodyChange: (enabled: boolean) => void
+  scaleDegreeTrainingMode: ScaleDegreeTrainingMode
+  onScaleDegreeTrainingModeChange: (mode: ScaleDegreeTrainingMode) => void
   melodyCorrectDegrees: string[]
   sessionStats: SessionStats
   sessionSize: 10 | 20 | 30
@@ -78,8 +78,9 @@ type PracticeViewProps = {
   replayingQuizKey: string | null
   isReplayBusy: boolean
   onPlayQuiz: (quiz: Quiz) => void
-  onPlayMelodyQuiz: (quiz: MelodyScaleDegreeQuiz) => void
+  onPlayMelodyQuiz: (quiz: SequenceScaleDegreeQuiz) => void
   onReplayCurrentMelody: () => void
+  onPlayScaleDegreeDo: () => void
   onScaleDegreeHome: () => void
   chordDegrees: ChordDegree[]
   currentChord: PlayedChord | null
@@ -133,8 +134,8 @@ export function PracticeView({
   sessionScaleDegreeMelodyMistakes,
   scaleDegreeReviewEnabled,
   onScaleDegreeReviewChange,
-  scaleDegreeMelodyEnabled,
-  onScaleDegreeMelodyChange,
+  scaleDegreeTrainingMode,
+  onScaleDegreeTrainingModeChange,
   melodyCorrectDegrees,
   sessionStats,
   sessionSize,
@@ -157,6 +158,7 @@ export function PracticeView({
   onPlayQuiz,
   onPlayMelodyQuiz,
   onReplayCurrentMelody,
+  onPlayScaleDegreeDo,
   onScaleDegreeHome,
   chordDegrees,
   currentChord,
@@ -318,15 +320,18 @@ export function PracticeView({
             currentKeyLabel={currentKeyLabel}
             encouragement={challengeEncouragement}
             correctionWrongSelection={correctionWrongSelection}
-            melodyEnabled={scaleDegreeMelodyEnabled}
+            trainingMode={scaleDegreeTrainingMode}
             melodyCorrectDegrees={melodyCorrectDegrees}
             currentQuiz={currentScaleDegreeQuiz}
             isReplayBusy={isReplayBusy}
             loadProgress={loadProgress}
             loadIndeterminate={loadIndeterminate}
             loadError={loadError}
+            isLastQuestion={completedQuestions >= sessionSize}
             onSelect={onAnswerSelect}
+            onPlayDo={onPlayScaleDegreeDo}
             onReplayMelody={onReplayCurrentMelody}
+            onNextQuestion={() => onAnswerSelect('__next__')}
             onRetry={loadError ? onRetry : undefined}
           />
         ) : isRunning ? (
@@ -346,13 +351,13 @@ export function PracticeView({
             sessionMelodyMistakes={sessionScaleDegreeMelodyMistakes}
             trainingStats={trainingStats}
             scaleDegreeReviewEnabled={scaleDegreeReviewEnabled}
-            scaleDegreeMelodyEnabled={scaleDegreeMelodyEnabled}
+            scaleDegreeTrainingMode={scaleDegreeTrainingMode}
             isRunning={isRunning}
             replayingQuizKey={replayingQuizKey}
             isReplayBusy={isReplayBusy}
             onPlayMelodyQuiz={onPlayMelodyQuiz}
             onScaleDegreeReviewChange={onScaleDegreeReviewChange}
-            onScaleDegreeMelodyChange={onScaleDegreeMelodyChange}
+            onScaleDegreeTrainingModeChange={onScaleDegreeTrainingModeChange}
             onHome={onScaleDegreeHome}
             sessionCompleted={sessionCompleted}
             onPracticeWeakest={onPracticeWeakest}
