@@ -141,6 +141,14 @@ export function midiToDegree(tonicPitchClass: number, midi: number): number | nu
   return index === -1 ? null : index + 1
 }
 
+export function midiToScaleDegreeRegister(
+  tonicMidi: number,
+  midi: number,
+): ScaleDegreeRegister | null {
+  const registerIndex = Math.floor((midi - tonicMidi) / 12) + 1
+  return SCALE_DEGREE_REGISTERS[registerIndex] ?? null
+}
+
 export function getTonicChordRootRange(
   rootMin: number,
   rootMax: number,
@@ -389,18 +397,16 @@ export function randomCrossRegisterScaleDegreeQuiz(
     return (sessionDegreeWeights?.[lowerDegree] ?? 1) *
       (sessionDegreeWeights?.[upperDegree] ?? 1)
   })!
-  const lowerDegree = midiToDegree(session.tonicPitchClass, lowerMidi)!
-  const upperDegree = midiToDegree(session.tonicPitchClass, upperMidi)!
   const upward = Math.random() < 0.5
   const noteMidis: [number, number] = upward
     ? [lowerMidi, upperMidi]
     : [upperMidi, lowerMidi]
-  const degrees: [number, number] = upward
-    ? [lowerDegree, upperDegree]
-    : [upperDegree, lowerDegree]
-  const registers: [ScaleDegreeRegister, ScaleDegreeRegister] = upward
-    ? [lowerRegister, upperRegister]
-    : [upperRegister, lowerRegister]
+  const degrees = noteMidis.map(
+    (midi) => midiToDegree(session.tonicPitchClass, midi)!,
+  ) as [number, number]
+  const registers = noteMidis.map(
+    (midi) => midiToScaleDegreeRegister(session.tonicMidi, midi)!,
+  ) as [ScaleDegreeRegister, ScaleDegreeRegister]
 
   return {
     tonicMidi: session.tonicMidi,

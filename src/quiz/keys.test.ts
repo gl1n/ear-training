@@ -14,6 +14,7 @@ import {
   getTonicMajorTriadMidis,
   listDiatonicMidisInRange,
   midiToDegree,
+  midiToScaleDegreeRegister,
   scaleDegreeQuizFromMistake,
   randomScaleDegreeQuiz,
   randomMelodyScaleDegreeQuiz,
@@ -82,6 +83,7 @@ describe('randomCrossRegisterScaleDegreeQuiz', () => {
       random.mockRestore()
     }
   })
+
 })
 
 describe('getDiatonicSpanInRange', () => {
@@ -301,6 +303,27 @@ describe('randomMelodyScaleDegreeQuiz', () => {
           quiz.degrees[noteIndex],
         )
       }
+    }
+  })
+
+  it('keeps low fa below middle mi and derives both labels from the played pitches', () => {
+    const session = { tonicMidi: 60, tonicPitchClass: 0, label: 'C 大调' }
+    const random = vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(20.5 / 42)
+      .mockReturnValueOnce(0)
+
+    try {
+      const quiz = randomCrossRegisterScaleDegreeQuiz(session, 48, 85)
+
+      expect(quiz.noteMidis).toEqual([53, 64])
+      expect(quiz.degrees).toEqual([4, 3])
+      expect(quiz.registers).toEqual(['low', 'middle'])
+      expect(quiz.noteMidis[0]).toBeLessThan(quiz.noteMidis[1])
+      expect(quiz.noteMidis.map((midi) => midiToScaleDegreeRegister(session.tonicMidi, midi)))
+        .toEqual(quiz.registers)
+    } finally {
+      random.mockRestore()
     }
   })
 })

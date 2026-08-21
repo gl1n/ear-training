@@ -1,4 +1,4 @@
-import { DEGREE_OPTION_IDS, DEGREE_SOLFEGE_LABELS, isCrossRegisterScaleDegreeQuiz, isSequenceScaleDegreeQuiz, type ScaleDegreeQuiz, type ScaleDegreeTrainingMode } from '../quiz/keys'
+import { DEGREE_OPTION_IDS, DEGREE_SOLFEGE_LABELS, isCrossRegisterScaleDegreeQuiz, isSequenceScaleDegreeQuiz, midiToScaleDegreeRegister, type ScaleDegreeQuiz, type ScaleDegreeTrainingMode } from '../quiz/keys'
 import { type TrainerState } from '../quiz/sequencer'
 import { type SessionStats } from '../quiz/stats'
 import { usePracticePlayfieldState } from '../hooks/usePracticePlayfieldState'
@@ -70,7 +70,11 @@ export function ScaleDegreePlayfield({
   const crossRegisterQuiz =
     currentQuiz !== null && isCrossRegisterScaleDegreeQuiz(currentQuiz) ? currentQuiz : null
   const getRegisterLabel = (index: number) => {
-    const register = crossRegisterQuiz?.registers[index]
+    const quiz = crossRegisterQuiz
+    const noteMidi = quiz?.noteMidis[index]
+    const register = quiz === null || noteMidi === undefined
+      ? null
+      : midiToScaleDegreeRegister(quiz.tonicMidi, noteMidi)
     if (register === 'high') return '高音区'
     if (register === 'middle') return '中音区'
     return '低音区'
