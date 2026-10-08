@@ -21,6 +21,7 @@ export type IntervalStats = AnswerKeyStats
 export type SessionStats = {
   byKey: Record<string, AnswerKeyStats>
   totalScore: number
+  listening?: { firstCorrect: number; replayCorrect: number; firstAttempts: number; replayAttempts: number }
 }
 
 export const EMPTY_SESSION_STATS: SessionStats = {
@@ -102,13 +103,23 @@ export function recordChallengeResultNoBonus(
   }
 }
 
-/** 三音旋律：一组全对得 1 分，无反应时间加成。 */
+/** 一组全对得 1 分；整句听写额外区分首听和重听成绩。 */
 export function recordMelodyGroupResult(
   stats: SessionStats,
   patternKey: string,
   correct: boolean,
+  wasReplayed?: boolean,
 ): SessionStats {
   const next = recordResult(stats, patternKey, { correct })
+  if (wasReplayed !== undefined) {
+    const old = stats.listening ?? { firstCorrect: 0, replayCorrect: 0, firstAttempts: 0, replayAttempts: 0 }
+    next.listening = {
+      firstCorrect: old.firstCorrect + (correct && !wasReplayed ? 1 : 0),
+      replayCorrect: old.replayCorrect + (correct && wasReplayed ? 1 : 0),
+      firstAttempts: old.firstAttempts + (!wasReplayed ? 1 : 0),
+      replayAttempts: old.replayAttempts + (wasReplayed ? 1 : 0),
+    }
+  }
 
   if (!correct) {
     return next

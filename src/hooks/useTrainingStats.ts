@@ -1,3 +1,4 @@
+import { appendDegreePracticeHistory, loadDegreePracticeHistory, type DegreePracticeRecord } from '../quiz/degreePracticeHistory'
 import { useCallback, useMemo, useState } from 'react'
 import type { Quiz } from '../quiz/intervals'
 import {
@@ -43,6 +44,7 @@ import { clearAllTrainingStats, hasPersistedTrainingStats } from '../quiz/traini
 import { usePersistedRecentStore } from './usePersistedRecentStore'
 
 export type TrainingStatsViewModel = {
+  degreePracticeHistory: DegreePracticeRecord[]
   mistakeStats: MistakeStatsStore
   scaleDegreeMistakeStats: ScaleDegreeMistakeStatsStore
   scaleDegreeMelodyMistakeStats: ScaleDegreeMelodyMistakeStatsStore
@@ -78,6 +80,10 @@ function createInitialBestRecordState(): Record<ChallengeBestVariant, BestRecord
 }
 
 export function useTrainingStats() {
+  const [degreePracticeHistory, setDegreePracticeHistory] = useState(loadDegreePracticeHistory)
+  const finalizeDegreePractice = useCallback((key: string, stats: SessionStats) => {
+    setDegreePracticeHistory(appendDegreePracticeHistory(key, stats))
+  }, [])
   const {
     storeRef: mistakeStoreRef,
     snapshot: mistakeStats,
@@ -183,6 +189,7 @@ export function useTrainingStats() {
     resetScaleDegreeMistakeStore()
     resetScaleDegreeMelodyMistakeStore()
     clearAllTrainingStats()
+    setDegreePracticeHistory([])
     setBestRecordState(
       Object.fromEntries(
         CHALLENGE_VARIANTS.map((variant) => [variant, { record: null, isNew: false }]),
@@ -194,6 +201,7 @@ export function useTrainingStats() {
 
   const viewModel = useMemo<TrainingStatsViewModel>(
     () => ({
+      degreePracticeHistory,
       mistakeStats,
       scaleDegreeMistakeStats,
       scaleDegreeMelodyMistakeStats,
@@ -205,7 +213,7 @@ export function useTrainingStats() {
       isNewScaleDegreeBestRecord: bestRecordState.scaleDegree.isNew,
       scaleDegreeMelodyBestRecord: bestRecordState.scaleDegreeMelody.record,
       isNewScaleDegreeMelodyBestRecord: bestRecordState.scaleDegreeMelody.isNew,
-      canReset: hasPersistedTrainingStats(
+      canReset: degreePracticeHistory.length > 0 || hasPersistedTrainingStats(
         mistakeStats,
         bestRecordState.intervalSpeed.record,
         bestRecordState.scaleDegree.record,
@@ -218,6 +226,7 @@ export function useTrainingStats() {
       reset,
     }),
     [
+      degreePracticeHistory,
       mistakeStats,
       scaleDegreeMistakeStats,
       scaleDegreeMelodyMistakeStats,
@@ -238,5 +247,6 @@ export function useTrainingStats() {
     recordScaleDegreeMelodyQuizMistake,
     clearNewBestRecord,
     finalizeChallengeSession,
+    finalizeDegreePractice,
   }
 }

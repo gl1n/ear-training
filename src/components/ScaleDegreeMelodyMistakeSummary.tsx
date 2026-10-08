@@ -40,7 +40,7 @@ function SessionPatternDistribution({ sessionStats }: { sessionStats: SessionSta
 
         return (
           <div key={pattern} className="flex items-center gap-3">
-            <span className="w-[5.5rem] shrink-0 text-right text-xs font-medium text-sky-200/90">
+            <span className="w-[45%] shrink-0 text-right text-xs font-medium text-sky-200/90">
               {formatPatternLabel(pattern)}
             </span>
             <div className="relative h-5 flex-1 overflow-hidden rounded-md bg-black/25">
@@ -75,7 +75,7 @@ function TopErrorPatterns({ store }: { store: ScaleDegreeMelodyMistakeStatsStore
 
         return (
           <div key={pattern} className="flex items-center gap-3">
-            <span className="w-[5.5rem] shrink-0 text-right text-xs font-medium text-red-200/90">
+            <span className="w-[45%] shrink-0 text-right text-xs font-medium text-red-200/90">
               {formatPatternLabel(pattern)}
             </span>
             <div className="relative h-5 flex-1 overflow-hidden rounded-md bg-black/25">

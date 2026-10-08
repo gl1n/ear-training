@@ -21,7 +21,7 @@ import type {
 } from '../quiz/chordDegreeQuiz'
 import { useDebouncedPersist } from './useDebouncedPersist'
 import type { SessionSize } from './useSessionGoal'
-import type { ScaleDegreeTrainingMode } from '../quiz/keys'
+import type { ScaleDegreeTrainingMode, DegreePracticeOptions } from '../quiz/keys'
 
 import { STORAGE_KEYS } from '../quiz/storageKeys'
 import { readStorage, writeStorage } from '../utils/storage'
@@ -35,6 +35,7 @@ export type EarTrainingPreferences = {
   mode: AppMode
   scaleDegreeReviewEnabled: boolean
   scaleDegreeTrainingMode: ScaleDegreeTrainingMode
+  degreePractice: DegreePracticeOptions
   sessionSize: SessionSize
   chordDegrees: ChordDegree[]
   chordRhythm: ChordRhythm
@@ -55,6 +56,7 @@ const DEFAULT_PREFERENCES: EarTrainingPreferences = {
   mode: 'scaleDegree',
   scaleDegreeReviewEnabled: false,
   scaleDegreeTrainingMode: 'single',
+  degreePractice: { scaleFlavor: 'major', melodyLength: 3, arcadeMode: false },
   sessionSize: 10,
   chordDegrees: [1, 6, 4, 5],
   chordRhythm: { bpm: 80, beatsPerChord: 4, countInBeats: 0, feel: 'breathe' },
@@ -153,7 +155,13 @@ export function loadEarTrainingPreferences(): EarTrainingPreferences {
     const randomChordSettings = parseRandomChordSettings(record.randomChordSettings)
     const chordDegreeCustomDegrees = validArray(record.chordDegreeCustomDegrees, isChordDegree, 2)
 
+    const practice = record.degreePractice as Partial<DegreePracticeOptions> | null | undefined
     return {
+      degreePractice: {
+        scaleFlavor: practice?.scaleFlavor === 'minor' || practice?.scaleFlavor === 'chromatic' ? practice.scaleFlavor : 'major',
+        melodyLength: practice?.melodyLength === 5 || practice?.melodyLength === 7 ? practice.melodyLength : 3,
+        arcadeMode: practice?.arcadeMode === true,
+      },
       speedPreset: isSpeedPreset(record.speedPreset) ? record.speedPreset : defaults.speedPreset,
       enabledIntervalIds: enabledIntervalIds ?? defaults.enabledIntervalIds,
       direction: isIntervalDirection(record.direction) ? record.direction : defaults.direction,

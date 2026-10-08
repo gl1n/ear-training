@@ -1,3 +1,7 @@
+import { DegreePracticeProgress, ListeningResults } from './DegreePracticeProgress'
+import { degreeAnswer, degreePracticeKey, SCALE_FLAVOR_LABELS } from '../quiz/degreePractice'
+import type { DegreePracticeOptions } from '../quiz/keys'
+import { DegreePracticeSettings } from './DegreePracticeSettings'
 import {
   formatMelodyDegrees,
   getScaleDegreeSequenceQuizKey,
@@ -21,6 +25,8 @@ import { ResetStatsButton } from './ResetStatsButton'
 import { Button } from '../common/ui/Button'
 
 type ScaleDegreeIdlePanelProps = {
+  degreePractice: DegreePracticeOptions
+  onDegreePracticeChange: (options: DegreePracticeOptions) => void
   lastQuiz: ScaleDegreeQuiz | null
   sessionStats: SessionStats
   sessionMistakes: ScaleDegreeMistakeStatsStore
@@ -45,10 +51,12 @@ function formatLastAnswerLabel(lastQuiz: ScaleDegreeQuiz): string {
     return `${label} ${formatMelodyDegrees(lastQuiz.degrees)}`
   }
 
-  return `音级 ${lastQuiz.degree}`
+  return `音级 ${degreeAnswer(lastQuiz)}`
 }
 
 export function ScaleDegreeIdlePanel({
+  degreePractice,
+  onDegreePracticeChange,
   lastQuiz,
   sessionStats,
   sessionMistakes,
@@ -70,34 +78,34 @@ export function ScaleDegreeIdlePanel({
     scaleDegreeMistakeStats,
     scaleDegreeMelodyMistakeStats,
     scaleDegreeSessionHistory,
-    scaleDegreeMelodySessionHistory,
     scaleDegreeBestRecord,
     isNewScaleDegreeBestRecord,
-    scaleDegreeMelodyBestRecord,
-    isNewScaleDegreeMelodyBestRecord,
     canReset,
     reset,
   } = trainingStats
+  const advancedSingle = scaleDegreeTrainingMode === 'single' && degreePractice.scaleFlavor !== 'major'
+  const scopedRecords = trainingStats.degreePracticeHistory.filter((record) => record.practiceKey === degreePracticeKey(scaleDegreeTrainingMode, degreePractice))
+  const filteredMelodyMistakes = scaleDegreeMelodyMistakeStats.filter((record) => record.pattern.split('-').length === degreePractice.melodyLength)
   const sequenceEnabled = scaleDegreeTrainingMode !== 'single'
   const melodyEnabled = scaleDegreeTrainingMode === 'melody'
   const sessionHistory = melodyEnabled
-    ? scaleDegreeMelodySessionHistory
-    : scaleDegreeTrainingMode === 'single' ? scaleDegreeSessionHistory : []
+    ? []
+    : scaleDegreeTrainingMode === 'single' && !advancedSingle ? scaleDegreeSessionHistory : []
   const bestRecord = melodyEnabled
-    ? scaleDegreeMelodyBestRecord
-    : scaleDegreeTrainingMode === 'single' ? scaleDegreeBestRecord : null
+    ? null
+    : scaleDegreeTrainingMode === 'single' && !advancedSingle ? scaleDegreeBestRecord : null
   const isNewBestRecord = melodyEnabled
-    ? isNewScaleDegreeMelodyBestRecord
-    : scaleDegreeTrainingMode === 'single' ? isNewScaleDegreeBestRecord : false
+    ? false
+    : scaleDegreeTrainingMode === 'single' && !advancedSingle ? isNewScaleDegreeBestRecord : false
   const modeLabel = scaleDegreeTrainingMode === 'crossRegister'
     ? '跨音区双音'
-    : melodyEnabled ? '三音旋律' : '单音'
+    : melodyEnabled ? `${degreePractice.melodyLength} 音整句听写` : `${SCALE_FLAVOR_LABELS[degreePractice.scaleFlavor]}单音`
   const gameEnded = lastQuiz !== null && hasSessionAttempts(sessionStats)
   const melodyLastQuiz =
     lastQuiz && sequenceEnabled && isSequenceScaleDegreeQuiz(lastQuiz) ? lastQuiz : null
   const historicalMistakeStats = melodyEnabled
-    ? scaleDegreeMelodyMistakeStats
-    : scaleDegreeTrainingMode === 'single' ? scaleDegreeMistakeStats : []
+    ? filteredMelodyMistakes
+    : scaleDegreeTrainingMode === 'single' && !advancedSingle ? scaleDegreeMistakeStats : []
   const hasHistoricalMistakes = historicalMistakeStats.length > 0
 
   if (gameEnded) {
@@ -121,7 +129,10 @@ export function ScaleDegreeIdlePanel({
           scoreLabel={sequenceEnabled ? '总分' : '加权总分'}
         />
 
-        {sessionCompleted && scaleDegreeTrainingMode !== 'crossRegister' && (
+        {sessionStats.listening && <ListeningResults listening={sessionStats.listening} />}
+        {advancedSingle && <div className="flex flex-wrap justify-center gap-3 text-sm">{Object.entries(sessionStats.byKey).map(([degree, stats]) => <span key={degree}>{degree}：{stats.correctCount}/{stats.totalCount}</span>)}</div>}
+
+        {sessionCompleted && !advancedSingle && scaleDegreeTrainingMode !== 'crossRegister' && (
           <div className="rounded-xl border border-sky-400/25 bg-sky-400/8 p-4 text-center">
             <p className="font-medium text-sky-200">本轮目标已完成</p>
             <p className="mt-1 text-sm text-[var(--text-secondary)]">可进行错题与常规题混合训练，兼顾薄弱项和整体辨识。</p>
@@ -129,7 +140,7 @@ export function ScaleDegreeIdlePanel({
           </div>
         )}
 
-        {sessionHistory.length >= 2 && (
+      {sessionHistory.length >= 2 && (
           <ScaleDegreeCorrectCountChart records={sessionHistory} highlightLast />
         )}
 
@@ -151,7 +162,7 @@ export function ScaleDegreeIdlePanel({
             sessionStats={sessionStats}
             title="本局旋律统计"
           />
-        ) : scaleDegreeTrainingMode === 'single' ? (
+        ) : scaleDegreeTrainingMode === 'single' && !advancedSingle ? (
           <ScaleDegreeMistakeSummary
             store={sessionMistakes}
             sessionStats={sessionStats}
@@ -173,7 +184,7 @@ export function ScaleDegreeIdlePanel({
       <div>
         <p className="text-xs font-semibold tracking-[0.16em] text-sky-300">训练方式</p>
         <h2 className="mt-2 text-2xl font-bold tracking-tight">你想练什么？</h2>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">三种训练共享同一套大调音级体系，答错纠正后继续完成本轮。</p>
+        <p className="mt-1 text-sm text-[var(--text-secondary)]">单音拓展调式与变化音，旋律练习整句听辨，跨音区建立音高定位。</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3" role="radiogroup" aria-label="音级训练方式">
@@ -189,10 +200,13 @@ export function ScaleDegreeIdlePanel({
         </button>
         <button type="button" role="radio" aria-checked={melodyEnabled} disabled={isRunning} onClick={() => onScaleDegreeTrainingModeChange('melody')} className={`rounded-2xl border p-5 text-left transition ${melodyEnabled ? 'border-sky-400 bg-sky-400/10 ring-1 ring-sky-400/20' : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-white/20'}`}>
           <span className="flex items-center justify-between"><strong className="text-lg">旋律追踪</strong><span className={`h-3 w-3 rounded-full ${melodyEnabled ? 'bg-sky-400 shadow-[0_0_0_4px_rgba(56,189,248,.15)]' : 'bg-white/15'}`} /></span>
-          <span className="mt-2 block text-sm leading-6 text-[var(--text-secondary)]">聆听三音短句，依次判断音级。适合进阶到真实旋律听辨。</span>
+          <span className="mt-2 block text-sm leading-6 text-[var(--text-secondary)]">聆听 3、5 或 7 音短句，完整输入后统一判分，训练旋律记忆。</span>
           <span className="mt-4 block text-xs font-medium text-[var(--text-secondary)]">进阶训练</span>
         </button>
       </div>
+
+      <DegreePracticeSettings mode={scaleDegreeTrainingMode} value={degreePractice} onChange={onDegreePracticeChange} disabled={isRunning} />
+      {(melodyEnabled || advancedSingle) && <DegreePracticeProgress records={scopedRecords} />}
 
       {sessionHistory.length >= 2 && (
         <div className="flex w-full justify-center"><ScaleDegreeCorrectCountChart records={sessionHistory} /></div>
@@ -206,12 +220,12 @@ export function ScaleDegreeIdlePanel({
       )}
 
       {melodyEnabled ? (
-        <div className="flex w-full justify-center"><ScaleDegreeMelodyMistakeSummary store={scaleDegreeMelodyMistakeStats} title="历史错题统计" /></div>
-      ) : scaleDegreeTrainingMode === 'single' ? (
+        <div className="flex w-full justify-center"><ScaleDegreeMelodyMistakeSummary store={filteredMelodyMistakes} title="历史错题统计" /></div>
+      ) : scaleDegreeTrainingMode === 'single' && !advancedSingle ? (
         <><div className="flex w-full justify-center"><ScaleDegreeAdvancedAnalysis store={scaleDegreeMistakeStats} /></div><div className="flex w-full justify-center"><ScaleDegreeMistakeSummary store={scaleDegreeMistakeStats} title="历史错题统计" /></div></>
       ) : null}
 
-      <label
+      {!advancedSingle && <label
         className={[
           'flex w-full cursor-pointer items-center justify-between gap-4 rounded-xl border px-4 py-3.5 transition-colors',
           scaleDegreeReviewEnabled
@@ -231,7 +245,7 @@ export function ScaleDegreeIdlePanel({
           </span>
         </span>
         <input type="checkbox" className="h-5 w-5 shrink-0 accent-sky-500" checked={scaleDegreeReviewEnabled} disabled={!hasHistoricalMistakes || isRunning} onChange={(event) => onScaleDegreeReviewChange(event.target.checked)} />
-      </label>
+      </label>}
 
       {canReset && <div className="flex w-full justify-center"><ResetStatsButton onReset={reset} /></div>}
 

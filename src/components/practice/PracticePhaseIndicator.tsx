@@ -9,6 +9,7 @@ type PracticePhaseIndicatorProps = {
   variant: PracticePhaseVariant
   melodyEnabled?: boolean
   sequenceNoteCount?: number
+  wholePhrase?: boolean
 }
 
 function getPhase(state: TrainerState) {
@@ -42,6 +43,7 @@ export function PracticePhaseIndicator({
   variant,
   melodyEnabled = false,
   sequenceNoteCount = 3,
+  wholePhrase = false,
 }: PracticePhaseIndicatorProps) {
   const phase = getPhase(state)
 
@@ -55,7 +57,7 @@ export function PracticePhaseIndicator({
   }
 
   if (phase === 'listening') {
-    const label = getListeningLabel(state, variant, melodyEnabled, sequenceNoteCount)
+    const label = wholePhrase ? `${sequenceNoteCount} 音旋律` : getListeningLabel(state, variant, melodyEnabled, sequenceNoteCount)
     const listeningTextClass = variant === 'scaleDegree' ? 'text-sky-200' : 'text-sky-300'
     const wrapperClass =
       variant === 'scaleDegree'
@@ -77,7 +79,7 @@ export function PracticePhaseIndicator({
   }
 
   if (phase === 'answer') {
-    const answerLabel = variant === 'scaleDegree' ? '选择音级' : '选择答案'
+    const answerLabel = wholePhrase ? '填写整句' : variant === 'scaleDegree' ? '选择音级' : '选择答案'
     const answerTextClass = variant === 'scaleDegree' ? 'text-sky-200' : 'text-sky-300'
     const pulseClass =
       variant === 'scaleDegree' ? 'animate-ready-pulse-scale-degree' : 'animate-ready-pulse'

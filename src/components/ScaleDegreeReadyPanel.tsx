@@ -45,7 +45,7 @@ export function ScaleDegreeReadyPanel({
                   定调中
                 </span>
                 <p className="max-w-xs text-sm leading-relaxed text-[var(--text-secondary)]">
-                  正在播放一级大三和弦，请仔细聆听并记住调性
+                  正在播放{currentKeyLabel?.includes('小调') ? '小三和弦' : '大三和弦'}，请仔细聆听并记住调性
                 </p>
               </>
             ) : isReady && currentKeyLabel ? (

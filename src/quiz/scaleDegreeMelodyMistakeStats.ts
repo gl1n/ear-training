@@ -31,7 +31,7 @@ export const MAX_RECENT_MELODY_MISTAKES = 500
 
 export function isValidMelodyPattern(pattern: string): boolean {
   const parts = pattern.split('-')
-  if (parts.length !== 3) return false
+  if (![3, 5, 7].includes(parts.length)) return false
 
   return parts.every((part) =>
     DEGREE_OPTION_IDS.includes(part as (typeof DEGREE_OPTION_IDS)[number]),

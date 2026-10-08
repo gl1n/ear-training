@@ -39,19 +39,25 @@ const CROSS_REGISTER_PAIRS: readonly (readonly [ScaleDegreeRegister, ScaleDegree
   ['middle', 'high'],
 ]
 
+export type ScaleFlavor = 'major' | 'minor' | 'chromatic'
+export type MelodyLength = 3 | 5 | 7
+export type DegreePracticeOptions = { scaleFlavor: ScaleFlavor; melodyLength: MelodyLength; arcadeMode: boolean }
+
 export type ScaleDegreeTrainingMode = 'single' | 'crossRegister' | 'melody'
 
 export type ScaleDegreeQuiz = {
   tonicMidi: number
   noteMidi: number
   degree: number
+  answerDegree?: string
+  scaleFlavor?: ScaleFlavor
   keyLabel: string
   previousNoteMidi: number | null
 }
 
 export type MelodyScaleDegreeQuiz = ScaleDegreeQuiz & {
-  noteMidis: readonly [number, number, number]
-  degrees: readonly [number, number, number]
+  noteMidis: readonly number[]
+  degrees: readonly number[]
   sequenceType: 'melody'
 }
 
@@ -330,17 +336,17 @@ export function randomScaleDegreeQuiz(
 
 function buildMelodyQuiz(
   session: MajorKeySession,
-  noteMidis: [number, number, number],
+  noteMidis: number[],
   previousNoteMidi: number | null,
 ): MelodyScaleDegreeQuiz {
   const degrees = noteMidis.map(
     (midi) => midiToDegree(session.tonicPitchClass, midi)!,
-  ) as [number, number, number]
+  )
 
   return {
     tonicMidi: session.tonicMidi,
-    noteMidi: noteMidis[2],
-    degree: degrees[2],
+    noteMidi: noteMidis[noteMidis.length - 1]!,
+    degree: degrees[degrees.length - 1]!,
     noteMidis,
     degrees,
     sequenceType: 'melody',
@@ -427,12 +433,13 @@ export function randomMelodyScaleDegreeQuiz(
   rootMax: number,
   previousNoteMidi?: number | null,
   sessionDegreeWeights?: SessionDegreeWeights,
+  noteCount: MelodyLength = 3,
 ): MelodyScaleDegreeQuiz {
   const midis = listDiatonicMidisInRange(session.tonicPitchClass, rootMin, rootMax)
-  const noteMidis: [number, number, number] = [0, 0, 0]
+  const noteMidis: number[] = []
   let prev = previousNoteMidi ?? null
 
-  for (let i = 0; i < MELODY_NOTE_COUNT; i++) {
+  for (let i = 0; i < noteCount; i++) {
     const noteMidi = pickRandomNoteMidi(
       midis,
       session.tonicPitchClass,
@@ -520,16 +527,16 @@ export function melodyScaleDegreeQuizFromPattern(
   previousNoteMidi?: number | null,
 ): MelodyScaleDegreeQuiz | null {
   const parts = pattern.split('-').map(Number)
-  if (parts.length !== 3 || parts.some((degree) => degree < 1 || degree > 7)) {
+  if (![3, 5, 7].includes(parts.length) || parts.some((degree) => !Number.isInteger(degree) || degree < 1 || degree > 7)) {
     return null
   }
 
-  const degrees = parts as [number, number, number]
+  const degrees = parts
   const midis = listDiatonicMidisInRange(session.tonicPitchClass, rootMin, rootMax)
-  const noteMidis: [number, number, number] = [0, 0, 0]
+  const noteMidis: number[] = []
   let prev = previousNoteMidi ?? null
 
-  for (let i = 0; i < MELODY_NOTE_COUNT; i++) {
+  for (let i = 0; i < degrees.length; i++) {
     const degree = degrees[i]!
     const degreeMidis = midis.filter(
       (midi) => midiToDegree(session.tonicPitchClass, midi) === degree,

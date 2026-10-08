@@ -1,9 +1,10 @@
+import { degreeAnswer, degreeSession, degreeTonicChord, gradeMelody, randomFlavorQuiz } from './degreePractice'
+import type { DegreePracticeOptions } from './keys'
 import { cancelSpeech, speak } from '../audio/speech'
 import type { Piano } from '../audio/piano'
 import { delay, isAbortError } from '../utils/abort'
 import {
   createMajorKeySession,
-  getTonicMajorTriadMidis,
   isSequenceScaleDegreeQuiz,
   randomCrossRegisterScaleDegreeQuiz,
   randomMelodyScaleDegreeQuiz,
@@ -165,6 +166,7 @@ export type IntervalSpeedCallbacks = {
 
 export type ScaleDegreeAnswer = ChallengeAnswer & {
   selectedDegree: string
+  wasReplayed?: boolean
 }
 
 export const SCALE_DEGREE_TONIC_CHORD_DURATION_MS = 2_400
@@ -183,6 +185,7 @@ export type ScaleDegreeCallbacks = {
     quiz: SequenceScaleDegreeQuiz,
     correct: boolean,
     reactionMs?: number,
+    wasReplayed?: boolean,
   ) => boolean
   onAnswerSubmitted: (
     quiz: ScaleDegreeQuiz,
@@ -458,7 +461,7 @@ async function runSequenceScaleDegreeQuestion(
   return true
 }
 
-/** 音级辨识：定调后听辨单音、跨音区双音或三音旋律并选择音级 */
+/** 音级辨识：定调后听辨单音、跨音区双音或整句旋律并选择音级 */
 export async function runScaleDegreeLoop(
   piano: Piano,
   settings: Settings,
@@ -468,15 +471,17 @@ export async function runScaleDegreeLoop(
   melodyMistakeStore: ScaleDegreeMelodyMistakeStatsStore = [],
   reviewEnabled = false,
   trainingMode: ScaleDegreeTrainingMode = 'single',
+  practice: DegreePracticeOptions = { scaleFlavor: 'major', melodyLength: 3, arcadeMode: false },
 ): Promise<void> {
-  const session = createMajorKeySession(settings.rootMin, settings.rootMax)
+  const flavor = trainingMode === 'single' ? practice.scaleFlavor : 'major'
+  const session = degreeSession(createMajorKeySession(settings.rootMin, settings.rootMax), flavor)
   callbacks.onSessionStart(session)
 
-  const [root, third, fifth] = getTonicMajorTriadMidis(session.tonicMidi)
+  const tonicChord = degreeTonicChord(session.tonicMidi, flavor)
   callbacks.onStateChange('playing_tonic_chord')
   await playHarmonic(
     piano,
-    [root, third, fifth],
+    tonicChord,
     SCALE_DEGREE_TONIC_CHORD_DURATION_MS,
     signal,
   )
@@ -485,6 +490,7 @@ export async function runScaleDegreeLoop(
   await callbacks.waitForGameStart(signal)
 
   let previousNoteMidi: number | null = null
+  let completedMelodyGroups = 0
 
   while (!signal.aborted) {
     // 复习模式混合错题和常规题，避免少量错题垄断整轮训练。
@@ -496,10 +502,12 @@ export async function runScaleDegreeLoop(
         : getSessionDegreeWeights(callbacks.getSessionStats())
       : undefined
     let quiz: ScaleDegreeQuiz
-    if (reviewEnabled && useMistakeReview && trainingMode === 'melody' && melodyMistakeStore.length > 0) {
+    if (flavor !== 'major') {
+      quiz = randomFlavorQuiz(session, flavor, settings.rootMin, settings.rootMax, previousNoteMidi, callbacks.getSessionStats?.())
+    } else if (reviewEnabled && useMistakeReview && trainingMode === 'melody' && melodyMistakeStore.length > 0) {
       quiz =
         weightedRandomMelodyQuizFromMistakes(
-          melodyMistakeStore,
+          melodyMistakeStore.filter((record) => record.pattern.split('-').length === practice.melodyLength),
           session,
           settings.rootMin,
           settings.rootMax,
@@ -511,6 +519,7 @@ export async function runScaleDegreeLoop(
           settings.rootMax,
           previousNoteMidi,
           sessionDegreeWeights,
+          practice.melodyLength,
         )
     } else if (
       reviewEnabled &&
@@ -525,6 +534,7 @@ export async function runScaleDegreeLoop(
           settings.rootMax,
           previousNoteMidi,
           sessionDegreeWeights,
+          practice.melodyLength,
         )
       } else {
         quiz =
@@ -549,6 +559,7 @@ export async function runScaleDegreeLoop(
         settings.rootMax,
         previousNoteMidi,
         sessionDegreeWeights,
+        practice.melodyLength,
       )
     } else if (trainingMode === 'crossRegister') {
       quiz = randomCrossRegisterScaleDegreeQuiz(
@@ -568,6 +579,27 @@ export async function runScaleDegreeLoop(
     }
     previousNoteMidi = quiz.noteMidi
     callbacks.onQuiz?.(quiz)
+
+    if (isSequenceScaleDegreeQuiz(quiz) && quiz.sequenceType === 'melody') {
+      const arcadeSettings = practice.arcadeMode
+        ? { ...settings, noteDurationMs: Math.max(260, settings.noteDurationMs - completedMelodyGroups * 25), gapMs: Math.max(70, settings.gapMs - completedMelodyGroups * 12) }
+        : settings
+      callbacks.onStateChange('playing_root')
+      await replayMelodyScaleDegreeQuiz(piano, quiz, arcadeSettings, signal)
+      callbacks.onStateChange('awaiting_answer')
+      let answer = await callbacks.waitForAnswer(signal)
+      let results = gradeMelody(quiz.degrees, answer.selectedDegree)
+      while (!results) {
+        answer = await callbacks.waitForAnswer(signal)
+        results = gradeMelody(quiz.degrees, answer.selectedDegree)
+      }
+      const completed = callbacks.onSequenceGroupSubmitted?.(quiz, results.every(Boolean), undefined, answer.wasReplayed) ?? false
+      completedMelodyGroups += 1
+      callbacks.onStateChange('answer_revealed')
+      await callbacks.waitForNextQuestion?.(signal)
+      if (completed) return
+      continue
+    }
 
     if (sequenceEnabled && isSequenceScaleDegreeQuiz(quiz)) {
       const completed = await runSequenceScaleDegreeQuestion(
@@ -609,7 +641,7 @@ export async function runScaleDegreeLoop(
     } = await resolveAnswerWithCorrection({
       firstAnswer,
       isCorrect: (candidate) =>
-        candidate.selectedDegree !== '' && candidate.selectedDegree === String(quiz.degree),
+        candidate.selectedDegree !== '' && candidate.selectedDegree === degreeAnswer(quiz),
       isEmpty: (candidate) => candidate.selectedDegree === '',
       getSelection: (candidate) => candidate.selectedDegree,
       mergeRetrySelection: (first, retry) => ({

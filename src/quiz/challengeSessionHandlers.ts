@@ -1,3 +1,4 @@
+import { degreeAnswer } from './degreePractice'
 import type { MutableRefObject } from 'react'
 import type { Quiz } from './intervals'
 import { formatMelodyDegrees, type MajorKeySession, type ScaleDegreeQuiz, type ScaleDegreeTrainingMode } from './keys'
@@ -120,7 +121,7 @@ export function buildScaleDegreeLoopCallbacks({
     waitForNextQuestion,
     onAnswerCorrectionStart,
     onSequenceNoteResolved,
-    onSequenceGroupSubmitted: (quiz, correct) => {
+    onSequenceGroupSubmitted: (quiz, correct, _reactionMs, wasReplayed) => {
       setLastScaleDegreeQuiz(quiz)
       const pattern = formatMelodyDegrees(quiz.degrees)
 
@@ -130,7 +131,7 @@ export function buildScaleDegreeLoopCallbacks({
         appendSessionScaleDegreeMelodyMistake(record)
       }
 
-      updateSessionStats((current) => recordMelodyGroupResult(current, pattern, correct))
+      updateSessionStats((current) => recordMelodyGroupResult(current, pattern, correct, trainingMode === 'melody' ? !!wasReplayed : undefined))
       return onQuestionCompleted?.() ?? false
     },
     onAnswerSubmitted: (quiz, answer, correct) => {
@@ -144,9 +145,10 @@ export function buildScaleDegreeLoopCallbacks({
       }
 
       if (
+        (quiz.scaleFlavor ?? 'major') === 'major' &&
         !correct &&
         answer.selectedDegree !== '' &&
-        answer.selectedDegree !== String(quiz.degree)
+        answer.selectedDegree !== degreeAnswer(quiz)
       ) {
         const record: ScaleDegreeMistakeRecord = {
           previousNoteMidi: quiz.previousNoteMidi,
@@ -160,7 +162,7 @@ export function buildScaleDegreeLoopCallbacks({
 
       handleChallengeAnswerResult(
         { setEncouragement, encouragementKeyRef, updateSessionStats },
-        String(quiz.degree),
+        degreeAnswer(quiz),
         correct,
         answer.reactionMs,
       )

@@ -1,3 +1,5 @@
+import { removeStorage } from '../utils/storage'
+import { STORAGE_KEYS } from './storageKeys'
 import {
   clearChallengeBestRecord,
   type ChallengeBestRecord,
@@ -37,6 +39,7 @@ export function hasPersistedTrainingStats(
 }
 
 export function clearAllTrainingStats(): void {
+  removeStorage(STORAGE_KEYS.degreePracticeHistory)
   clearMistakeStats()
   clearScaleDegreeMistakeStats()
   clearScaleDegreeMelodyMistakeStats()

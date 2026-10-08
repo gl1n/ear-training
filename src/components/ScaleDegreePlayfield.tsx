@@ -1,3 +1,6 @@
+import { MelodyDictation } from './MelodyDictation'
+import { degreeAnswer, degreeOptions } from '../quiz/degreePractice'
+import { isMelodyScaleDegreeQuiz, type DegreePracticeOptions } from '../quiz/keys'
 import { DEGREE_OPTION_IDS, DEGREE_SOLFEGE_LABELS, isCrossRegisterScaleDegreeQuiz, isSequenceScaleDegreeQuiz, midiToScaleDegreeRegister, type ScaleDegreeQuiz, type ScaleDegreeTrainingMode } from '../quiz/keys'
 import { type TrainerState } from '../quiz/sequencer'
 import { type SessionStats } from '../quiz/stats'
@@ -14,6 +17,7 @@ import { Card } from '../common/ui/Card'
 import { Button } from '../common/ui/Button'
 
 type ScaleDegreePlayfieldProps = {
+  degreePractice: DegreePracticeOptions
   state: TrainerState
   sessionStats: SessionStats
   lastQuiz: ScaleDegreeQuiz | null
@@ -36,6 +40,7 @@ type ScaleDegreePlayfieldProps = {
 }
 
 export function ScaleDegreePlayfield({
+  degreePractice,
   state,
   sessionStats,
   lastQuiz,
@@ -66,7 +71,9 @@ export function ScaleDegreePlayfield({
     isListening,
   } = usePracticePlayfieldState(state, sessionStats)
   const sequenceEnabled = trainingMode !== 'single'
-  const sequenceNoteCount = trainingMode === 'crossRegister' ? 2 : 3
+  const sequenceNoteCount = trainingMode === 'crossRegister' ? 2 : degreePractice.melodyLength
+  const answerOptions = degreeOptions(trainingMode === 'single' ? degreePractice.scaleFlavor : 'major')
+  const dictationQuiz = trainingMode === 'melody' && currentQuiz && isMelodyScaleDegreeQuiz(currentQuiz) ? currentQuiz : null
   const crossRegisterQuiz =
     currentQuiz !== null && isCrossRegisterScaleDegreeQuiz(currentQuiz) ? currentQuiz : null
   const getRegisterLabel = (index: number) => {
@@ -116,7 +123,7 @@ export function ScaleDegreePlayfield({
         isWrong &&
         !sequenceEnabled &&
         lastQuiz !== null &&
-        String(lastQuiz.degree) === degree
+        degreeAnswer(lastQuiz) === degree
       }
       isWrongSelection={
         (isCorrection || (isWrong && sequenceEnabled)) &&
@@ -127,7 +134,7 @@ export function ScaleDegreePlayfield({
       primaryLabel={<span className="text-xl font-bold leading-none sm:text-2xl">{degree}</span>}
       secondaryLabel={
         <AnswerSecondaryLabel active={canAnswer} activeClassName="text-sky-200/80 opacity-100 uppercase tracking-wide">
-          {DEGREE_SOLFEGE_LABELS[degree as (typeof DEGREE_OPTION_IDS)[number]]}
+          {DEGREE_SOLFEGE_LABELS[degree as (typeof DEGREE_OPTION_IDS)[number]] ?? (degree.startsWith('♭') ? '降' : '升') + degree.slice(1) + ' 级'}
         </AnswerSecondaryLabel>
       }
     />
@@ -145,7 +152,7 @@ export function ScaleDegreePlayfield({
 
       <PracticeSessionHeader
         variant="scaleDegree"
-        currentQuestion={currentQuestion}
+        currentQuestion={state === 'answer_revealed' ? Math.max(1, currentQuestion - 1) : currentQuestion}
         correctCount={correctCount}
         totalScore={totalScore}
         leading={currentKeyLabel ? <KeyLabel label={currentKeyLabel} variant="badge" /> : null}
@@ -155,6 +162,7 @@ export function ScaleDegreePlayfield({
             variant="scaleDegree"
             melodyEnabled={sequenceEnabled}
             sequenceNoteCount={sequenceNoteCount}
+            wholePhrase={trainingMode === 'melody'}
           />
         }
       />
@@ -169,7 +177,7 @@ export function ScaleDegreePlayfield({
 
       <PracticeEncouragementOverlay encouragement={encouragement} />
 
-      <div
+      {dictationQuiz ? <MelodyDictation quiz={dictationQuiz} state={state} isReplayBusy={isReplayBusy} isLastQuestion={isLastQuestion} onSubmit={onSelect} onReplay={onReplayMelody} onNext={onNextQuestion} /> : <div
         className="relative flex flex-1 flex-col justify-center gap-3"
         role="group"
         aria-label="音级选项"
@@ -211,8 +219,8 @@ export function ScaleDegreePlayfield({
           </div>
         )}
 
-        {(canPlayDo || canReplayMelody) && (
-          <div className="mx-auto flex flex-wrap items-center justify-center gap-2">
+        {sequenceEnabled && (
+          <div className="mx-auto flex min-h-[34px] flex-wrap items-center justify-center gap-2">
             {canPlayDo && (
               <Button variant="ghost" disabled={isReplayBusy} onClick={onPlayDo}>
                 ♪ 播放 do
@@ -238,13 +246,13 @@ export function ScaleDegreePlayfield({
 
         {!isReviewingAnswer && <div className="mx-auto flex w-full max-w-md flex-col gap-2 sm:gap-2.5">
           <div className="grid grid-cols-4 gap-2 sm:gap-2.5">
-            {DEGREE_OPTION_IDS.slice(0, 4).map(renderDegree)}
+            {answerOptions.slice(0, 4).map(renderDegree)}
           </div>
           <div className="grid grid-cols-3 gap-2 px-[12.5%] sm:gap-2.5">
-            {DEGREE_OPTION_IDS.slice(4).map(renderDegree)}
+            {answerOptions.slice(4).map(renderDegree)}
           </div>
         </div>}
-      </div>
+      </div>}
     </Card>
   )
 }

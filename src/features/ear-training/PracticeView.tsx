@@ -1,3 +1,4 @@
+import type { DegreePracticeOptions } from '../../quiz/keys'
 import { isIntervalMode, type AppMode, type TrainerState } from '../../quiz/sequencer'
 import type { SessionStats } from '../../quiz/stats'
 import { IntervalSpeedIdlePanel } from '../../components/IntervalSpeedIdlePanel'
@@ -36,7 +37,7 @@ const MODE_OPTIONS = [
 const MODE_META: Record<AppMode, AppShellMeta> = {
   intervalFollow: { eyebrow: '基础训练', title: '音程跟听', subtitle: '循环聆听并跟随播报，建立音程声音记忆', badge: '练耳小屋', accent: '#38bdf8' },
   intervalSpeed: { eyebrow: '辨认挑战', title: '音程辨认', subtitle: '听到音程后立即作答，训练反应速度与准确度', badge: '练耳小屋', accent: '#38bdf8' },
-  scaleDegree: { eyebrow: '调性感知', title: '音级辨识', subtitle: '先建立调性，再辨认音在调内的位置', badge: '练耳小屋', accent: '#a78bfa' },
+  scaleDegree: { eyebrow: '调性感知', title: '音级辨识', subtitle: '先建立调性，再辨认音相对主音的位置', badge: '练耳小屋', accent: '#a78bfa' },
   chordDegree: { eyebrow: '和声辨识', title: '猜和弦', subtitle: '以 do 为参考，辨认随机转位三和弦的级数', badge: '练耳小屋', accent: '#38bdf8' },
   chordProgression: { eyebrow: '和声训练', title: '和弦进行', subtitle: '在循环中建立级数走向与和声色彩的听感', badge: '练耳小屋', accent: '#fbbf24' },
 }
@@ -58,6 +59,9 @@ type PracticeViewProps = {
   onScaleDegreeReviewChange: (enabled: boolean) => void
   scaleDegreeTrainingMode: ScaleDegreeTrainingMode
   onScaleDegreeTrainingModeChange: (mode: ScaleDegreeTrainingMode) => void
+  degreePractice: DegreePracticeOptions
+  onDegreePracticeChange: (options: DegreePracticeOptions) => void
+  degreeQuestionId: number
   melodyCorrectDegrees: string[]
   sessionStats: SessionStats
   sessionSize: 10 | 20 | 30
@@ -136,6 +140,9 @@ export function PracticeView({
   onScaleDegreeReviewChange,
   scaleDegreeTrainingMode,
   onScaleDegreeTrainingModeChange,
+  degreePractice,
+  onDegreePracticeChange,
+  degreeQuestionId,
   melodyCorrectDegrees,
   sessionStats,
   sessionSize,
@@ -235,7 +242,7 @@ export function PracticeView({
           <p className="mb-2 text-xs font-medium text-[var(--text-secondary)]">选择训练</p>
           <SegmentedControl options={MODE_OPTIONS} value={mode} onChange={onModeChange} disabled={isRunning} />
           {isChallengeMode && !isRunning && !sessionCompleted && (
-            <SessionGoalControl value={sessionSize} onChange={onSessionSizeChange} />
+            <SessionGoalControl description={mode === 'scaleDegree' && scaleDegreeTrainingMode === 'melody' ? '整句提交后查看反馈，完成全部题目生成报告' : undefined} value={sessionSize} onChange={onSessionSizeChange} />
           )}
         </nav>
       }
@@ -257,7 +264,7 @@ export function PracticeView({
           {isChallengeMode && isRunning && (
             <div className="w-full max-w-xs" aria-live="polite">
               <div className="mb-1.5 flex justify-between text-xs text-[var(--text-secondary)]">
-                <span>本轮进度</span><span>{Math.min(completedQuestions, sessionSize)} / {sessionSize}</span>
+                <span>{mode === 'scaleDegree' && scaleDegreeTrainingMode === 'melody' && degreePractice.arcadeMode ? '街机组数' : '本轮进度'}</span><span>{mode === 'scaleDegree' && scaleDegreeTrainingMode === 'melody' && degreePractice.arcadeMode ? `${completedQuestions} · 加速中` : `${Math.min(completedQuestions, sessionSize)} / ${sessionSize}`}</span>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
                 <div className="h-full rounded-full bg-sky-400 transition-[width]" style={{ width: `${Math.min(100, completedQuestions / sessionSize * 100)}%` }} />
@@ -314,6 +321,8 @@ export function PracticeView({
       ) : mode === 'scaleDegree' ? (
         isRunning && scaleDegreeGameStarted ? (
           <ScaleDegreePlayfield
+            key={degreeQuestionId}
+            degreePractice={degreePractice}
             state={state}
             sessionStats={sessionStats}
             lastQuiz={lastScaleDegreeQuiz}
@@ -345,6 +354,8 @@ export function PracticeView({
           />
         ) : (
           <ScaleDegreeIdlePanel
+            degreePractice={degreePractice}
+            onDegreePracticeChange={onDegreePracticeChange}
             lastQuiz={lastScaleDegreeQuiz}
             sessionStats={sessionStats}
             sessionMistakes={sessionScaleDegreeMistakes}

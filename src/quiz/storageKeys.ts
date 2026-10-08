@@ -1,5 +1,6 @@
 export const STORAGE_KEYS = {
   settings: 'ear-trainer:settings',
+  degreePracticeHistory: 'ear-trainer:degree-practice-history',
   mistakeStats: 'ear-trainer:mistake-stats',
   mistakeStatsSchema: 'ear-trainer:mistake-stats-schema',
   scaleDegreeMistakeStats: 'ear-trainer:scale-degree-mistake-stats',
@@ -24,6 +25,7 @@ export const STORAGE_KEYS = {
 export type ChallengeBestVariant = keyof typeof STORAGE_KEYS.challengeBest
 
 export const TRAINING_STATS_STORAGE_KEYS = [
+  STORAGE_KEYS.degreePracticeHistory,
   STORAGE_KEYS.mistakeStats,
   STORAGE_KEYS.mistakeStatsSchema,
   STORAGE_KEYS.scaleDegreeMistakeStats,
