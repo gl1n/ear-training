@@ -7,6 +7,24 @@ export const SCALE_FLAVOR_LABELS: Record<ScaleFlavor, string> = {
   major: '大调', minor: '自然小调', chromatic: '大调变化音',
 }
 
+export const ARCADE_SPEED_MIN_POINTS = -8
+export const ARCADE_SPEED_MAX_POINTS = 24
+
+export function updateArcadeSpeedPoints(points: number, correct: boolean): number {
+  const next = points + (correct ? 1 : -3)
+  return Math.max(ARCADE_SPEED_MIN_POINTS, Math.min(ARCADE_SPEED_MAX_POINTS, next))
+}
+
+export function arcadePlaybackSettings(
+  settings: { noteDurationMs: number; gapMs: number },
+  speedPoints: number,
+): { noteDurationMs: number; gapMs: number } {
+  return {
+    noteDurationMs: Math.max(260, settings.noteDurationMs - speedPoints * 18),
+    gapMs: Math.max(70, settings.gapMs - speedPoints * 8),
+  }
+}
+
 const SCALES: Record<ScaleFlavor, readonly (readonly [string, number])[]> = {
   major: [['1', 0], ['2', 2], ['3', 4], ['4', 5], ['5', 7], ['6', 9], ['7', 11]],
   minor: [['1', 0], ['2', 2], ['♭3', 3], ['4', 5], ['5', 7], ['♭6', 8], ['♭7', 10]],

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { degreeAnswer, degreeOptions, degreeSession, degreeTonicChord, gradeMelody, randomFlavorQuiz } from './degreePractice'
+import { arcadePlaybackSettings, degreeAnswer, degreeOptions, degreeSession, degreeTonicChord, gradeMelody, randomFlavorQuiz, updateArcadeSpeedPoints } from './degreePractice'
 import { melodyScaleDegreeQuizFromPattern, randomMelodyScaleDegreeQuiz, type ScaleFlavor } from './keys'
 import { EMPTY_SESSION_STATS, getTotalAnswerCount, recordMelodyGroupResult } from './stats'
 import { isValidMelodyPattern, weightedRandomMelodyQuizFromMistakes } from './scaleDegreeMelodyMistakeStats'
@@ -33,6 +33,15 @@ describe('extended single-note practice', () => {
 })
 
 describe('whole-phrase dictation', () => {
+  it('raises speed gently after correct groups and lowers it sharply after errors', () => {
+    expect(updateArcadeSpeedPoints(0, true)).toBe(1)
+    expect(updateArcadeSpeedPoints(5, false)).toBe(2)
+    expect(updateArcadeSpeedPoints(-7, false)).toBe(-8)
+    expect(updateArcadeSpeedPoints(24, true)).toBe(24)
+    expect(arcadePlaybackSettings({ noteDurationMs: 800, gapMs: 300 }, 5)).toEqual({ noteDurationMs: 710, gapMs: 260 })
+    expect(arcadePlaybackSettings({ noteDurationMs: 300, gapMs: 80 }, -8)).toEqual({ noteDurationMs: 444, gapMs: 144 })
+  })
+
   it.each([3, 5, 7] as const)('generates and restores %i-note phrases', (length) => {
     const quiz = randomMelodyScaleDegreeQuiz(session, 48, 84, null, undefined, length)
     expect(quiz.noteMidis).toHaveLength(length)

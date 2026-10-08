@@ -1,4 +1,4 @@
-import { degreeAnswer, degreeSession, degreeTonicChord, gradeMelody, randomFlavorQuiz } from './degreePractice'
+import { arcadePlaybackSettings, degreeAnswer, degreeSession, degreeTonicChord, gradeMelody, randomFlavorQuiz, updateArcadeSpeedPoints } from './degreePractice'
 import type { DegreePracticeOptions } from './keys'
 import { cancelSpeech, speak } from '../audio/speech'
 import type { Piano } from '../audio/piano'
@@ -490,7 +490,7 @@ export async function runScaleDegreeLoop(
   await callbacks.waitForGameStart(signal)
 
   let previousNoteMidi: number | null = null
-  let completedMelodyGroups = 0
+  let arcadeSpeedPoints = 0
 
   while (!signal.aborted) {
     // 复习模式混合错题和常规题，避免少量错题垄断整轮训练。
@@ -582,7 +582,7 @@ export async function runScaleDegreeLoop(
 
     if (isSequenceScaleDegreeQuiz(quiz) && quiz.sequenceType === 'melody') {
       const arcadeSettings = practice.arcadeMode
-        ? { ...settings, noteDurationMs: Math.max(260, settings.noteDurationMs - completedMelodyGroups * 25), gapMs: Math.max(70, settings.gapMs - completedMelodyGroups * 12) }
+        ? { ...settings, ...arcadePlaybackSettings(settings, arcadeSpeedPoints) }
         : settings
       callbacks.onStateChange('playing_root')
       await replayMelodyScaleDegreeQuiz(piano, quiz, arcadeSettings, signal)
@@ -594,7 +594,9 @@ export async function runScaleDegreeLoop(
         results = gradeMelody(quiz.degrees, answer.selectedDegree)
       }
       const completed = callbacks.onSequenceGroupSubmitted?.(quiz, results.every(Boolean), undefined, answer.wasReplayed) ?? false
-      completedMelodyGroups += 1
+      if (practice.arcadeMode) {
+        arcadeSpeedPoints = updateArcadeSpeedPoints(arcadeSpeedPoints, results.every(Boolean))
+      }
       callbacks.onStateChange('answer_revealed')
       await callbacks.waitForNextQuestion?.(signal)
       if (completed) return
