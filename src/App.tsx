@@ -9,10 +9,13 @@ const ModalScalePractice = lazy(() => import('./features/modal-scale/ModalScaleP
 const PentatonicPlayPractice = lazy(() => import('./features/pentatonic-play/PentatonicPlayPractice').then((module) => ({ default: module.PentatonicPlayPractice })))
 const ChordTonePlayPractice = lazy(() => import('./features/chord-tone-play/ChordTonePlayPractice').then((module) => ({ default: module.ChordTonePlayPractice })))
 
-type Route = 'home' | 'ear-training' | 'fretboard' | 'pentatonic-play' | 'chord-tone-play' | 'metronome' | 'rhythm' | 'modal-scale'
+const MelodyLoop = lazy(() => import('./features/melody-loop/MelodyLoop').then((module) => ({ default: module.MelodyLoop })))
+
+type Route = 'melody-loop' | 'home' | 'ear-training' | 'fretboard' | 'pentatonic-play' | 'chord-tone-play' | 'metronome' | 'rhythm' | 'modal-scale'
 
 function readRoute(): Route {
   const path = window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '')
+  if (path === 'melody-loop') return 'melody-loop'
   if (path === 'ear-training') return 'ear-training'
   if (path === 'fretboard') return 'fretboard'
   if (path === 'pentatonic-play') return 'pentatonic-play'
@@ -44,6 +47,8 @@ export function App() {
   useEffect(() => {
     document.title = route === 'home'
       ? '格林的音乐练习小屋'
+      : route === 'melody-loop'
+        ? '旋律工坊 · 格林的音乐练习小屋'
       : route === 'fretboard'
         ? '指板练习 · 格林的音乐练习小屋'
         : route === 'pentatonic-play'
@@ -64,7 +69,7 @@ export function App() {
 
   return (
     <Suspense fallback={<RouteFallback />}>
-      {route === 'ear-training'
+      {route === 'melody-loop' ? <MelodyLoop /> : route === 'ear-training'
         ? <EarTraining />
         : route === 'fretboard'
           ? <FretboardPractice />

@@ -18,6 +18,7 @@ export type Piano = {
 type PianoLoadOptions = {
   rootMin: number
   rootMax: number
+  allowSynthFallback?: boolean
   onLoadProgress?: (loaded: number, total: number) => void
   onLoadingIndeterminate?: () => void
   signal?: AbortSignal
@@ -140,7 +141,7 @@ export async function createPiano(ctx: AudioContext, options: PianoLoadOptions):
         onLoadProgress,
       }))
   } catch (error) {
-    if (isAbortError(error) || options.signal?.aborted) throw error
+    if (isAbortError(error) || options.signal?.aborted || options.allowSynthFallback === false) throw error
     console.warn('钢琴采样不可用，已切换到离线合成音色', error)
     return createSynthFallback(ctx)
   }

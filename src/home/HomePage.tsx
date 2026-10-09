@@ -2,6 +2,15 @@ import { VersionInfo } from '../common/VersionInfo'
 
 const ENTRANCES = [
   {
+    href: '#/melody-loop',
+    eyebrow: 'MELODY LOOP',
+    title: '旋律工坊',
+    description: '写下自己的旋律，选择拍号与小节数，让一段 Pattern 无缝循环，陪你反复练习。',
+    detail: '旋律编辑 · 自定义小节 · 无缝循环',
+    icon: '♫',
+    tone: 'violet',
+  },
+  {
     href: '#/fretboard',
     eyebrow: 'FRETBOARD',
     title: '指板练习',
