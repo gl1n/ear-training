@@ -136,7 +136,7 @@ function loadStats(): FretboardStats {
 function StatLine({ label, stat }: { label: string; stat: FretboardStat }) {
   return (
     <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 border-b border-white/6 py-2.5 last:border-0">
-      <span className="truncate text-sm font-medium text-white">{label}</span>
+      <span className="truncate text-sm font-medium text-[var(--text-primary)]">{label}</span>
       <span className="text-xs tabular-nums text-[var(--text-secondary)]">{Math.round(accuracy(stat) * 100)}%</span>
       <span
         className="min-w-12 text-right text-xs tabular-nums text-[var(--text-secondary)]"
@@ -516,7 +516,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
         ].map((item) => (
           <div key={item.label} className="rounded-xl border border-[var(--border-subtle)] bg-white/[0.035] px-2 py-3 text-center">
             <p className="text-[10px] font-semibold tracking-wider text-[var(--text-secondary)]">{item.label}</p>
-            <p className="mt-1 text-xl font-bold tabular-nums text-white sm:text-2xl">{item.value}</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-[var(--text-primary)] sm:text-2xl">{item.value}</p>
           </div>
         ))}
       </section>
@@ -530,7 +530,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
                   {gameMode === 'all-notes' ? `全指板 · 已找到 ${foundCellKeys.length} / ${targetCellCount}` : formatRegion(question.region)}
                 </p>
                 <div className="mt-1 flex items-baseline gap-3">
-                  <h2 className={`${fullscreen ? 'text-base' : 'text-xl'} font-semibold text-white`}>
+                  <h2 className={`${fullscreen ? 'text-base text-white' : 'text-xl text-[var(--text-primary)]'} font-semibold`}>
                     {gameMode === 'all-notes' ? '找出全部' : '找到这个音'}
                   </h2>
                   <span className={`${fullscreen ? 'text-3xl' : 'text-4xl sm:text-5xl'} font-black tracking-tight text-amber-300`}>{question.targetNote}</span>
@@ -539,7 +539,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
             ) : (
               <div>
                 <p className="text-xs font-semibold tracking-[0.16em] text-amber-300">指板定位训练</p>
-                <h2 className="mt-1 text-xl font-semibold text-white">{phase === 'finished' ? '本轮已结束' : '准备开始'}</h2>
+                <h2 className="mt-1 text-xl font-semibold text-[var(--text-primary)]">{phase === 'finished' ? '本轮已结束' : '准备开始'}</h2>
                 <p className="mt-1 text-sm text-[var(--text-secondary)]">
                   {gameMode === 'all-notes'
                     ? '找齐 0–12 品内的全部目标音才算通过'
@@ -625,7 +625,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
                     disabled={roundActive}
                     aria-pressed={gameMode === value}
                     className={`min-h-9 rounded-lg px-3 text-sm font-semibold transition ${
-                      gameMode === value ? 'bg-amber-300 text-slate-950' : 'text-[var(--text-secondary)] hover:bg-white/8 hover:text-white'
+                      gameMode === value ? 'bg-amber-600 text-white' : 'text-[var(--text-secondary)] hover:bg-white hover:text-[var(--text-primary)]'
                     } disabled:cursor-not-allowed disabled:opacity-50`}
                   >
                     {label}
@@ -645,7 +645,7 @@ export function FretboardTrainer({ onPlayNote }: FretboardTrainerProps) {
                   className={`min-h-10 rounded-xl border px-3 text-sm font-semibold transition ${
                     guitarInput.status === 'listening'
                       ? 'border-emerald-400/20 bg-emerald-400/8 text-emerald-200'
-                      : 'border-[var(--border-subtle)] bg-black/20 text-[var(--text-secondary)] hover:bg-white/8 hover:text-white'
+                      : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:bg-white hover:text-[var(--text-primary)]'
                   } disabled:cursor-not-allowed disabled:opacity-50`}
                 >
                   {guitarInput.status === 'starting'

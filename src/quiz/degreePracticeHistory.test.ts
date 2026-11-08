@@ -3,7 +3,7 @@ import { appendDegreePracticeHistory, loadDegreePracticeHistory } from './degree
 import { EMPTY_SESSION_STATS, recordMelodyGroupResult } from './stats'
 import { STORAGE_KEYS } from './storageKeys'
 import { clearAllTrainingStats } from './trainingStats'
-import { loadEarTrainingPreferences } from '../hooks/usePersistedSettings'
+import { loadEarTrainingPreferences } from '../features/ear-training/hooks/usePersistedSettings'
 
 beforeEach(() => {
   const values = new Map<string, string>()

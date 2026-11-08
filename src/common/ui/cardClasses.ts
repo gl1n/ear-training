@@ -8,7 +8,7 @@ const VARIANT_PADDING: Record<CardVariant, string> = {
 
 export function cardClasses(variant: CardVariant = 'default', className = '') {
   return [
-    'rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] backdrop-blur',
+    'rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-surface)]',
     VARIANT_PADDING[variant],
     className,
   ]

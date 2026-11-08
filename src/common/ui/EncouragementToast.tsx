@@ -3,7 +3,7 @@ type EncouragementToastProps = {
 }
 
 const TOAST_CLASSES =
-  'rounded-full border border-emerald-300/25 bg-[rgba(15,18,26,0.9)] px-5 py-2.5 text-base font-bold tracking-wide text-emerald-100 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-md ring-1 ring-emerald-400/25'
+  'rounded-full border border-emerald-600/30 bg-white px-5 py-2.5 text-base font-bold tracking-wide text-emerald-800 shadow-sm'
 
 export function EncouragementToast({ message }: EncouragementToastProps) {
   return (

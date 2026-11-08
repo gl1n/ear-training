@@ -1,30 +1,30 @@
 import type { DegreePracticeOptions } from '../../quiz/keys'
 import { isIntervalMode, type AppMode, type TrainerState } from '../../quiz/sequencer'
 import type { SessionStats } from '../../quiz/stats'
-import { IntervalSpeedIdlePanel } from '../../components/IntervalSpeedIdlePanel'
-import { IntervalSpeedPlayfield } from '../../components/IntervalSpeedPlayfield'
+import { IntervalSpeedIdlePanel } from './components/IntervalSpeedIdlePanel'
+import { IntervalSpeedPlayfield } from './components/IntervalSpeedPlayfield'
 import { AppShell, type AppShellMeta } from '../../common/AppShell'
-import { ScaleDegreeIdlePanel } from '../../components/ScaleDegreeIdlePanel'
-import { ScaleDegreePlayfield } from '../../components/ScaleDegreePlayfield'
-import { ScaleDegreeReadyPanel } from '../../components/ScaleDegreeReadyPanel'
-import type { SettingsPanelProps } from '../../components/SettingsPanel'
-import { SettingsSummary } from '../../components/SettingsSummary'
-import { StatusHero } from '../../components/StatusHero'
+import { ScaleDegreeIdlePanel } from './components/ScaleDegreeIdlePanel'
+import { ScaleDegreePlayfield } from './components/ScaleDegreePlayfield'
+import { ScaleDegreeReadyPanel } from './components/ScaleDegreeReadyPanel'
+import type { SettingsPanelProps } from './components/SettingsPanel'
+import { SettingsSummary } from './components/SettingsSummary'
+import { StatusHero } from './components/StatusHero'
 import { Button } from '../../common/ui/Button'
 import { SegmentedControl } from '../../common/ui/SegmentedControl'
 import type { Quiz } from '../../quiz/intervals'
 import type { ScaleDegreeQuiz, ScaleDegreeTrainingMode, SequenceScaleDegreeQuiz } from '../../quiz/keys'
 import type { ScaleDegreeMistakeStatsStore } from '../../quiz/scaleDegreeMistakeStats'
 import type { ScaleDegreeMelodyMistakeStatsStore } from '../../quiz/scaleDegreeMelodyMistakeStats'
-import type { TrainingStatsViewModel } from '../../hooks/useTrainingStats'
-import type { PracticeEncouragement } from '../../components/practice/types'
-import type { LoadStatusProps } from '../../components/practice/viewProps'
+import type { TrainingStatsViewModel } from './hooks/useTrainingStats'
+import type { PracticeEncouragement } from './components/practice/types'
+import type { LoadStatusProps } from './components/practice/viewProps'
 import type { ChordDegree, ChordKey, ChordPlaybackMode, ChordRhythm, PlayedChord, RandomChordSettings } from '../../quiz/chordProgression'
-import { ChordProgressionPanel } from '../../components/ChordProgressionPanel'
-import { SessionGoalControl } from '../../components/practice/SessionGoalControl'
+import { ChordProgressionPanel } from './components/ChordProgressionPanel'
+import { SessionGoalControl } from './components/practice/SessionGoalControl'
 import { getChordDegreesForRange, type ChordDegreeHistory, type ChordDegreeInversionMode, type ChordDegreeKey, type ChordDegreeQuiz, type ChordDegreeRange } from '../../quiz/chordDegreeQuiz'
-import { ChordDegreePlayfield } from '../../components/ChordDegreePlayfield'
-import { ChordDegreeIdlePanel } from '../../components/ChordDegreeIdlePanel'
+import { ChordDegreePlayfield } from './components/ChordDegreePlayfield'
+import { ChordDegreeIdlePanel } from './components/ChordDegreeIdlePanel'
 
 const MODE_OPTIONS = [
   { value: 'intervalFollow' as const, label: '跟听' },
@@ -35,11 +35,11 @@ const MODE_OPTIONS = [
 ]
 
 const MODE_META: Record<AppMode, AppShellMeta> = {
-  intervalFollow: { eyebrow: '基础训练', title: '音程跟听', subtitle: '循环聆听并跟随播报，建立音程声音记忆', badge: '练耳小屋', accent: '#38bdf8' },
-  intervalSpeed: { eyebrow: '辨认挑战', title: '音程辨认', subtitle: '听到音程后立即作答，训练反应速度与准确度', badge: '练耳小屋', accent: '#38bdf8' },
-  scaleDegree: { eyebrow: '调性感知', title: '音级辨识', subtitle: '先建立调性，再辨认音相对主音的位置', badge: '练耳小屋', accent: '#a78bfa' },
-  chordDegree: { eyebrow: '和声辨识', title: '猜和弦', subtitle: '以 do 为参考，辨认随机转位三和弦的级数', badge: '练耳小屋', accent: '#38bdf8' },
-  chordProgression: { eyebrow: '和声训练', title: '和弦进行', subtitle: '在循环中建立级数走向与和声色彩的听感', badge: '练耳小屋', accent: '#fbbf24' },
+  intervalFollow: { eyebrow: '基础训练', title: '音程跟听', subtitle: '循环聆听并跟随播报，建立音程声音记忆', badge: '练耳小屋', accent: '#315efb' },
+  intervalSpeed: { eyebrow: '辨认挑战', title: '音程辨认', subtitle: '听到音程后立即作答，训练反应速度与准确度', badge: '练耳小屋', accent: '#315efb' },
+  scaleDegree: { eyebrow: '调性感知', title: '音级辨识', subtitle: '先建立调性，再辨认音相对主音的位置', badge: '练耳小屋', accent: '#6d46d9' },
+  chordDegree: { eyebrow: '和声辨识', title: '猜和弦', subtitle: '以 do 为参考，辨认随机转位三和弦的级数', badge: '练耳小屋', accent: '#315efb' },
+  chordProgression: { eyebrow: '和声训练', title: '和弦进行', subtitle: '在循环中建立级数走向与和声色彩的听感', badge: '练耳小屋', accent: '#a85c00' },
 }
 
 type PracticeViewProps = {

@@ -1,110 +1,101 @@
+import { PRACTICE_CATEGORIES, PRACTICE_ROUTES, practiceRouteHref } from '../app/routes'
 import { VersionInfo } from '../common/VersionInfo'
 
-const ENTRANCES = [
-  {
-    href: '#/melody-loop',
-    eyebrow: 'MELODY LOOP',
-    title: '旋律工坊',
-    description: '写下自己的旋律，选择拍号与小节数，让一段 Pattern 无缝循环，陪你反复练习。',
-    detail: '旋律编辑 · 自定义小节 · 无缝循环',
-    icon: '♫',
-    tone: 'violet',
-  },
-  {
-    href: '#/fretboard',
-    eyebrow: 'FRETBOARD',
-    title: '指板练习',
-    description: '看见音名，迅速落指。用随机区域与错题热力图，慢慢画出属于你的指板地图。',
-    detail: '音名定位 · 自由试音 · 薄弱区域',
-    icon: '♯',
-    tone: 'amber',
-  },
-  {
-    href: '#/pentatonic-play',
-    eyebrow: 'PENTATONIC PLAY',
-    title: '五声走位',
-    description: '跟随稳定节拍完成五声音阶上行与下行，连续弹净三遍后进入下一位置。',
-    detail: '吉他输入 · 上行下行 · 自动升速',
-    icon: '◇',
-    tone: 'teal',
-  },
-  {
-    href: '#/chord-tone-play',
-    eyebrow: 'CHORD TONES',
-    title: '和弦寻音',
-    description: '看见一个七和弦，在吉他上依次弹出它的 3 音与 7 音，建立和弦与指板之间的直接连接。',
-    detail: '吉他输入 · 3 音与 7 音 · 任意八度',
-    icon: 'Ⅲ',
-    tone: 'violet',
-  },
-  {
-    href: '#/ear-training',
-    eyebrow: 'EAR TRAINING',
-    title: '练耳',
-    description: '从音程、音级到和弦进行，在声音里建立稳定、可调用的音乐直觉。',
-    detail: '音程 · 音级 · 和弦',
-    icon: '♪',
-    tone: 'sky',
-  },
-  {
-    href: '#/modal-scale',
-    eyebrow: 'SCALE JOURNEY',
-    title: '音阶漫游',
-    description: '选定一种音阶，让每一轮从新的 do 出发，在稳定的 4/4 拍中建立可移动的相对音感。',
-    detail: '五声音阶 · 七种调式 · 节拍同步',
-    icon: '∞',
-    tone: 'emerald',
-  },
-  {
-    href: '#/rhythm',
-    eyebrow: 'RHYTHM ECHO',
-    title: '节奏回声',
-    description: '听一小节，再敲回一小节。无需反复点下一题，在连续循环中练出准确的节奏感。',
-    detail: '无限循环 · 即时反馈 · 自适应难度',
-    icon: '◉',
-    tone: 'violet',
-  },
-  {
-    href: '#/metronome',
-    eyebrow: 'RHYTHM',
-    title: '节拍器',
-    description: '选择速度与拍号，让清晰稳定的节拍陪你自由练习，逐渐建立可靠的内在律动。',
-    detail: '速度调节 · 拍号 · 点按测速',
-    icon: '♩',
-    tone: 'sky',
-  },
-] as const
+const EAR_TRAINING_ID = 'ear-training'
+const METRONOME_ID = 'metronome'
 
 export function HomePage() {
+  const earTraining = PRACTICE_ROUTES.find((route) => route.id === EAR_TRAINING_ID)!
+  const metronome = PRACTICE_ROUTES.find((route) => route.id === METRONOME_ID)!
+  const libraryRoutes = PRACTICE_ROUTES.filter(
+    (route) => route.id !== EAR_TRAINING_ID && route.id !== METRONOME_ID,
+  )
+
   return (
     <main className="home-page">
-      <div className="home-orbit home-orbit--one" aria-hidden="true" />
-      <div className="home-orbit home-orbit--two" aria-hidden="true" />
-
-      <header className="home-hero">
-        <p className="home-kicker"><span aria-hidden="true">✦</span> GREEN'S MUSIC CABIN</p>
-        <h1>格林的音乐<br className="sm:hidden" />练习小屋</h1>
-        <p>推开一扇门，专注练一件事。练手、练耳，或让稳定的节拍陪你开始。</p>
+      <header className="home-topbar">
+        <a className="home-brand" href="#/" aria-label="格林的音乐练习小屋首页">
+          <span aria-hidden="true">G</span>
+          <span>格林的音乐练习小屋</span>
+        </a>
+        <p>一个人，也可以认真练一会儿</p>
       </header>
 
-      <section className="home-entrances" aria-label="选择练习">
-        {ENTRANCES.map((entrance, index) => (
-          <a key={entrance.href} className={`entrance-card entrance-card--${entrance.tone}`} href={entrance.href}>
-            <span className="entrance-number" aria-hidden="true">0{index + 1}</span>
-            <span className="entrance-icon" aria-hidden="true">{entrance.icon}</span>
-            <span className="entrance-copy">
-              <span className="entrance-eyebrow">{entrance.eyebrow}</span>
-              <strong>{entrance.title}</strong>
-              <span className="entrance-description">{entrance.description}</span>
-              <span className="entrance-detail">{entrance.detail}</span>
-            </span>
-            <span className="entrance-action">进入练习 <span aria-hidden="true">→</span></span>
+      <section className="home-focus" aria-labelledby="home-focus-title">
+        <div className="home-focus-main">
+          <span className="home-focus-label">常用入口</span>
+          <h1 id="home-focus-title">练耳训练</h1>
+          <p>音程、音级与和弦训练集中在这里。进入后，直接选择你现在想练的内容。</p>
+          <div className="home-focus-meta" aria-label="练习内容">
+            <span>音程辨认</span>
+            <span>音级听辨</span>
+            <span>和弦训练</span>
+          </div>
+          <a className="home-primary-action" href={practiceRouteHref(earTraining)}>
+            打开练耳
+            <span aria-hidden="true">→</span>
           </a>
-        ))}
+        </div>
+
+        <aside className="home-quick-tool">
+          <span className="home-quick-icon" aria-hidden="true">{metronome.home.icon}</span>
+          <div>
+            <span className="home-focus-label">练琴工具</span>
+            <h2>{metronome.title}</h2>
+            <p>不设目标，打开就能陪你练琴。</p>
+          </div>
+          <a href={practiceRouteHref(metronome)}>
+            打开节拍器 <span aria-hidden="true">→</span>
+          </a>
+        </aside>
+      </section>
+
+      <section className="home-library" aria-labelledby="home-library-title">
+        <header className="home-library-heading">
+          <div>
+            <span className="home-section-index">练习库</span>
+            <h2 id="home-library-title">换个方向练</h2>
+          </div>
+          <p>专项练习都在这里，按你现在想练的内容选择。</p>
+        </header>
+
+        <div className="home-groups">
+          {PRACTICE_CATEGORIES.map((category) => {
+            const routes = libraryRoutes.filter((route) => route.category === category.id)
+            if (routes.length === 0) return null
+
+            return (
+              <section className="home-group" aria-labelledby={`group-${category.id}`} key={category.id}>
+                <header className="home-group-heading">
+                  <h3 id={`group-${category.id}`}>{category.title}</h3>
+                  <span>{String(routes.length).padStart(2, '0')}</span>
+                </header>
+                <div className="home-entrances">
+                  {routes.map((route) => (
+                    <a
+                      key={route.id}
+                      className={`entrance-card entrance-card--${route.home.tone}`}
+                      href={practiceRouteHref(route)}
+                    >
+                      <span className="entrance-icon" aria-hidden="true">{route.home.icon}</span>
+                      <span className="entrance-copy">
+                        <span className="entrance-eyebrow">{route.home.eyebrow}</span>
+                        <strong>{route.title}</strong>
+                        <span className="entrance-description">{route.home.description}</span>
+                        <span className="entrance-detail">{route.home.detail}</span>
+                      </span>
+                      <span className="entrance-action" aria-hidden="true">→</span>
+                    </a>
+                  ))}
+                </div>
+              </section>
+            )
+          })}
+        </div>
       </section>
 
       <footer className="home-footer">
-        <span>每一次认真聆听，都在为音乐直觉添一块木头。</span>
+        <span>选一项，开始练。</span>
         <VersionInfo />
       </footer>
     </main>

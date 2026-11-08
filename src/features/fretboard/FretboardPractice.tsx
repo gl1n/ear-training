@@ -7,7 +7,7 @@ const FRETBOARD_META: AppShellMeta = {
   title: '音名闪击',
   subtitle: '在随机区域中快速找到目标音，建立指板空间记忆',
   badge: '指板小屋',
-  accent: '#fbbf24',
+  accent: '#a85c00',
 }
 
 export function FretboardPractice() {

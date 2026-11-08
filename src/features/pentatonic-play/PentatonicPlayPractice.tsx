@@ -33,7 +33,7 @@ const PENTATONIC_PLAY_META: AppShellMeta = {
   title: '五声走位',
   subtitle: '在节拍陪伴下，连续弹完一遍上行与下行',
   badge: '节拍伴练',
-  accent: '#2dd4bf',
+  accent: '#0f766e',
 }
 
 type Phase = 'idle' | 'playing' | 'feedback'
@@ -332,7 +332,7 @@ export function PentatonicPlayPractice() {
         ].map((item) => (
           <div key={item.label} className="rounded-xl border border-[var(--border-subtle)] bg-white/[0.035] px-3 py-3 text-center">
             <p className="text-[10px] font-semibold tracking-wider text-[var(--text-secondary)]">{item.label}</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-white">{item.value}</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-[var(--text-primary)]">{item.value}</p>
           </div>
         ))}
       </section>
@@ -344,19 +344,19 @@ export function PentatonicPlayPractice() {
               type="button"
               aria-label="伴练速度减 5"
               onClick={() => updateBpm(bpm - 5)}
-              className="grid size-10 place-items-center rounded-full border border-[var(--border-subtle)] text-lg text-[var(--text-secondary)] hover:text-white"
+              className="grid size-10 place-items-center rounded-full border border-[var(--border-subtle)] bg-white text-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
               −
             </button>
             <div className="min-w-20 text-center">
-              <strong className="block text-2xl tabular-nums text-white">{bpm}</strong>
+              <strong className="block text-2xl tabular-nums text-[var(--text-primary)]">{bpm}</strong>
               <span className="text-[10px] font-semibold tracking-[0.16em] text-[var(--text-secondary)]">BPM</span>
             </div>
             <button
               type="button"
               aria-label="伴练速度加 5"
               onClick={() => updateBpm(bpm + 5)}
-              className="grid size-10 place-items-center rounded-full border border-[var(--border-subtle)] text-lg text-[var(--text-secondary)] hover:text-white"
+              className="grid size-10 place-items-center rounded-full border border-[var(--border-subtle)] bg-white text-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
               +
             </button>
@@ -431,7 +431,7 @@ export function PentatonicPlayPractice() {
             return (
               <div
                 key={`${note}-${noteIndex}`}
-                className={`grid h-11 place-items-center rounded-lg border text-center transition sm:h-12 ${completed ? 'border-emerald-300/30 bg-emerald-300/12 text-emerald-200' : current ? 'scale-[1.04] border-teal-300/70 bg-teal-300/14 text-teal-100 shadow-[0_0_24px_rgba(45,212,191,.16)]' : constrained ? 'border-amber-300/20 bg-amber-300/[0.035] text-white/65' : 'border-white/8 bg-black/15 text-white/45'}`}
+                className={`grid h-11 place-items-center rounded-lg border text-center transition sm:h-12 ${completed ? 'border-emerald-600/30 bg-emerald-100 text-emerald-800' : current ? 'scale-[1.04] border-teal-600 bg-teal-100 text-teal-900' : constrained ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)]'}`}
                 title={constrained ? `${runDegrees[noteIndex]} 音使用指板标记位置` : runDegrees[noteIndex]}
               >
                 <strong className="text-xs sm:text-lg">{completed ? '✓' : note}</strong>

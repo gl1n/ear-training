@@ -1,96 +1,63 @@
-import { degreeOptions, degreePracticeKey } from '../../quiz/degreePractice'
-import type { DegreePracticeOptions } from '../../quiz/keys'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAudioEngine } from '../../hooks/useAudioEngine'
-import { useAutoDismiss } from '../../hooks/useAutoDismiss'
-import { useChallengeSession } from '../../hooks/useChallengeSession'
-import { getInitialSettings, usePersistedSettings } from '../../hooks/usePersistedSettings'
-import { useTrainingStats } from '../../hooks/useTrainingStats'
-import { useSessionGoal } from '../../hooks/useSessionGoal'
-import { ALL_INTERVAL_IDS, type IntervalDirection, type Quiz } from '../../quiz/intervals'
-import { isSequenceScaleDegreeQuiz, type ScaleDegreeQuiz, type SequenceScaleDegreeQuiz, type ScaleDegreeTrainingMode } from '../../quiz/keys'
+import { useAutoDismiss } from './hooks/useAutoDismiss'
+import { useChallengeSession } from './hooks/useChallengeSession'
+import { getInitialSettings, usePersistedSettings } from './hooks/usePersistedSettings'
+import { useTrainingStats } from './hooks/useTrainingStats'
+import { useSessionGoal } from './hooks/useSessionGoal'
+import type { Quiz } from '../../quiz/intervals'
+import type { SequenceScaleDegreeQuiz } from '../../quiz/keys'
 import { getTotalAnswerCount } from '../../quiz/stats'
+import { createAnswerWaiter } from '../../quiz/createAnswerWaiter'
 import {
-  buildIntervalSpeedLoopCallbacks,
-  buildScaleDegreeLoopCallbacks,
-} from '../../quiz/challengeSessionHandlers'
-import { createAnswerWaiter, createGameStartWaiter } from '../../quiz/createAnswerWaiter'
-import {
-  createDefaultSettings,
-  runIntervalFollowLoop,
-  runIntervalSpeedLoop,
-  runScaleDegreeLoop,
   LISTENING_STATES,
   isIntervalMode,
   type AppMode,
-  type Settings,
-  type SpeedPreset,
   type TrainerState,
 } from '../../quiz/sequencer'
 import { isAbortError } from '../../utils/abort'
-import type { SettingsPanelProps } from '../../components/SettingsPanel'
+import type { SettingsPanelProps } from './components/SettingsPanel'
 import { PracticeView } from './PracticeView'
-import type { PracticeEncouragement } from '../../components/practice/types'
-import { SettingsDrawer } from '../../components/SettingsDrawer'
-import { chordKeyLabel, runChordProgressionLoop, runRandomChordEarLoop, type ChordDegree, type ChordKey, type ChordPlaybackMode, type ChordRhythm, type PlayedChord, type RandomChordSettings } from '../../quiz/chordProgression'
-import { CHORD_DEGREE_PLAYBACK_DURATION_SEC, CHORD_DEGREE_RETRIGGER_GAP_MS, createChordMidis, getChordDegreesForRange, loadChordDegreeHistory, randomChordDegreeTonicMidi, recordChordDegreeHistory, runChordDegreeLoop, type ChordDegreeHistory, type ChordDegreeId, type ChordDegreeInversionMode, type ChordDegreeKey, type ChordDegreeQuiz, type ChordDegreeRange } from '../../quiz/chordDegreeQuiz'
-import { recordChallengeResultNoBonus } from '../../quiz/stats'
-
-function waitForChordRetrigger(): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, CHORD_DEGREE_RETRIGGER_GAP_MS))
-}
+import type { PracticeEncouragement } from './components/practice/types'
+import { SettingsDrawer } from './components/SettingsDrawer'
+import { getChordDegreesForRange } from '../../quiz/chordDegreeQuiz'
+import { useChordProgressionPractice } from './hooks/useChordProgressionPractice'
+import { useChordDegreePractice } from './hooks/useChordDegreePractice'
+import { useIntervalPractice } from './hooks/useIntervalPractice'
+import { useScaleDegreePractice } from './hooks/useScaleDegreePractice'
 
 export function Trainer() {
   const initial = getInitialSettings()
   const [mode, setMode] = useState<AppMode>(initial.mode)
   const [state, setState] = useState<TrainerState>('idle')
   const [isRunning, setIsRunning] = useState(false)
-  const [speedPreset, setSpeedPreset] = useState<SpeedPreset>(initial.speedPreset)
-  const [settings, setSettings] = useState<Settings>(initial.settings)
-  const [lastQuiz, setLastQuiz] = useState<Quiz | null>(null)
-  const [lastScaleDegreeQuiz, setLastScaleDegreeQuiz] = useState<ScaleDegreeQuiz | null>(null)
-  const [currentScaleDegreeQuiz, setCurrentScaleDegreeQuiz] = useState<ScaleDegreeQuiz | null>(null)
-  const [currentKeyLabel, setCurrentKeyLabel] = useState<string | null>(null)
-  const [scaleDegreeGameStarted, setScaleDegreeGameStarted] = useState(false)
-  const [scaleDegreeReviewEnabled, setScaleDegreeReviewEnabled] = useState(
-    initial.scaleDegreeReviewEnabled,
-  )
-  const [scaleDegreeTrainingMode, setScaleDegreeTrainingMode] = useState<ScaleDegreeTrainingMode>(
-    initial.scaleDegreeTrainingMode,
-  )
-  const [degreePractice, setDegreePractice] = useState<DegreePracticeOptions>(initial.degreePractice)
-  const [degreeQuestionId, setDegreeQuestionId] = useState(0)
-  const melodyReplayedRef = useRef(false)
-  const [melodyCorrectDegrees, setMelodyCorrectDegrees] = useState<string[]>([])
-  const [drawerOpen, setDrawerOpen] = useState(false)
   const { sessionSize, setSessionSize, sessionCompleted, beginSession, completeQuestion, finishSession, clearSessionGoal } = useSessionGoal(initial.sessionSize)
-  const [chordDegrees, setChordDegrees] = useState<ChordDegree[]>(initial.chordDegrees)
-  const [currentChord, setCurrentChord] = useState<PlayedChord | null>(null)
-  const [currentChordPosition, setCurrentChordPosition] = useState(-1)
-  const [chordRhythm, setChordRhythm] = useState<ChordRhythm>(initial.chordRhythm)
-  const [currentChordBeat, setCurrentChordBeat] = useState(0)
-  const [chordCountIn, setChordCountIn] = useState(false)
-  const [chordKey, setChordKey] = useState<ChordKey>(initial.chordKey)
-  const [chordMelodyEnabled, setChordMelodyEnabled] = useState(initial.chordMelodyEnabled)
-  const [chordPlaybackMode, setChordPlaybackMode] = useState<ChordPlaybackMode>(initial.chordPlaybackMode)
-  const [randomChordSettings, setRandomChordSettings] = useState<RandomChordSettings>(initial.randomChordSettings)
-  const [activeChordKeyLabel, setActiveChordKeyLabel] = useState<string | null>(null)
-  const [chordDegreeQuiz, setChordDegreeQuiz] = useState<ChordDegreeQuiz | null>(null)
-  const [chordDegreeHistory, setChordDegreeHistory] = useState<ChordDegreeHistory>(() => loadChordDegreeHistory())
-  const [chordDegreeKey, setChordDegreeKey] = useState<ChordDegreeKey>(initial.chordDegreeKey)
-  const [chordDegreeTonicMidi, setChordDegreeTonicMidi] = useState(60)
-  const [chordDegreeRange, setChordDegreeRange] = useState<ChordDegreeRange>(initial.chordDegreeRange)
-  const [chordDegreeCustomDegrees, setChordDegreeCustomDegrees] = useState<number[]>(initial.chordDegreeCustomDegrees)
-  const [chordDegreeInversionMode, setChordDegreeInversionMode] = useState<ChordDegreeInversionMode>(initial.chordDegreeInversionMode)
-  const [chordDegreeReplayCount, setChordDegreeReplayCount] = useState(0)
-
+  const {
+    chordDegrees,
+    currentChord,
+    currentChordPosition,
+    chordRhythm,
+    currentChordBeat,
+    chordCountIn,
+    chordKey,
+    activeChordKeyLabel,
+    chordMelodyEnabled,
+    chordPlaybackMode,
+    randomChordSettings,
+    setChordDegrees,
+    setChordRhythm,
+    setChordKey,
+    setChordMelodyEnabled,
+    setChordPlaybackMode,
+    setRandomChordSettings,
+    changeChordDegree,
+    resetPlayback: resetChordProgressionPlayback,
+    run: runChordProgressionPractice,
+  } = useChordProgressionPractice(initial)
   const abortRef = useRef<AbortController | null>(null)
   const answerResolverRef = useRef<((answer: string) => void) | null>(null)
   const answerCleanupRef = useRef<(() => void) | null>(null)
-  const gameStartResolverRef = useRef<(() => void) | null>(null)
-  const gameStartCleanupRef = useRef<(() => void) | null>(null)
   const challengeEncouragementKeyRef = useRef(0)
-  const chordReplayTokenRef = useRef(0)
   const [challengeEncouragement, setChallengeEncouragement] =
     useState<PracticeEncouragement | null>(null)
   const [correctionWrongSelection, setCorrectionWrongSelection] = useState<string | null>(null)
@@ -114,6 +81,81 @@ export function Trainer() {
     playMidi,
   } = useAudioEngine()
   const {
+    speedPreset,
+    settings,
+    lastQuiz,
+    drawerOpen,
+    setDrawerOpen,
+    resetQuiz: resetIntervalQuiz,
+    playQuiz: playIntervalQuiz,
+    runSpeedChallenge: runIntervalSpeedChallenge,
+    runFollow: runIntervalFollowPractice,
+    practiceWeakest: practiceWeakestIntervals,
+    changeSpeed: handleSpeedChange,
+    toggleInterval: handleIntervalToggle,
+    selectAllIntervals: handleSelectAllIntervals,
+    clearIntervals: handleClearIntervals,
+    applyPreset: handleApplyPreset,
+    changeDirection: handleDirectionChange,
+  } = useIntervalPractice(initial, { replayQuiz: replayQuizAudio })
+  const {
+    lastQuiz: lastScaleDegreeQuiz,
+    currentQuiz: currentScaleDegreeQuiz,
+    currentKeyLabel,
+    gameStarted: scaleDegreeGameStarted,
+    reviewEnabled: scaleDegreeReviewEnabled,
+    trainingMode: scaleDegreeTrainingMode,
+    degreePractice,
+    questionId: degreeQuestionId,
+    melodyCorrectDegrees,
+    setReviewEnabled: setScaleDegreeReviewEnabled,
+    setTrainingMode: setScaleDegreeTrainingMode,
+    setDegreePractice,
+    prepareStart: prepareScaleDegreeStart,
+    resetTransientState: resetScaleDegreeTransientState,
+    resetMode: resetScaleDegreeMode,
+    stop: stopScaleDegree,
+    handleStateChange: handleScaleDegreeStateChange,
+    run: runScaleDegreePractice,
+    finalize: finalizeScaleDegreePractice,
+    playMelodyQuiz: playScaleDegreeMelodyQuiz,
+    replayCurrentMelody: handleReplayCurrentMelody,
+    playDo: handlePlayScaleDegreeDo,
+    answerForDigit: scaleDegreeAnswerForDigit,
+  } = useScaleDegreePractice(
+    initial,
+    { settings, replayMelodyQuiz: replayMelodyQuizAudio, playMidi },
+    { active: mode === 'scaleDegree', isRunning, state },
+  )
+  const {
+    quiz: chordDegreeQuiz,
+    history: chordDegreeHistory,
+    key: chordDegreeKey,
+    range: chordDegreeRange,
+    customDegrees: chordDegreeCustomDegrees,
+    inversionMode: chordDegreeInversionMode,
+    replayCount: chordDegreeReplayCount,
+    setKey: setChordDegreeKey,
+    setRange: setChordDegreeRange,
+    setCustomDegrees: setChordDegreeCustomDegrees,
+    setInversionMode: setChordDegreeInversionMode,
+    cancelReplay: cancelChordDegreeReplay,
+    resetQuiz: resetChordDegreeQuiz,
+    run: runChordDegreePractice,
+    playDo: handlePlayChordDo,
+    playQuiz: handlePlayChordQuiz,
+    playSequence: handlePlayChordSequence,
+    playSelected: handlePlaySelectedChord,
+    playComparison: handlePlayChordComparison,
+    applyPreset: handleApplyChordDegreePreset,
+  } = useChordDegreePractice(initial, {
+    settings,
+    correctionWrongSelection,
+    ensureAudioContext,
+    ensurePiano,
+    handleLoadFailure,
+  })
+  const {
     sessionStats,
     sessionStatsRef,
     sessionScaleDegreeMistakes,
@@ -136,21 +178,6 @@ export function Trainer() {
     finalizeChallengeSession,
     finalizeDegreePractice,
   } = useTrainingStats()
-
-  useEffect(() => {
-    if (
-      mode !== 'scaleDegree' ||
-      !isRunning ||
-      scaleDegreeGameStarted ||
-      state !== 'idle' ||
-      currentKeyLabel === null ||
-      !gameStartResolverRef.current
-    ) {
-      return
-    }
-
-    gameStartResolverRef.current()
-  }, [mode, isRunning, scaleDegreeGameStarted, state, currentKeyLabel])
 
   useAutoDismiss(challengeEncouragement, 1800, () => setChallengeEncouragement(null), challengeEncouragement?.key)
 
@@ -189,37 +216,30 @@ export function Trainer() {
     // keep using the already loaded instrument instead of starting another load.
   }, [ensurePiano, mode, settings])
 
-  const resetMelodyProgress = useCallback(() => {
-    setMelodyCorrectDegrees([])
-  }, [])
-
   const resetChallengeAnswerState = useCallback(() => {
     answerResolverRef.current = null
     answerCleanupRef.current?.()
     answerCleanupRef.current = null
-    gameStartResolverRef.current = null
-    gameStartCleanupRef.current?.()
-    gameStartCleanupRef.current = null
     setCorrectionWrongSelection(null)
-    resetMelodyProgress()
-  }, [resetMelodyProgress])
+    resetScaleDegreeTransientState()
+  }, [resetScaleDegreeTransientState])
 
   const abortSession = useCallback(() => {
-    chordReplayTokenRef.current += 1
+    cancelChordDegreeReplay()
     abortRef.current?.abort()
     abortRef.current = null
     stopReplay()
     resetChallengeAnswerState()
-  }, [resetChallengeAnswerState, stopReplay])
+  }, [cancelChordDegreeReplay, resetChallengeAnswerState, stopReplay])
 
   const stop = useCallback(() => {
     abortSession()
     setIsRunning(false)
     setState('idle')
     setChallengeEncouragement(null)
-    setScaleDegreeGameStarted(false)
+    stopScaleDegree()
     resetLoadingState()
-  }, [abortSession, resetLoadingState])
+  }, [abortSession, resetLoadingState, stopScaleDegree])
 
   useEffect(() => {
     return () => {
@@ -233,21 +253,12 @@ export function Trainer() {
       if (LISTENING_STATES.includes(nextState)) {
         setChallengeEncouragement(null)
         setCorrectionWrongSelection(null)
-        if (mode === 'scaleDegree' && scaleDegreeTrainingMode !== 'single' && nextState === 'playing_root') {
-          resetMelodyProgress()
-        }
+        if (mode === 'scaleDegree') handleScaleDegreeStateChange(nextState)
       }
       setState(nextState)
     },
-    [mode, scaleDegreeTrainingMode, resetMelodyProgress],
+    [handleScaleDegreeStateChange, mode],
   )
-
-  const handleMelodyNoteResolved = useCallback((noteIndex: number, degree: number, correct: boolean) => {
-    if (correct) {
-      setMelodyCorrectDegrees((current) => [...current, String(degree)])
-    }
-    void noteIndex
-  }, [])
 
   const handleAnswerCorrectionStart = useCallback((wrongSelection: string) => {
     setCorrectionWrongSelection(wrongSelection)
@@ -255,13 +266,6 @@ export function Trainer() {
 
   const waitForChallengeAnswer = (signal: AbortSignal) =>
     createAnswerWaiter({ answerResolverRef, answerCleanupRef })(signal)
-
-  const waitForGameStart = (signal: AbortSignal) =>
-    createGameStartWaiter({
-      gameStartResolverRef,
-      gameStartCleanupRef,
-      onStart: () => setScaleDegreeGameStarted(true),
-    })(signal)
 
   const handleAnswerSelect = useCallback((answer: string) => {
     answerResolverRef.current?.(answer)
@@ -271,28 +275,17 @@ export function Trainer() {
 
   const handlePlayQuiz = useCallback(
     (quiz: Quiz) => {
-      void replayQuizAudio(quiz, settings, replayBlocked)
+      playIntervalQuiz(quiz, replayBlocked)
     },
-    [replayQuizAudio, replayBlocked, settings],
+    [playIntervalQuiz, replayBlocked],
   )
 
   const handlePlayMelodyQuiz = useCallback(
     (quiz: SequenceScaleDegreeQuiz) => {
-      void replayMelodyQuizAudio(quiz, settings, replayBlocked)
+      playScaleDegreeMelodyQuiz(quiz, replayBlocked)
     },
-    [replayMelodyQuizAudio, replayBlocked, settings],
+    [playScaleDegreeMelodyQuiz, replayBlocked],
   )
-
-  const handleReplayCurrentMelody = useCallback(() => {
-    if (currentScaleDegreeQuiz && isSequenceScaleDegreeQuiz(currentScaleDegreeQuiz)) {
-      if (state === 'awaiting_answer') melodyReplayedRef.current = true
-      void replayMelodyQuizAudio(currentScaleDegreeQuiz, settings, false)
-    }
-  }, [currentScaleDegreeQuiz, replayMelodyQuizAudio, settings, state])
-
-  const handlePlayScaleDegreeDo = useCallback(() => {
-    if (currentScaleDegreeQuiz) playMidi(currentScaleDegreeQuiz.tonicMidi)
-  }, [currentScaleDegreeQuiz, playMidi])
 
   const start = useCallback(async () => {
     if (mode !== 'scaleDegree' && mode !== 'chordDegree' && mode !== 'chordProgression' && settings.enabledIntervalIds.length === 0) {
@@ -311,17 +304,13 @@ export function Trainer() {
     resetChallengeAnswerState()
 
     if (mode === 'intervalSpeed') {
-      setLastQuiz(null)
+      resetIntervalQuiz()
       clearNewBestRecord('intervalSpeed')
     }
     if (mode === 'scaleDegree') {
-      setLastScaleDegreeQuiz(null)
-      setCurrentKeyLabel(null)
-      setScaleDegreeGameStarted(false)
-      if (scaleDegreeTrainingMode === 'single') clearNewBestRecord('scaleDegree')
-      if (scaleDegreeTrainingMode === 'melody') clearNewBestRecord('scaleDegreeMelody')
+      prepareScaleDegreeStart(clearNewBestRecord)
     }
-    if (mode === 'chordDegree') setChordDegreeQuiz(null)
+    if (mode === 'chordDegree') resetChordDegreeQuiz()
 
     try {
       ensureAudioContext()
@@ -329,121 +318,56 @@ export function Trainer() {
       resetLoadingState()
 
       if (mode === 'chordDegree') {
-        const tonicMidi = chordDegreeKey === 'random' ? randomChordDegreeTonicMidi() : 60
-        setChordDegreeTonicMidi(tonicMidi)
-        await runChordDegreeLoop(piano, {
+        await runChordDegreePractice({
+          piano,
+          signal: controller.signal,
           onStateChange: handleTrainerStateChange,
-          onQuiz: (quiz) => { chordReplayTokenRef.current += 1; setChordDegreeQuiz(quiz); setChordDegreeReplayCount(1) },
-          waitForAnswer: (signal) => waitForChallengeAnswer(signal).then((selectedDegree) => ({ selectedDegree })),
+          waitForAnswer: waitForChallengeAnswer,
           onAnswerCorrectionStart: handleAnswerCorrectionStart,
           getSessionStats: () => sessionStatsRef.current,
-          onAnswerSubmitted: (quiz, _selected, correct) => {
-            updateSessionStats((current) => recordChallengeResultNoBonus(current, String(quiz.degree), { correct }))
-            setChordDegreeHistory((current) => recordChordDegreeHistory(current, String(quiz.degree) as ChordDegreeId, correct))
-            return completeQuestion()
-          },
-        }, controller.signal, tonicMidi, getChordDegreesForRange(chordDegreeRange, chordDegreeCustomDegrees), chordDegreeInversionMode)
+          updateSessionStats,
+          completeQuestion,
+        })
       } else if (mode === 'chordProgression') {
-        const pitchClass = chordKey === 'random' ? Math.floor(Math.random() * 12) : chordKey
-        setActiveChordKeyLabel(chordKeyLabel(pitchClass))
-        const onBeat = (beat: number, isCountIn: boolean) => {
-          setCurrentChordBeat(beat)
-          setChordCountIn(isCountIn)
-        }
-        if (chordPlaybackMode === 'random-ear') {
-          await runRandomChordEarLoop(piano, randomChordSettings, chordRhythm, {
-            onChord: (chord) => {
-              setChordCountIn(false)
-              setCurrentChord(chord)
-              setCurrentChordPosition(-1)
-            },
-            onBeat,
-            onPhase: (phase) => handleTrainerStateChange(
-              phase === 'chord' ? 'playing_harmonic' : phase === 'root' ? 'playing_root' : 'gap',
-            ),
-          }, controller.signal, 48 + pitchClass)
-        } else {
-          await runChordProgressionLoop(piano, chordDegrees, chordRhythm, {
-            onChord: (chord, position) => {
-              setChordCountIn(false)
-              setCurrentChord(chord)
-              setCurrentChordPosition(position)
-              handleTrainerStateChange('playing_harmonic')
-            },
-            onBeat,
-          }, controller.signal, 48 + pitchClass, chordMelodyEnabled)
-        }
+        await runChordProgressionPractice(piano, controller.signal, handleTrainerStateChange)
       } else if (mode === 'intervalSpeed') {
-        await runIntervalSpeedLoop(
+        await runIntervalSpeedChallenge({
           piano,
-          settings,
-          buildIntervalSpeedLoopCallbacks({
-            onStateChange: handleTrainerStateChange,
-            waitForAnswer: (signal) =>
-              waitForChallengeAnswer(signal).then((answer) => ({
-                selectedIntervalId: answer,
-              })),
-            onAnswerCorrectionStart: handleAnswerCorrectionStart,
-            setLastQuiz,
-            recordQuizMistake,
-            setEncouragement: setChallengeEncouragement,
-            encouragementKeyRef: challengeEncouragementKeyRef,
-            updateSessionStats,
-            onQuestionCompleted: completeQuestion,
-          }),
-          controller.signal,
-          mistakeStoreRef.current,
-        )
+          signal: controller.signal,
+          onStateChange: handleTrainerStateChange,
+          waitForAnswer: waitForChallengeAnswer,
+          onAnswerCorrectionStart: handleAnswerCorrectionStart,
+          recordQuizMistake,
+          setEncouragement: setChallengeEncouragement,
+          encouragementKeyRef: challengeEncouragementKeyRef,
+          updateSessionStats,
+          onQuestionCompleted: completeQuestion,
+          mistakeStore: mistakeStoreRef.current,
+        })
       } else if (mode === 'scaleDegree') {
-        await runScaleDegreeLoop(
+        await runScaleDegreePractice({
           piano,
-          settings,
-          buildScaleDegreeLoopCallbacks({
-            onStateChange: handleTrainerStateChange,
-            onSessionStart: (session) => setCurrentKeyLabel(session.label),
-            onQuiz: (quiz) => {
-              melodyReplayedRef.current = false
-              setCurrentScaleDegreeQuiz(quiz)
-              setDegreeQuestionId((id) => id + 1)
-            },
-            waitForGameStart,
-            waitForAnswer: (signal) =>
-              waitForChallengeAnswer(signal).then((answer) => ({
-                selectedDegree: answer,
-                wasReplayed: melodyReplayedRef.current,
-              })),
-            waitForNextQuestion: (signal) =>
-              waitForChallengeAnswer(signal).then(() => undefined),
-            onAnswerCorrectionStart: handleAnswerCorrectionStart,
-            onSequenceNoteResolved: handleMelodyNoteResolved,
-            trainingMode: scaleDegreeTrainingMode,
-            setLastScaleDegreeQuiz,
-            recordScaleDegreeQuizMistake,
-            appendSessionScaleDegreeMistake,
-            recordScaleDegreeMelodyQuizMistake,
-            appendSessionScaleDegreeMelodyMistake,
-            setEncouragement: setChallengeEncouragement,
-            encouragementKeyRef: challengeEncouragementKeyRef,
-            updateSessionStats,
-            getSessionStats: () => sessionStatsRef.current,
-            onQuestionCompleted: scaleDegreeTrainingMode === 'melody' && degreePractice.arcadeMode ? undefined : completeQuestion,
-          }),
-          controller.signal,
-          scaleDegreeMistakeStoreRef.current,
-          scaleDegreeMelodyMistakeStoreRef.current,
-          scaleDegreeReviewEnabled,
-          scaleDegreeTrainingMode,
-          degreePractice,
-        )
+          signal: controller.signal,
+          waitForAnswer: waitForChallengeAnswer,
+          onStateChange: handleTrainerStateChange,
+          onAnswerCorrectionStart: handleAnswerCorrectionStart,
+          recordScaleDegreeQuizMistake,
+          appendSessionScaleDegreeMistake,
+          recordScaleDegreeMelodyQuizMistake,
+          appendSessionScaleDegreeMelodyMistake,
+          setEncouragement: setChallengeEncouragement,
+          encouragementKeyRef: challengeEncouragementKeyRef,
+          updateSessionStats,
+          getSessionStats: () => sessionStatsRef.current,
+          completeQuestion,
+          mistakeStore: scaleDegreeMistakeStoreRef.current,
+          melodyMistakeStore: scaleDegreeMelodyMistakeStoreRef.current,
+        })
       } else {
-        await runIntervalFollowLoop(
+        await runIntervalFollowPractice(
           piano,
-          settings,
-          {
-            onStateChange: handleTrainerStateChange,
-            onAnswerRevealed: setLastQuiz,
-          },
           controller.signal,
+          handleTrainerStateChange,
         )
       }
     } catch (error) {
@@ -458,44 +382,38 @@ export function Trainer() {
         if (mode === 'intervalSpeed') {
           finalizeChallengeSession(sessionStatsRef.current, 'intervalSpeed')
         }
-        if (mode === 'scaleDegree' && scaleDegreeTrainingMode !== 'crossRegister') {
-          if (scaleDegreeTrainingMode === 'single' && degreePractice.scaleFlavor === 'major') {
-            finalizeChallengeSession(sessionStatsRef.current, 'scaleDegree')
-          } else {
-            finalizeDegreePractice(degreePracticeKey(scaleDegreeTrainingMode, degreePractice), sessionStatsRef.current)
-          }
+        if (mode === 'scaleDegree') {
+          finalizeScaleDegreePractice({
+            sessionStats: sessionStatsRef.current,
+            finalizeChallengeSession,
+            finalizeDegreePractice,
+          })
         }
 
         setIsRunning(false)
         if (mode === 'intervalSpeed' || mode === 'scaleDegree' || mode === 'chordDegree') finishSession()
         setState('idle')
-        setScaleDegreeGameStarted(false)
         abortRef.current = null
         resetChallengeAnswerState()
       }
     }
   }, [
     mode,
-    chordDegrees,
-    chordRhythm,
-    chordKey,
-    chordMelodyEnabled,
-    chordPlaybackMode,
-    randomChordSettings,
-    chordDegreeKey,
-    chordDegreeRange,
-    chordDegreeCustomDegrees,
-    chordDegreeInversionMode,
-    scaleDegreeReviewEnabled,
-    scaleDegreeTrainingMode,
-    degreePractice,
+    resetIntervalQuiz,
+    runIntervalSpeedChallenge,
+    runIntervalFollowPractice,
+    runChordProgressionPractice,
+    resetChordDegreeQuiz,
+    runChordDegreePractice,
+    prepareScaleDegreeStart,
+    runScaleDegreePractice,
+    finalizeScaleDegreePractice,
     finalizeDegreePractice,
     resetChallengeAnswerState,
     resetSessionState,
     settings,
     handleTrainerStateChange,
     handleAnswerCorrectionStart,
-    handleMelodyNoteResolved,
     recordQuizMistake,
     recordScaleDegreeQuizMistake,
     recordScaleDegreeMelodyQuizMistake,
@@ -546,9 +464,9 @@ export function Trainer() {
       }
       if (!isRunning || !/^Digit[1-9]$/.test(event.code)) return
       const digit = Number(event.code.slice(-1))
-      if (mode === 'scaleDegree' && scaleDegreeTrainingMode !== 'melody' && !replayingQuizKey && state !== 'answer_revealed' && digit <= 7) {
-        const options = degreeOptions(scaleDegreeTrainingMode === 'single' ? degreePractice.scaleFlavor : 'major')
-        handleAnswerSelect(scaleDegreeTrainingMode === 'single' && degreePractice.scaleFlavor === 'minor' ? options[digit - 1]! : String(digit))
+      if (mode === 'scaleDegree' && !replayingQuizKey && state !== 'answer_revealed') {
+        const answer = scaleDegreeAnswerForDigit(digit)
+        if (answer) handleAnswerSelect(answer)
       }
       if (mode === 'chordDegree') {
         const enabledDegrees = getChordDegreesForRange(chordDegreeRange, chordDegreeCustomDegrees)
@@ -561,158 +479,35 @@ export function Trainer() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [chordDegreeCustomDegrees, chordDegreeRange, handleAnswerSelect, handleToggle, isRunning, mode, settings.enabledIntervalIds, state, scaleDegreeTrainingMode, degreePractice.scaleFlavor, replayingQuizKey])
+  }, [chordDegreeCustomDegrees, chordDegreeRange, handleAnswerSelect, handleToggle, isRunning, mode, replayingQuizKey, scaleDegreeAnswerForDigit, settings.enabledIntervalIds, state])
 
   const handleScaleDegreeHome = useCallback(() => {
-    setLastScaleDegreeQuiz(null)
+    resetScaleDegreeMode()
     resetSessionState()
     clearSessionGoal()
-  }, [clearSessionGoal, resetSessionState])
+  }, [clearSessionGoal, resetScaleDegreeMode, resetSessionState])
 
   const handlePracticeWeakest = useCallback(() => {
-    const weakest = Object.entries(sessionStatsRef.current.byKey)
-      .filter(([, value]) => value.totalCount > 0)
-      .sort(([, a], [, b]) => a.correctCount / a.totalCount - b.correctCount / b.totalCount)
-      .slice(0, 3)
-      .map(([key]) => key)
-
-    if (mode === 'intervalSpeed' && weakest.length > 0) {
-      setSettings((current) => ({ ...current, enabledIntervalIds: weakest }))
+    if (mode === 'intervalSpeed') {
+      practiceWeakestIntervals(sessionStatsRef.current)
     } else if (mode === 'scaleDegree') {
       setScaleDegreeReviewEnabled(true)
     }
     resetSessionState()
     clearSessionGoal()
-  }, [clearSessionGoal, mode, resetSessionState, sessionStatsRef])
+  }, [clearSessionGoal, mode, practiceWeakestIntervals, resetSessionState, sessionStatsRef, setScaleDegreeReviewEnabled])
 
   const handleModeChange = (nextMode: AppMode) => {
     stopReplay()
     setMode(nextMode)
-    setLastQuiz(null)
-    setLastScaleDegreeQuiz(null)
-    setCurrentKeyLabel(null)
-    setScaleDegreeGameStarted(false)
+    resetIntervalQuiz()
+    resetScaleDegreeMode()
     resetSessionState()
     clearSessionGoal()
     resetChallengeAnswerState()
-    setCurrentChord(null)
-    setCurrentChordPosition(-1)
-    setCurrentChordBeat(0)
-    setChordCountIn(false)
-    setChordDegreeQuiz(null)
+    resetChordProgressionPlayback()
+    resetChordDegreeQuiz()
   }
-
-  const handleSpeedChange = (preset: SpeedPreset) => {
-    setSpeedPreset(preset)
-    setSettings((current) => ({
-      ...current,
-      ...createDefaultSettings(preset),
-      enabledIntervalIds: current.enabledIntervalIds,
-      direction: current.direction,
-    }))
-  }
-
-  const handleIntervalToggle = (id: string) => {
-    setSettings((current) => {
-      const enabled = current.enabledIntervalIds.includes(id)
-      const enabledIntervalIds = enabled
-        ? current.enabledIntervalIds.filter((item) => item !== id)
-        : [...current.enabledIntervalIds, id]
-      return { ...current, enabledIntervalIds }
-    })
-  }
-
-  const handleSelectAllIntervals = () => {
-    setSettings((current) => ({
-      ...current,
-      enabledIntervalIds: [...ALL_INTERVAL_IDS],
-    }))
-  }
-
-  const handleClearIntervals = () => {
-    setSettings((current) => ({ ...current, enabledIntervalIds: [] }))
-  }
-
-  const handleApplyPreset = (intervalIds: string[]) => {
-    setSettings((current) => ({ ...current, enabledIntervalIds: intervalIds }))
-  }
-
-  const handleDirectionChange = (direction: IntervalDirection) => {
-    setSettings((current) => ({ ...current, direction }))
-  }
-
-  const handlePlayChordDo = useCallback(() => {
-    ensureAudioContext()
-    const token = ++chordReplayTokenRef.current
-    void ensurePiano(settings).then(async (piano) => { piano.stop(); await waitForChordRetrigger(); if (token !== chordReplayTokenRef.current) return; return piano.playNote(chordDegreeTonicMidi, 1.2) }).catch((error: unknown) => {
-      if (!isAbortError(error)) handleLoadFailure(error)
-    })
-  }, [chordDegreeTonicMidi, ensureAudioContext, ensurePiano, handleLoadFailure, settings])
-
-  const playChordMidis = useCallback(async (midis: number[]) => {
-    const token = ++chordReplayTokenRef.current
-    ensureAudioContext()
-    const piano = await ensurePiano(settings)
-    piano.stop()
-    await waitForChordRetrigger()
-    if (token !== chordReplayTokenRef.current) return
-    await piano.playNotes(midis, CHORD_DEGREE_PLAYBACK_DURATION_SEC)
-  }, [ensureAudioContext, ensurePiano, settings])
-
-  const handlePlayChordQuiz = useCallback(() => {
-    if (!chordDegreeQuiz) return
-    setChordDegreeReplayCount((count) => count + 1)
-    void playChordMidis(chordDegreeQuiz.midis).catch((error: unknown) => handleLoadFailure(error))
-  }, [chordDegreeQuiz, handleLoadFailure, playChordMidis])
-
-  const handlePlayChordSequence = useCallback(() => {
-    if (!chordDegreeQuiz) return
-    setChordDegreeReplayCount((count) => count + 1)
-    void (async () => {
-      const token = ++chordReplayTokenRef.current
-      const piano = await ensurePiano(settings)
-      piano.stop()
-      await waitForChordRetrigger()
-      if (token !== chordReplayTokenRef.current) return
-      await piano.playNote(chordDegreeTonicMidi, 1.25)
-      await new Promise((resolve) => window.setTimeout(resolve, 1_050))
-      if (token !== chordReplayTokenRef.current) return
-      piano.stop()
-      await waitForChordRetrigger()
-      if (token !== chordReplayTokenRef.current) return
-      await piano.playNotes(chordDegreeQuiz.midis, CHORD_DEGREE_PLAYBACK_DURATION_SEC)
-    })().catch((error: unknown) => handleLoadFailure(error))
-  }, [chordDegreeQuiz, chordDegreeTonicMidi, ensurePiano, handleLoadFailure, settings])
-
-  const handlePlaySelectedChord = useCallback(() => {
-    if (!chordDegreeQuiz || !correctionWrongSelection) return
-    const midis = createChordMidis(chordDegreeTonicMidi, Number(correctionWrongSelection), chordDegreeQuiz.inversion)
-    void playChordMidis(midis).catch((error: unknown) => handleLoadFailure(error))
-  }, [chordDegreeQuiz, chordDegreeTonicMidi, correctionWrongSelection, handleLoadFailure, playChordMidis])
-
-  const handlePlayChordComparison = useCallback(() => {
-    if (!chordDegreeQuiz || !correctionWrongSelection) return
-    void (async () => {
-      const token = ++chordReplayTokenRef.current
-      const piano = await ensurePiano(settings)
-      piano.stop()
-      await waitForChordRetrigger()
-      if (token !== chordReplayTokenRef.current) return
-      await piano.playNotes(createChordMidis(chordDegreeTonicMidi, Number(correctionWrongSelection), chordDegreeQuiz.inversion), CHORD_DEGREE_PLAYBACK_DURATION_SEC)
-      await new Promise((resolve) => window.setTimeout(resolve, 2_000))
-      if (token !== chordReplayTokenRef.current) return
-      piano.stop()
-      await waitForChordRetrigger()
-      if (token !== chordReplayTokenRef.current) return
-      await piano.playNotes(chordDegreeQuiz.midis, CHORD_DEGREE_PLAYBACK_DURATION_SEC)
-    })().catch((error: unknown) => handleLoadFailure(error))
-  }, [chordDegreeQuiz, chordDegreeTonicMidi, correctionWrongSelection, ensurePiano, handleLoadFailure, settings])
-
-  const handleApplyChordDegreePreset = useCallback((preset: 'beginner' | 'standard' | 'advanced') => {
-    if (preset === 'beginner') { setChordDegreeKey('c-major'); setChordDegreeRange('primary'); setChordDegreeInversionMode('root'); return }
-    if (preset === 'standard') { setChordDegreeKey('c-major'); setChordDegreeRange('all'); setChordDegreeInversionMode('root'); return }
-    setChordDegreeKey('random'); setChordDegreeRange('all'); setChordDegreeInversionMode('random')
-  }, [])
 
   const settingsControls: SettingsPanelProps = {
     mode,
@@ -784,7 +579,7 @@ export function Trainer() {
         chordDegrees={chordDegrees}
         currentChord={currentChord}
         currentChordPosition={currentChordPosition}
-        onChordDegreeChange={(position, degree) => setChordDegrees((current) => current.map((value, index) => index === position ? degree : value))}
+        onChordDegreeChange={changeChordDegree}
         onChordDegreesChange={setChordDegrees}
         chordRhythm={chordRhythm}
         currentChordBeat={currentChordBeat}

@@ -32,7 +32,7 @@ const SCALE_META: AppShellMeta = {
   title: '音阶漫游',
   subtitle: '让每一个音都成为 do，在稳定节拍中熟悉调式色彩',
   badge: '无限模式',
-  accent: '#34d399',
+  accent: '#18794e',
 }
 
 type ScalePhase = 'idle' | 'loading' | 'count-in' | 'playing' | 'paused' | 'error'
@@ -267,7 +267,7 @@ export function ModalScalePractice() {
               {[0, 1, 2, 3].map((beat) => (
                 <span
                   key={beat}
-                  className={`grid h-9 w-9 place-items-center rounded-full border text-xs font-bold transition ${activeBeat === beat && isRunning ? 'scale-beat-active border-emerald-300 bg-emerald-300 text-emerald-950' : beat === 0 ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-200' : 'border-white/10 text-white/35'}`}
+                  className={`grid h-9 w-9 place-items-center rounded-full border text-xs font-bold transition ${activeBeat === beat && isRunning ? 'scale-beat-active border-emerald-600 bg-emerald-600 text-white' : beat === 0 ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-[var(--border-subtle)] text-[var(--text-secondary)]'}`}
                 >
                   {beat + 1}
                 </span>
@@ -278,7 +278,7 @@ export function ModalScalePractice() {
               {displaySteps.map((degree, step) => (
                 <span
                   key={`${degree}-${step}`}
-                  className={`rounded-lg border px-1 py-2 text-xs font-semibold transition sm:text-sm ${activePhraseStep === step && phase === 'playing' ? 'border-emerald-300/70 bg-emerald-300/20 text-emerald-100 shadow-[0_0_18px_rgba(52,211,153,0.18)]' : degree === '—' ? 'border-transparent text-white/15' : 'border-white/8 bg-black/15 text-white/45'}`}
+                  className={`rounded-lg border px-1 py-2 text-xs font-semibold transition sm:text-sm ${activePhraseStep === step && phase === 'playing' ? 'border-emerald-600 bg-emerald-100 text-emerald-900' : degree === '—' ? 'border-transparent text-[var(--border-subtle)]' : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)]'}`}
                 >
                   {degree}
                 </span>
@@ -325,7 +325,7 @@ export function ModalScalePractice() {
               )
             })}
           </div>
-          <p className="mt-4 rounded-lg bg-black/20 px-3 py-2 font-mono text-sm tracking-wide text-emerald-200/80">{activeScale.formula}</p>
+          <p className="mt-4 rounded-lg border border-emerald-700/15 bg-emerald-50 px-3 py-2 font-mono text-sm tracking-wide text-emerald-800">{activeScale.formula}</p>
         </div>
 
         <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5">

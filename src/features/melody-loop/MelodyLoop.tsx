@@ -93,7 +93,7 @@ export function MelodyLoop() {
       update()
     } catch { if (token === generation.current) { stop(); setError('钢琴音色加载或播放失败，请检查网络后重试。') } }
   }
-  return <AppShell wide meta={{ eyebrow: 'MELODY LOOP', title: '旋律工坊', subtitle: '写下一段旋律，让它一遍遍陪你练习。', badge: '无缝循环', accent: '#a78bfa' }}>
+  return <AppShell wide meta={{ eyebrow: 'MELODY LOOP', title: '旋律工坊', subtitle: '写下一段旋律，让它一遍遍陪你练习。', badge: '无缝循环', accent: '#6d46d9' }}>
     <section className="melody-toolbar" aria-label="Pattern 设置">
       <label>拍号<select value={pattern.beats} onChange={(e) => edit(resizePattern(pattern, Number(e.target.value), pattern.bars))}>{[2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n}/4</option>)}</select></label>
       <label>小节数<select value={pattern.bars} onChange={(e) => edit(resizePattern(pattern, pattern.beats, Number(e.target.value)))}>{Array.from({ length: 8 }, (_, i) => <option key={i} value={i + 1}>{i + 1} 小节</option>)}</select></label>

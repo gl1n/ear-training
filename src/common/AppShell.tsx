@@ -52,7 +52,7 @@ export function AppShell({
           {!focused && navigation}
           {!focused && settingsSummary}
           <main className="flex flex-1 flex-col gap-4">{children}</main>
-          <footer className="sticky bottom-0 z-10 -mx-4 flex flex-col items-center gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-base)]/90 px-4 py-4 backdrop-blur-xl sm:-mx-6 sm:px-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <footer className="sticky bottom-0 z-10 -mx-4 flex flex-col items-center gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-base)]/95 px-4 py-4 sm:-mx-6 sm:px-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {footer}
             {!focused && <VersionInfo />}
           </footer>

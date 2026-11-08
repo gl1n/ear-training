@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { STORAGE_KEYS } from '../quiz/storageKeys'
-import { loadEarTrainingPreferences } from './usePersistedSettings'
+import { loadEarTrainingPreferences } from '../features/ear-training/hooks/usePersistedSettings'
 import {
   loadFretboardPreferences,
   loadMetronomePreferences,

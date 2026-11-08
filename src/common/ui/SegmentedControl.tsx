@@ -17,17 +17,17 @@ export function SegmentedControl<T extends string>({
   disabled,
 }: SegmentedControlProps<T>) {
   return (
-    <div className="grid grid-cols-4 gap-1 rounded-xl border border-[var(--border-subtle)] bg-black/20 p-1.5 sm:grid-cols-7">
+    <div className="grid grid-cols-4 gap-1 rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-1 sm:grid-cols-7">
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
           onClick={() => onChange(option.value)}
           disabled={disabled}
-          className={`min-h-10 rounded-lg px-2 py-2 text-sm font-medium transition ${
+          className={`min-h-10 rounded-md px-2 py-2 text-sm font-medium transition ${
             value === option.value
-              ? 'bg-sky-400 text-slate-950 shadow-[0_4px_20px_rgba(56,189,248,.18)]'
-              : 'text-[var(--text-secondary)] hover:bg-white/8 hover:text-white'
+              ? 'bg-[var(--accent)] text-white'
+              : 'text-[var(--text-secondary)] hover:bg-white hover:text-[var(--text-primary)]'
           } disabled:cursor-not-allowed disabled:opacity-50`}
         >
           {option.label}

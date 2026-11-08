@@ -1,10 +1,10 @@
 # 格林的音乐练习小屋
 
-A browser-based music practice cabin with separate entrances for fretboard practice, ear training, and rhythm tools. Built with React 19, TypeScript, and Vite.
+A browser-based music practice cabin organized around guitar practice and ear training. Built with React 19, TypeScript, and Vite.
 
 ## Features
 
-- **独立首页** — Choose between fretboard practice, ear training, and the metronome without loading practice bundles up front
+- **独立首页** — Choose between guitar practice and ear training without loading practice bundles up front
 - **指板练习** — Locate notes in random fretboard regions, freely audition notes, and review note performance and a heatmap built from the latest 30 samples per target note
 - **节拍器** — Keep time with adjustable BPM, meter accents, keyboard control, and tap tempo
 - **五声走位** — Practice ascending and descending major/minor pentatonic runs with guitar input, a non-scoring metronome companion, three clean repetitions per position, and optional automatic tempo increases
@@ -105,26 +105,26 @@ The app is configured for GitHub Pages at `/ear-training/` (`BASE_PATH` in `vite
 
 ```
 src/
+  app/          Route registry and application-level rendering
   common/       Shared app shell, version display, and UI primitives
-  features/     Independently loaded ear-training and fretboard applications
+  features/     Independently loaded practices with feature-owned UI and hooks
   home/         Landing page and practice entrances
   audio/        Web Audio, piano samples, speech synthesis
-  components/   Ear-training presentation components
-  hooks/        Settings, stats, session, audio engine
+  hooks/        Hooks shared by more than one practice
   quiz/         Domain logic, game loops, persistence
 ```
 
-Shared ear-training domain logic lives in `src/quiz/` with colocated Vitest tests. Feature entry points live under `src/features/` and are lazy-loaded from the hash-based application router.
+Framework-independent domain logic lives in `src/quiz/` with colocated Vitest tests. Feature entry points live under `src/features/` and are lazy-loaded from the route registry in `src/app/`.
 
 ## Architecture boundaries
 
 - `audio/` owns browser audio resources; consumers stop or dispose them through `useAudioEngine`.
 - Beat-based tools share the `BeatScheduler` audio clock so clicks, notes, and visual pulses stay on the same timeline.
 - `quiz/` contains framework-independent session and scoring rules.
-- `hooks/` bridge React state, persistence, audio, and quiz sessions.
-- `features/ear-training/` wires the ear-training session state and view.
+- `hooks/` contains React hooks used by multiple practices.
+- `features/ear-training/` owns its views, session hooks, and mode coordination.
 - `features/fretboard/` owns fretboard UI, game rules, and tests.
-- `components/` contains ear-training views; shared interaction primitives and the shared shell live in `common/`.
+- Feature-specific components stay inside their feature; shared interaction primitives and the shared shell live in `common/`.
 - Browser storage is best-effort. Invalid, unavailable, or full storage must never prevent training.
 
 When changing a session loop, preserve its abort contract: after cancellation it must stop audio,

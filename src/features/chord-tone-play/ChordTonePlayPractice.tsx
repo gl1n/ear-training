@@ -24,7 +24,7 @@ const CHORD_TONE_META: AppShellMeta = {
   title: '和弦寻音',
   subtitle: '看见七和弦，在指板上弹出它的 3 音与 7 音',
   badge: '吉他练习',
-  accent: '#c084fc',
+  accent: '#7e22ce',
 }
 
 type Feedback = {
@@ -413,7 +413,7 @@ export function ChordTonePlayPractice() {
         ].map((item) => (
           <div key={item.label} className="rounded-xl border border-[var(--border-subtle)] bg-white/[0.035] px-3 py-3 text-center">
             <p className="text-[10px] font-semibold tracking-wider text-[var(--text-secondary)]">{item.label}</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-white">{item.value}</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-[var(--text-primary)]">{item.value}</p>
           </div>
         ))}
       </section>
@@ -482,7 +482,7 @@ export function ChordTonePlayPractice() {
             ref={boardFullscreenRef}
             className={`fretboard-focus-shell${boardFullscreen ? ' fretboard-focus-shell--fullscreen fixed inset-0 z-[100] h-dvh w-screen overflow-hidden bg-[#080d14]' : ''}`}
           >
-            <div className={`rounded-2xl border border-[var(--border-subtle)] bg-[#080d14] p-2 sm:p-4 ${boardFullscreen ? 'flex h-full flex-col !p-3' : ''}`}>
+            <div className={`fretboard-dark-panel rounded-xl border border-[var(--border-subtle)] bg-[#080d14] p-2 sm:p-4 ${boardFullscreen ? 'flex h-full flex-col !p-3' : ''}`}>
               <div className={`flex items-center justify-between gap-3 ${boardFullscreen ? 'mb-2 min-h-11' : 'mb-3'}`}>
                 <div>
                   <p className={`font-semibold ${boardFullscreen ? 'text-base text-white' : 'text-xs text-[var(--text-secondary)]'}`}>
