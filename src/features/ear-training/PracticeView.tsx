@@ -1,3 +1,5 @@
+import { getTotalAnswerCount } from '../../quiz/stats'
+import { MelodyCollection } from './components/MelodyCollection'
 import type { DegreePracticeOptions } from '../../quiz/keys'
 import { isIntervalMode, type AppMode, type TrainerState } from '../../quiz/sequencer'
 import type { SessionStats } from '../../quiz/stats'
@@ -264,11 +266,11 @@ export function PracticeView({
           {isChallengeMode && isRunning && (
             <div className="w-full max-w-xs" aria-live="polite">
               <div className="mb-1.5 flex justify-between text-xs text-[var(--text-secondary)]">
-                <span>{mode === 'scaleDegree' && scaleDegreeTrainingMode === 'melody' && degreePractice.arcadeMode ? '街机组数' : '本轮进度'}</span><span>{mode === 'scaleDegree' && scaleDegreeTrainingMode === 'melody' && degreePractice.arcadeMode ? `${completedQuestions} · 加速中` : `${Math.min(completedQuestions, sessionSize)} / ${sessionSize}`}</span>
+                <span>{mode === 'scaleDegree' && scaleDegreeTrainingMode === 'melody' && degreePractice.arcadeMode ? '街机组数' : '本轮进度'}</span><span>{mode === 'scaleDegree' && scaleDegreeTrainingMode === 'melody' && degreePractice.arcadeMode ? `${getTotalAnswerCount(sessionStats)} 组 · 答对提速，答错减速` : `${Math.min(completedQuestions, sessionSize)} / ${sessionSize}`}</span>
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+              {!(mode === 'scaleDegree' && scaleDegreeTrainingMode === 'melody' && degreePractice.arcadeMode) && <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
                 <div className="h-full rounded-full bg-sky-400 transition-[width]" style={{ width: `${Math.min(100, completedQuestions / sessionSize * 100)}%` }} />
-              </div>
+              </div>}
             </div>
           )}
           <Button
@@ -336,7 +338,7 @@ export function PracticeView({
             loadProgress={loadProgress}
             loadIndeterminate={loadIndeterminate}
             loadError={loadError}
-            isLastQuestion={completedQuestions >= sessionSize}
+            isLastQuestion={!(scaleDegreeTrainingMode === 'melody' && degreePractice.arcadeMode) && completedQuestions >= sessionSize}
             onSelect={onAnswerSelect}
             onPlayDo={onPlayScaleDegreeDo}
             onReplayMelody={onReplayCurrentMelody}
@@ -384,6 +386,7 @@ export function PracticeView({
           onRetry={loadError ? onRetry : undefined}
         />
       )}
+      {mode === 'scaleDegree' && scaleDegreeTrainingMode === 'melody' && !isRunning && <MelodyCollection onPlay={onPlayMelodyQuiz} isReplayBusy={isReplayBusy} />}
     </AppShell>
   )
 }

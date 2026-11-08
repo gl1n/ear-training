@@ -101,3 +101,15 @@ describe('scale degree loop integration', () => {
     expect(refs.answerResolverRef.current).toBeNull()
   })
 })
+
+it('replays the original rhythm and tempo even when the current speed changes', async () => {
+  const { replayMelodyScaleDegreeQuiz } = await import('./sequencer')
+  const { piano } = fixture()
+  const quiz = {
+    tonicMidi: 60, noteMidi: 79, degree: 5, keyLabel: 'C 大调', previousNoteMidi: null,
+    sequenceType: 'melody' as const, noteMidis: [48, 64, 79], degrees: [1, 3, 5],
+    noteBeats: [0.5, 1.5, 1], playbackTiming: { noteDurationMs: 700, gapMs: 150 },
+  }
+  await replayMelodyScaleDegreeQuiz(piano, quiz, { noteDurationMs: 300, gapMs: 80 }, new AbortController().signal)
+  expect(vi.mocked(piano.playNote).mock.calls.map(([midi, seconds]) => [midi, seconds])).toEqual([[48, 0.35], [64, 1.05], [79, 0.7]])
+})

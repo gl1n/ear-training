@@ -1,3 +1,4 @@
+import { isSavedMelody } from './melodyFavorites'
 import {
   DEGREE_OPTION_IDS,
   formatMelodyDegrees,
@@ -11,6 +12,7 @@ import { pickWeighted } from './weightedPick'
 
 export type ScaleDegreeMelodyMistakeRecord = {
   pattern: string
+  quiz?: MelodyScaleDegreeQuiz
 }
 
 export type ScaleDegreeMelodyMistakeStatsStore = ScaleDegreeMelodyMistakeRecord[]
@@ -44,7 +46,8 @@ function isScaleDegreeMelodyMistakeRecord(
   if (typeof value !== 'object' || value === null) return false
 
   const record = value as ScaleDegreeMelodyMistakeRecord
-  return typeof record.pattern === 'string' && isValidMelodyPattern(record.pattern)
+  return typeof record.pattern === 'string' && isValidMelodyPattern(record.pattern) &&
+    (record.quiz === undefined || (isSavedMelody(record.quiz) && record.quiz.degrees.join('-') === record.pattern))
 }
 
 function isScaleDegreeMelodyMistakeStatsStore(
@@ -132,6 +135,16 @@ export function weightedRandomMelodyQuizFromMistakes(
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const record = pickWeightedMelodyMistakeRecord(store)
     if (!record) return null
+
+    if (record.quiz && isSavedMelody(record.quiz)) {
+      const shift = session.tonicMidi - record.quiz.tonicMidi
+      const noteMidis = record.quiz.noteMidis.map((midi) => midi + shift)
+      if (noteMidis.every((midi) => midi >= rootMin && midi <= rootMax)) {
+        return { ...record.quiz, tonicMidi: session.tonicMidi, keyLabel: session.label,
+          noteMidis, noteMidi: noteMidis.at(-1)!, previousNoteMidi: previousNoteMidi ?? null }
+      }
+      continue
+    }
 
     const quiz = melodyScaleDegreeQuizFromPattern(
       session,

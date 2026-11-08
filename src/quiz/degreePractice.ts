@@ -11,7 +11,7 @@ export const ARCADE_SPEED_MIN_POINTS = -8
 export const ARCADE_SPEED_MAX_POINTS = 24
 
 export function updateArcadeSpeedPoints(points: number, correct: boolean): number {
-  const next = points + (correct ? 1 : -3)
+  const next = points + (correct ? 1 : -1.5)
   return Math.max(ARCADE_SPEED_MIN_POINTS, Math.min(ARCADE_SPEED_MAX_POINTS, next))
 }
 
@@ -19,9 +19,11 @@ export function arcadePlaybackSettings(
   settings: { noteDurationMs: number; gapMs: number },
   speedPoints: number,
 ): { noteDurationMs: number; gapMs: number } {
+  const points = Math.max(ARCADE_SPEED_MIN_POINTS, Math.min(ARCADE_SPEED_MAX_POINTS, speedPoints))
+  const factor = Math.pow(1.02, -points)
   return {
-    noteDurationMs: Math.max(260, settings.noteDurationMs - speedPoints * 18),
-    gapMs: Math.max(70, settings.gapMs - speedPoints * 8),
+    noteDurationMs: settings.noteDurationMs * factor,
+    gapMs: settings.gapMs * factor,
   }
 }
 

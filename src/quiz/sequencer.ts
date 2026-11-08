@@ -577,15 +577,17 @@ export async function runScaleDegreeLoop(
         sessionDegreeWeights,
       )
     }
+    if (isSequenceScaleDegreeQuiz(quiz) && quiz.sequenceType === 'melody') {
+      quiz.playbackTiming = practice.arcadeMode
+        ? arcadePlaybackSettings(settings, arcadeSpeedPoints)
+        : { noteDurationMs: settings.noteDurationMs, gapMs: settings.gapMs }
+    }
     previousNoteMidi = quiz.noteMidi
     callbacks.onQuiz?.(quiz)
 
     if (isSequenceScaleDegreeQuiz(quiz) && quiz.sequenceType === 'melody') {
-      const arcadeSettings = practice.arcadeMode
-        ? { ...settings, ...arcadePlaybackSettings(settings, arcadeSpeedPoints) }
-        : settings
       callbacks.onStateChange('playing_root')
-      await replayMelodyScaleDegreeQuiz(piano, quiz, arcadeSettings, signal)
+      await replayMelodyScaleDegreeQuiz(piano, quiz, settings, signal)
       callbacks.onStateChange('awaiting_answer')
       let answer = await callbacks.waitForAnswer(signal)
       let results = gradeMelody(quiz.degrees, answer.selectedDegree)
@@ -700,10 +702,12 @@ export async function replayMelodyScaleDegreeQuiz(
       return
     }
 
-    await playNote(piano, quiz.noteMidis[index]!, settings.noteDurationMs, signal)
+    const timing = quiz.sequenceType === 'melody' ? quiz.playbackTiming ?? settings : settings
+    const beats = quiz.sequenceType === 'melody' ? quiz.noteBeats?.[index] ?? 1 : 1
+    await playNote(piano, quiz.noteMidis[index]!, timing.noteDurationMs * beats, signal)
 
     if (index < quiz.noteMidis.length - 1) {
-      await delay(settings.gapMs, signal)
+      await delay(timing.gapMs * beats, signal)
     }
   }
 }

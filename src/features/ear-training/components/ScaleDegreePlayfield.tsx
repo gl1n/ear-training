@@ -152,7 +152,7 @@ export function ScaleDegreePlayfield({
 
       <PracticeSessionHeader
         variant="scaleDegree"
-        currentQuestion={state === 'answer_revealed' ? Math.max(1, currentQuestion - 1) : currentQuestion}
+        currentQuestion={Math.max(1, currentQuestion)}
         correctCount={correctCount}
         totalScore={totalScore}
         leading={currentKeyLabel ? <KeyLabel label={currentKeyLabel} variant="badge" /> : null}

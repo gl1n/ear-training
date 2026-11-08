@@ -59,6 +59,8 @@ export type MelodyScaleDegreeQuiz = ScaleDegreeQuiz & {
   noteMidis: readonly number[]
   degrees: readonly number[]
   sequenceType: 'melody'
+  noteBeats?: readonly number[]
+  playbackTiming?: { noteDurationMs: number; gapMs: number }
 }
 
 export type CrossRegisterScaleDegreeQuiz = ScaleDegreeQuiz & {
@@ -334,6 +336,16 @@ export function randomScaleDegreeQuiz(
   }
 }
 
+export function randomMelodyRhythm(length: number): number[] {
+  const values = [0.5, 1, 1.5, 2]
+  const beats = Array.from({ length }, () => values[Math.floor(Math.random() * values.length)]!)
+  // Every phrase includes a contrast, even when the random picks coincide.
+  if (length > 1 && beats.every((beat) => beat === beats[0])) {
+    beats[length - 1] = beats[0] === 1 ? 2 : 1
+  }
+  return beats
+}
+
 function buildMelodyQuiz(
   session: MajorKeySession,
   noteMidis: number[],
@@ -349,6 +361,7 @@ function buildMelodyQuiz(
     degree: degrees[degrees.length - 1]!,
     noteMidis,
     degrees,
+    noteBeats: randomMelodyRhythm(noteMidis.length),
     sequenceType: 'melody',
     keyLabel: session.label,
     previousNoteMidi,

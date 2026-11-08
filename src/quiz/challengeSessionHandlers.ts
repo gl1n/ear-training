@@ -126,7 +126,7 @@ export function buildScaleDegreeLoopCallbacks({
       const pattern = formatMelodyDegrees(quiz.degrees)
 
       if (!correct && trainingMode === 'melody') {
-        const record: ScaleDegreeMelodyMistakeRecord = { pattern }
+        const record: ScaleDegreeMelodyMistakeRecord = { pattern, ...('sequenceType' in quiz && quiz.sequenceType === 'melody' ? { quiz } : {}) }
         recordScaleDegreeMelodyQuizMistake(record)
         appendSessionScaleDegreeMelodyMistake(record)
       }

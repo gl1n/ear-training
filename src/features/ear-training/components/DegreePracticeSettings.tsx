@@ -16,7 +16,7 @@ export function DegreePracticeSettings({ mode, value, onChange, disabled }: Prop
   const selected = mode === 'single' ? value.scaleFlavor : String(value.melodyLength)
   const label = mode === 'single' ? '训练音阶' : '旋律长度'
   const description = mode === 'melody'
-    ? value.arcadeMode ? '无限组数 · 每组完成后自动加速 · 可随时暂停' : '大调等时值旋律 · 提交前可修改 · 首听与重听分别统计'
+    ? value.arcadeMode ? '无限组数 · 随机节奏 · 答对缓升速，答错缓降速' : '大调随机节奏旋律 · 提交前可修改 · 首听与重听分别统计'
     : value.scaleFlavor === 'minor'
       ? '以主音为 1：1、2、♭3、4、5、♭6、♭7；用小三和弦定调。'
       : value.scaleFlavor === 'chromatic'
@@ -31,7 +31,7 @@ export function DegreePracticeSettings({ mode, value, onChange, disabled }: Prop
     </div>
     <p className="text-sm text-[var(--text-secondary)]">{description}</p>
     {mode === 'melody' && <label className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-3 ${value.arcadeMode ? 'border-sky-400/40 bg-sky-500/10' : 'border-[var(--border-subtle)]'}`}>
-      <span><strong className="block text-sm">街机无限模式</strong><span className="text-xs text-[var(--text-secondary)]">不设组数上限，速度逐组提升</span></span>
+      <span><strong className="block text-sm">街机无限模式</strong><span className="text-xs text-[var(--text-secondary)]">不设组数上限，速度随答题表现平滑调整</span></span>
       <input type="checkbox" className="h-5 w-5 accent-sky-400" checked={value.arcadeMode} disabled={disabled} onChange={(event) => onChange({ ...value, arcadeMode: event.target.checked })} />
     </label>}
   </div>

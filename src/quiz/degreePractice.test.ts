@@ -33,13 +33,23 @@ describe('extended single-note practice', () => {
 })
 
 describe('whole-phrase dictation', () => {
-  it('raises speed gently after correct groups and lowers it sharply after errors', () => {
+  it('adjusts tempo gradually while preserving articulation across speed presets', () => {
     expect(updateArcadeSpeedPoints(0, true)).toBe(1)
-    expect(updateArcadeSpeedPoints(5, false)).toBe(2)
+    expect(updateArcadeSpeedPoints(5, false)).toBe(3.5)
     expect(updateArcadeSpeedPoints(-7, false)).toBe(-8)
     expect(updateArcadeSpeedPoints(24, true)).toBe(24)
-    expect(arcadePlaybackSettings({ noteDurationMs: 800, gapMs: 300 }, 5)).toEqual({ noteDurationMs: 710, gapMs: 260 })
-    expect(arcadePlaybackSettings({ noteDurationMs: 300, gapMs: 80 }, -8)).toEqual({ noteDurationMs: 444, gapMs: 144 })
+    for (const settings of [{ noteDurationMs: 800, gapMs: 300 }, { noteDurationMs: 300, gapMs: 80 }]) {
+      for (let points = -8; points <= 24; points++) {
+        const current = arcadePlaybackSettings(settings, points)
+        const slower = arcadePlaybackSettings(settings, updateArcadeSpeedPoints(points, false))
+        const faster = arcadePlaybackSettings(settings, updateArcadeSpeedPoints(points, true))
+        expect(slower.noteDurationMs / current.noteDurationMs).toBeGreaterThanOrEqual(1)
+        expect(slower.noteDurationMs / current.noteDurationMs).toBeLessThan(1.031)
+        expect(faster.noteDurationMs / current.noteDurationMs).toBeGreaterThan(0.98)
+        expect(faster.noteDurationMs).toBeLessThanOrEqual(current.noteDurationMs)
+        expect(slower.noteDurationMs / slower.gapMs).toBeCloseTo(settings.noteDurationMs / settings.gapMs)
+      }
+    }
   })
 
   it.each([3, 5, 7] as const)('generates and restores %i-note phrases', (length) => {
