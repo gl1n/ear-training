@@ -1,5 +1,4 @@
 import { SaveMelodyButton } from './MelodyCollection'
-import { melodyOctaveLabel } from '../../../quiz/melodyFavorites'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { DEGREE_OPTION_IDS, DEGREE_SOLFEGE_LABELS, type MelodyScaleDegreeQuiz } from '../../../quiz/keys'
 import type { TrainerState } from '../../../quiz/sequencer'
@@ -69,7 +68,6 @@ export function MelodyDictation({ quiz, state, isReplayBusy, isLastQuestion, onS
             className={`min-h-16 min-w-12 rounded-xl border px-3 py-2 text-center ${revealed ? results?.[index] ? 'border-emerald-400/50 bg-emerald-400/10' : 'border-red-400/60 bg-red-500/15' : index === cursor ? 'border-sky-400 bg-sky-400/10' : 'border-[var(--border-subtle)]'}`}>
             <span className="block text-xs text-[var(--text-secondary)]">{index + 1}</span>
             <span className="block text-xl font-bold">{degree || '—'}</span>
-            {revealed && <span className="block text-[10px] text-[var(--text-secondary)]">{melodyOctaveLabel(quiz, index)} · {quiz.noteBeats?.[index] ?? 1} 拍</span>}
             {revealed && <span className={`block text-xs ${results?.[index] ? 'text-emerald-300' : 'text-red-300'}`}>{results?.[index] ? '✓' : `应为 ${quiz.degrees[index]}`}</span>}
           </button>
         ))}
@@ -85,7 +83,7 @@ export function MelodyDictation({ quiz, state, isReplayBusy, isLastQuestion, onS
       </>}
       <div className="flex flex-wrap justify-center gap-3">
         {(state === 'awaiting_answer' || revealed) && <Button variant="ghost" disabled={isReplayBusy || (submitted && !revealed)} onClick={() => { if (!revealed) setReplayed(true); onReplay?.() }}>{isReplayBusy ? '重听中…' : '重听原句'}</Button>}
-        {revealed && <SaveMelodyButton quiz={quiz} />}
+        {revealed && <SaveMelodyButton quiz={quiz} answerDegrees={draft.map(Number)} />}
         {revealed && <Button disabled={isReplayBusy} onClick={onNext}>{isLastQuestion ? '查看结果' : '下一题'}</Button>}
       </div>
       {!revealed && <p className="text-center text-xs text-[var(--text-secondary)]">{replayed ? '本题计入重听练习' : '首听与重听成绩分别统计'} · 数字键输入，Enter 提交</p>}

@@ -30,6 +30,34 @@ describe('saved melody fidelity', () => {
     expect(loadMelodyFavorites()).toEqual([differentOctave])
   })
 
+  it('preserves the submitted answer through mastery changes and removal undo', () => {
+    const favorite = { ...quiz, answerDegrees: [2, 3, 4], mastered: false }
+    expect(saveMelodyFavorite(favorite)).toBe(true)
+    expect(loadMelodyFavorites()).toEqual([favorite])
+    expect(saveMelodyFavorite({ ...favorite, mastered: true })).toBe(true)
+    const saved = loadMelodyFavorites()[0]!
+    expect(saved.answerDegrees).toEqual([2, 3, 4])
+    expect(saved.mastered).toBe(true)
+    expect(removeMelodyFavorite(saved)).toBe(true)
+    expect(loadMelodyFavorites()).toEqual([])
+    expect(saveMelodyFavorite(saved)).toBe(true)
+    expect(loadMelodyFavorites()).toEqual([saved])
+  })
+
+  it('updates a repeated favorite with the current attempt without adding a duplicate', () => {
+    saveMelodyFavorite({ ...quiz, answerDegrees: [2, 3, 4], mastered: true })
+    saveMelodyFavorite({ ...quiz, answerDegrees: [1, 2, 5], mastered: false })
+    expect(loadMelodyFavorites()).toEqual([{ ...quiz, answerDegrees: [1, 2, 5], mastered: false }])
+  })
+
+  it('retains legacy favorites and ignores malformed answer metadata', () => {
+    localStorage.setItem('ear-trainer:melody-favorites:v1', JSON.stringify([
+      quiz, { ...quiz, answerDegrees: [1], mastered: 'yes' },
+      { ...quiz, answerDegrees: [1, 8, 5] },
+    ]))
+    expect(loadMelodyFavorites()).toEqual([quiz, quiz, quiz])
+  })
+
   it('reports storage failures without pretending a melody was saved', () => {
     vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => { throw new Error('quota') } })
     expect(saveMelodyFavorite(quiz)).toBe(false)

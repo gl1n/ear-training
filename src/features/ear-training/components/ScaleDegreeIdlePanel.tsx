@@ -219,9 +219,7 @@ export function ScaleDegreeIdlePanel({
         </div>
       )}
 
-      {melodyEnabled ? (
-        <div className="flex w-full justify-center"><ScaleDegreeMelodyMistakeSummary store={filteredMelodyMistakes} title="历史错题统计" /></div>
-      ) : scaleDegreeTrainingMode === 'single' && !advancedSingle ? (
+      {scaleDegreeTrainingMode === 'single' && !advancedSingle ? (
         <><div className="flex w-full justify-center"><ScaleDegreeAdvancedAnalysis store={scaleDegreeMistakeStats} /></div><div className="flex w-full justify-center"><ScaleDegreeMistakeSummary store={scaleDegreeMistakeStats} title="历史错题统计" /></div></>
       ) : null}
 

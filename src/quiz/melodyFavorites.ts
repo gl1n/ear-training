@@ -1,6 +1,11 @@
 import { MAJOR_SCALE_INTERVALS, type MelodyScaleDegreeQuiz } from './keys'
 import { readStorage, writeStorage } from '../utils/storage'
 
+export type MelodyFavorite = MelodyScaleDegreeQuiz & {
+  answerDegrees?: number[]
+  mastered?: boolean
+}
+
 const STORAGE_KEY = 'ear-trainer:melody-favorites:v1'
 
 export function isSavedMelody(value: unknown): value is MelodyScaleDegreeQuiz {
@@ -24,25 +29,29 @@ export function melodyFavoriteId(quiz: MelodyScaleDegreeQuiz): string {
   return JSON.stringify([quiz.tonicMidi, quiz.noteMidis, quiz.noteBeats, quiz.playbackTiming])
 }
 
-export function loadMelodyFavorites(): MelodyScaleDegreeQuiz[] {
+export function loadMelodyFavorites(): MelodyFavorite[] {
   try {
     const value: unknown = JSON.parse(readStorage(STORAGE_KEY) ?? '[]')
-    return Array.isArray(value) ? value.filter(isSavedMelody) : []
+    return Array.isArray(value) ? value.filter(isSavedMelody).map((quiz: MelodyFavorite) => {
+      const { answerDegrees, mastered, ...original } = quiz
+      return {
+        ...original,
+        ...(Array.isArray(answerDegrees) && answerDegrees.length === quiz.degrees.length && answerDegrees.every((degree) => Number.isInteger(degree) && degree >= 1 && degree <= 7) ? { answerDegrees } : {}),
+        ...(typeof mastered === 'boolean' ? { mastered } : {}),
+      }
+    }) : []
   } catch { return [] }
 }
 
-export function saveMelodyFavorite(quiz: MelodyScaleDegreeQuiz): boolean {
+export function saveMelodyFavorite(quiz: MelodyFavorite): boolean {
   if (!isSavedMelody(quiz)) return false
   const favorites = loadMelodyFavorites()
-  if (favorites.some((saved) => melodyFavoriteId(saved) === melodyFavoriteId(quiz))) return true
-  return writeStorage(STORAGE_KEY, JSON.stringify([...favorites, quiz]))
+  const index = favorites.findIndex((saved) => melodyFavoriteId(saved) === melodyFavoriteId(quiz))
+  if (index >= 0) favorites[index] = { ...favorites[index], ...quiz }
+  else favorites.push(quiz)
+  return writeStorage(STORAGE_KEY, JSON.stringify(favorites))
 }
 
 export function removeMelodyFavorite(quiz: MelodyScaleDegreeQuiz): boolean {
   return writeStorage(STORAGE_KEY, JSON.stringify(loadMelodyFavorites().filter((saved) => melodyFavoriteId(saved) !== melodyFavoriteId(quiz))))
-}
-
-export function melodyOctaveLabel(quiz: MelodyScaleDegreeQuiz, index: number): string {
-  const octave = Math.floor((quiz.noteMidis[index]! - quiz.tonicMidi) / 12)
-  return octave === 0 ? '中八度' : `${octave > 0 ? '高' : '低'} ${Math.abs(octave)} 个八度`
 }
