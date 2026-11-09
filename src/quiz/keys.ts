@@ -60,6 +60,7 @@ export type MelodyScaleDegreeQuiz = ScaleDegreeQuiz & {
   degrees: readonly number[]
   sequenceType: 'melody'
   noteBeats?: readonly number[]
+  playbackSpeedMultiplier?: number
   playbackTiming?: { noteDurationMs: number; gapMs: number }
 }
 

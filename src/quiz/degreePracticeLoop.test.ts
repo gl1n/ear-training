@@ -113,3 +113,32 @@ it('replays the original rhythm and tempo even when the current speed changes', 
   await replayMelodyScaleDegreeQuiz(piano, quiz, { noteDurationMs: 300, gapMs: 80 }, new AbortController().signal)
   expect(vi.mocked(piano.playNote).mock.calls.map(([midi, seconds]) => [midi, seconds])).toEqual([[48, 0.35], [64, 1.05], [79, 0.7]])
 })
+
+it('shows each speed milestone once per run and keeps the displayed speed tied to the playing question', async () => {
+  const { piano, callbacks, getQuiz } = fixture()
+  const settings = createDefaultSettings('fast')
+  const milestones = vi.fn()
+  callbacks.onSpeedMilestone = milestones
+  let answered = 0
+  callbacks.onSequenceGroupSubmitted = () => ++answered === 30
+  callbacks.waitForAnswer = async () => {
+    const quiz = getQuiz()
+    if (!isMelodyScaleDegreeQuiz(quiz)) throw new Error('Expected melody')
+    expect(quiz.playbackSpeedMultiplier).toBeCloseTo(settings.noteDurationMs / quiz.playbackTiming!.noteDurationMs)
+    if (answered === 0) expect(quiz.playbackSpeedMultiplier).toBe(1)
+    // Drop below the first milestone, then cross it again.
+    return { selectedDegree: answered === 6 ? quiz.degrees.map((degree) => degree === 1 ? 2 : 1).join('-') : quiz.degrees.join('-') }
+  }
+  const run = (arcadeMode: boolean) => runScaleDegreeLoop(piano, settings, callbacks, new AbortController().signal, [], [], false, 'melody', { scaleFlavor: 'major', melodyLength: 3, arcadeMode })
+  await run(true)
+  expect(milestones).toHaveBeenCalledTimes(4)
+  expect(new Set(milestones.mock.calls.map(([message]) => message)).size).toBe(4)
+  answered = 0
+  milestones.mockClear()
+  await run(true)
+  expect(milestones).toHaveBeenCalledTimes(4)
+  answered = 0
+  milestones.mockClear()
+  await run(false)
+  expect(milestones).not.toHaveBeenCalled()
+})

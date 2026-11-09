@@ -121,6 +121,10 @@ export function buildScaleDegreeLoopCallbacks({
     waitForNextQuestion,
     onAnswerCorrectionStart,
     onSequenceNoteResolved,
+    onSpeedMilestone: (message) => {
+      encouragementKeyRef.current += 1
+      setEncouragement({ key: encouragementKeyRef.current, message })
+    },
     onSequenceGroupSubmitted: (quiz, correct, _reactionMs, wasReplayed) => {
       setLastScaleDegreeQuiz(quiz)
       const pattern = formatMelodyDegrees(quiz.degrees)

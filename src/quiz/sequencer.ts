@@ -1,4 +1,4 @@
-import { arcadePlaybackSettings, degreeAnswer, degreeSession, degreeTonicChord, gradeMelody, randomFlavorQuiz, updateArcadeSpeedPoints } from './degreePractice'
+import { ARCADE_SPEED_MILESTONES, arcadeSpeedMultiplier, arcadePlaybackSettings, degreeAnswer, degreeSession, degreeTonicChord, gradeMelody, randomFlavorQuiz, updateArcadeSpeedPoints } from './degreePractice'
 import type { DegreePracticeOptions } from './keys'
 import { cancelSpeech, speak } from '../audio/speech'
 import type { Piano } from '../audio/piano'
@@ -173,6 +173,7 @@ export const SCALE_DEGREE_TONIC_CHORD_DURATION_MS = 2_400
 export const SCALE_DEGREE_REVIEW_MISTAKE_RATIO = 0.6
 
 export type ScaleDegreeCallbacks = {
+  onSpeedMilestone?: (message: string) => void
   onStateChange: (state: TrainerState) => void
   onSessionStart: (session: MajorKeySession) => void
   onQuiz?: (quiz: ScaleDegreeQuiz) => void
@@ -491,6 +492,7 @@ export async function runScaleDegreeLoop(
 
   let previousNoteMidi: number | null = null
   let arcadeSpeedPoints = 0
+  let nextSpeedMilestone = 0
 
   while (!signal.aborted) {
     // 复习模式混合错题和常规题，避免少量错题垄断整轮训练。
@@ -578,6 +580,7 @@ export async function runScaleDegreeLoop(
       )
     }
     if (isSequenceScaleDegreeQuiz(quiz) && quiz.sequenceType === 'melody') {
+      quiz.playbackSpeedMultiplier = practice.arcadeMode ? arcadeSpeedMultiplier(arcadeSpeedPoints) : 1
       quiz.playbackTiming = practice.arcadeMode
         ? arcadePlaybackSettings(settings, arcadeSpeedPoints)
         : { noteDurationMs: settings.noteDurationMs, gapMs: settings.gapMs }
@@ -598,6 +601,11 @@ export async function runScaleDegreeLoop(
       const completed = callbacks.onSequenceGroupSubmitted?.(quiz, results.every(Boolean), undefined, answer.wasReplayed) ?? false
       if (practice.arcadeMode) {
         arcadeSpeedPoints = updateArcadeSpeedPoints(arcadeSpeedPoints, results.every(Boolean))
+        const milestone = ARCADE_SPEED_MILESTONES[nextSpeedMilestone]
+        if (milestone && arcadeSpeedPoints >= milestone.points) {
+          callbacks.onSpeedMilestone?.(milestone.message)
+          nextSpeedMilestone += 1
+        }
       }
       callbacks.onStateChange('answer_revealed')
       await callbacks.waitForNextQuestion?.(signal)

@@ -15,12 +15,23 @@ export function updateArcadeSpeedPoints(points: number, correct: boolean): numbe
   return Math.max(ARCADE_SPEED_MIN_POINTS, Math.min(ARCADE_SPEED_MAX_POINTS, next))
 }
 
+export const ARCADE_SPEED_MILESTONES = [
+  { points: 6, message: '节奏渐入佳境，继续保持！' },
+  { points: 12, message: '越听越敏锐，旋律跟得很稳！' },
+  { points: 18, message: '高速也能跟上，真棒！' },
+  { points: 24, message: '已达到最高速度，追踪力满格！' },
+] as const
+
+export function arcadeSpeedMultiplier(speedPoints: number): number {
+  const points = Math.max(ARCADE_SPEED_MIN_POINTS, Math.min(ARCADE_SPEED_MAX_POINTS, speedPoints))
+  return Math.pow(1.02, points)
+}
+
 export function arcadePlaybackSettings(
   settings: { noteDurationMs: number; gapMs: number },
   speedPoints: number,
 ): { noteDurationMs: number; gapMs: number } {
-  const points = Math.max(ARCADE_SPEED_MIN_POINTS, Math.min(ARCADE_SPEED_MAX_POINTS, speedPoints))
-  const factor = Math.pow(1.02, -points)
+  const factor = 1 / arcadeSpeedMultiplier(speedPoints)
   return {
     noteDurationMs: settings.noteDurationMs * factor,
     gapMs: settings.gapMs * factor,

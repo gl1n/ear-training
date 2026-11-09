@@ -167,6 +167,15 @@ export function ScaleDegreePlayfield({
         }
       />
 
+      {dictationQuiz && (
+        <div className="relative flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-[var(--text-secondary)]">
+          <span className="rounded-full bg-sky-500/10 px-3 py-1 font-semibold text-sky-700">
+            本题速度 <span className="tabular-nums">{(dictationQuiz.playbackSpeedMultiplier ?? 1).toFixed(2)}×</span>
+          </span>
+          <span>{degreePractice.arcadeMode ? '答对加速 · 答错放缓 · 下一题生效' : '固定速度'}</span>
+        </div>
+      )}
+
       <PracticeLoadStatus
         state={state}
         loadProgress={loadProgress}
