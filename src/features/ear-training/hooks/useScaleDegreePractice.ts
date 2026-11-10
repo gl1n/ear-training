@@ -48,7 +48,6 @@ type RunScaleDegreeOptions = {
   recordScaleDegreeQuizMistake: (record: ScaleDegreeMistakeRecord) => void
   appendSessionScaleDegreeMistake: (record: ScaleDegreeMistakeRecord) => void
   recordScaleDegreeMelodyQuizMistake: (record: ScaleDegreeMelodyMistakeRecord) => void
-  appendSessionScaleDegreeMelodyMistake: (record: ScaleDegreeMelodyMistakeRecord) => void
   setEncouragement: (encouragement: PracticeEncouragement) => void
   encouragementKeyRef: MutableRefObject<number>
   updateSessionStats: (updater: (current: SessionStats) => SessionStats) => void
@@ -159,14 +158,12 @@ export function useScaleDegreePractice(
     recordScaleDegreeQuizMistake,
     appendSessionScaleDegreeMistake,
     recordScaleDegreeMelodyQuizMistake,
-    appendSessionScaleDegreeMelodyMistake,
     setEncouragement,
     encouragementKeyRef,
     updateSessionStats,
     getSessionStats,
     completeQuestion,
     mistakeStore,
-    melodyMistakeStore,
   }: RunScaleDegreeOptions) => {
     await runScaleDegreeLoop(
       piano,
@@ -192,7 +189,6 @@ export function useScaleDegreePractice(
         recordScaleDegreeQuizMistake,
         appendSessionScaleDegreeMistake,
         recordScaleDegreeMelodyQuizMistake,
-        appendSessionScaleDegreeMelodyMistake,
         setEncouragement,
         encouragementKeyRef,
         updateSessionStats,
@@ -203,7 +199,6 @@ export function useScaleDegreePractice(
       }),
       signal,
       mistakeStore,
-      melodyMistakeStore,
       reviewEnabled,
       trainingMode,
       degreePractice,

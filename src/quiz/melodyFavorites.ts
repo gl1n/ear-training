@@ -1,9 +1,10 @@
-import { MAJOR_SCALE_INTERVALS, type MelodyScaleDegreeQuiz } from './keys'
+import { MAJOR_SCALE_INTERVALS, type MajorKeySession, type MelodyScaleDegreeQuiz } from './keys'
 import { readStorage, writeStorage } from '../utils/storage'
 
 export type MelodyFavorite = MelodyScaleDegreeQuiz & {
   answerDegrees?: number[]
   mastered?: boolean
+  reviewStats?: { attempts: number; incorrect: number }
 }
 
 const STORAGE_KEY = 'ear-trainer:melody-favorites:v1'
@@ -33,11 +34,14 @@ export function loadMelodyFavorites(): MelodyFavorite[] {
   try {
     const value: unknown = JSON.parse(readStorage(STORAGE_KEY) ?? '[]')
     return Array.isArray(value) ? value.filter(isSavedMelody).map((quiz: MelodyFavorite) => {
-      const { answerDegrees, mastered, ...original } = quiz
+      const { answerDegrees, mastered, reviewStats, ...original } = quiz
       return {
         ...original,
         ...(Array.isArray(answerDegrees) && answerDegrees.length === quiz.degrees.length && answerDegrees.every((degree) => Number.isInteger(degree) && degree >= 1 && degree <= 7) ? { answerDegrees } : {}),
         ...(typeof mastered === 'boolean' ? { mastered } : {}),
+        ...(reviewStats && Number.isSafeInteger(reviewStats.attempts) && reviewStats.attempts > 0 &&
+          Number.isSafeInteger(reviewStats.incorrect) && reviewStats.incorrect >= 0 && reviewStats.incorrect <= reviewStats.attempts
+          ? { reviewStats } : {}),
       }
     }) : []
   } catch { return [] }
@@ -54,4 +58,47 @@ export function saveMelodyFavorite(quiz: MelodyFavorite): boolean {
 
 export function removeMelodyFavorite(quiz: MelodyScaleDegreeQuiz): boolean {
   return writeStorage(STORAGE_KEY, JSON.stringify(loadMelodyFavorites().filter((saved) => melodyFavoriteId(saved) !== melodyFavoriteId(quiz))))
+}
+
+/** Keep the saved intervals and rhythm while aligning every note to the session tonic. */
+export function randomMelodyFavoriteQuiz(
+  favorites: MelodyFavorite[],
+  session: MajorKeySession,
+  previousNoteMidi: number | null = null,
+): (MelodyScaleDegreeQuiz & { sourceFavoriteId: string }) | null {
+  const favorite = favorites[Math.floor(Math.random() * favorites.length)]
+  if (!favorite) return null
+  const shift = session.tonicMidi - favorite.tonicMidi
+  const aligned = favorite.noteMidis.map((midi) => midi + shift)
+  const minOctave = Math.ceil(-Math.min(...aligned) / 12)
+  const maxOctave = Math.floor((127 - Math.max(...aligned)) / 12)
+  const octaveShift = Math.max(minOctave, Math.min(0, maxOctave)) * 12
+  const noteMidis = aligned.map((midi) => midi + octaveShift)
+  return {
+    sourceFavoriteId: melodyFavoriteId(favorite),
+    sequenceType: 'melody', tonicMidi: session.tonicMidi, keyLabel: session.label,
+    previousNoteMidi, noteMidis, noteMidi: noteMidis.at(-1)!,
+    degrees: [...favorite.degrees], degree: favorite.degree,
+    ...(favorite.noteBeats ? { noteBeats: [...favorite.noteBeats] } : {}),
+  }
+}
+
+export function recordMelodyFavoriteReview(id: string, correct: boolean): boolean {
+  const favorites = loadMelodyFavorites()
+  const favorite = favorites.find((item) => melodyFavoriteId(item) === id)
+  if (!favorite) return true
+  favorite.reviewStats = {
+    attempts: (favorite.reviewStats?.attempts ?? 0) + 1,
+    incorrect: (favorite.reviewStats?.incorrect ?? 0) + (correct ? 0 : 1),
+  }
+  return writeStorage(STORAGE_KEY, JSON.stringify(favorites))
+}
+
+export function melodyFavoriteErrorRate(favorite: MelodyFavorite): number | null {
+  return favorite.reviewStats ? favorite.reviewStats.incorrect / favorite.reviewStats.attempts : null
+}
+
+export function sortMelodyFavoritesByErrorRate(favorites: MelodyFavorite[]): MelodyFavorite[] {
+  return [...favorites].reverse().sort((a, b) =>
+    (melodyFavoriteErrorRate(b) ?? -1) - (melodyFavoriteErrorRate(a) ?? -1))
 }

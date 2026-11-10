@@ -17,7 +17,6 @@ import { SegmentedControl } from '../../common/ui/SegmentedControl'
 import type { Quiz } from '../../quiz/intervals'
 import type { ScaleDegreeQuiz, ScaleDegreeTrainingMode, SequenceScaleDegreeQuiz } from '../../quiz/keys'
 import type { ScaleDegreeMistakeStatsStore } from '../../quiz/scaleDegreeMistakeStats'
-import type { ScaleDegreeMelodyMistakeStatsStore } from '../../quiz/scaleDegreeMelodyMistakeStats'
 import type { TrainingStatsViewModel } from './hooks/useTrainingStats'
 import type { PracticeEncouragement } from './components/practice/types'
 import type { LoadStatusProps } from './components/practice/viewProps'
@@ -56,7 +55,6 @@ type PracticeViewProps = {
   currentKeyLabel: string | null
   scaleDegreeGameStarted: boolean
   sessionScaleDegreeMistakes: ScaleDegreeMistakeStatsStore
-  sessionScaleDegreeMelodyMistakes: ScaleDegreeMelodyMistakeStatsStore
   scaleDegreeReviewEnabled: boolean
   onScaleDegreeReviewChange: (enabled: boolean) => void
   scaleDegreeTrainingMode: ScaleDegreeTrainingMode
@@ -137,7 +135,6 @@ export function PracticeView({
   currentKeyLabel,
   scaleDegreeGameStarted,
   sessionScaleDegreeMistakes,
-  sessionScaleDegreeMelodyMistakes,
   scaleDegreeReviewEnabled,
   onScaleDegreeReviewChange,
   scaleDegreeTrainingMode,
@@ -361,7 +358,6 @@ export function PracticeView({
             lastQuiz={lastScaleDegreeQuiz}
             sessionStats={sessionStats}
             sessionMistakes={sessionScaleDegreeMistakes}
-            sessionMelodyMistakes={sessionScaleDegreeMelodyMistakes}
             trainingStats={trainingStats}
             scaleDegreeReviewEnabled={scaleDegreeReviewEnabled}
             scaleDegreeTrainingMode={scaleDegreeTrainingMode}

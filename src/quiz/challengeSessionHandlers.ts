@@ -87,7 +87,6 @@ type ScaleDegreeHandlerDeps = ChallengeHandlerDeps & {
   recordScaleDegreeQuizMistake: (record: ScaleDegreeMistakeRecord) => void
   appendSessionScaleDegreeMistake: (record: ScaleDegreeMistakeRecord) => void
   recordScaleDegreeMelodyQuizMistake: (record: ScaleDegreeMelodyMistakeRecord) => void
-  appendSessionScaleDegreeMelodyMistake: (record: ScaleDegreeMelodyMistakeRecord) => void
   getSessionStats: () => SessionStats
 }
 
@@ -105,7 +104,6 @@ export function buildScaleDegreeLoopCallbacks({
   recordScaleDegreeQuizMistake,
   appendSessionScaleDegreeMistake,
   recordScaleDegreeMelodyQuizMistake,
-  appendSessionScaleDegreeMelodyMistake,
   setEncouragement,
   encouragementKeyRef,
   updateSessionStats,
@@ -132,7 +130,6 @@ export function buildScaleDegreeLoopCallbacks({
       if (!correct && trainingMode === 'melody') {
         const record: ScaleDegreeMelodyMistakeRecord = { pattern, ...('sequenceType' in quiz && quiz.sequenceType === 'melody' ? { quiz } : {}) }
         recordScaleDegreeMelodyQuizMistake(record)
-        appendSessionScaleDegreeMelodyMistake(record)
       }
 
       updateSessionStats((current) => recordMelodyGroupResult(current, pattern, correct, trainingMode === 'melody' ? !!wasReplayed : undefined))

@@ -159,11 +159,9 @@ export function Trainer() {
     sessionStats,
     sessionStatsRef,
     sessionScaleDegreeMistakes,
-    sessionScaleDegreeMelodyMistakes,
     resetSessionState,
     updateSessionStats,
     appendSessionScaleDegreeMistake,
-    appendSessionScaleDegreeMelodyMistake,
   } = useChallengeSession()
 
   const {
@@ -354,7 +352,6 @@ export function Trainer() {
           recordScaleDegreeQuizMistake,
           appendSessionScaleDegreeMistake,
           recordScaleDegreeMelodyQuizMistake,
-          appendSessionScaleDegreeMelodyMistake,
           setEncouragement: setChallengeEncouragement,
           encouragementKeyRef: challengeEncouragementKeyRef,
           updateSessionStats,
@@ -435,7 +432,6 @@ export function Trainer() {
     finishSession,
     updateSessionStats,
     appendSessionScaleDegreeMistake,
-    appendSessionScaleDegreeMelodyMistake,
   ])
 
   const handleToggle = useCallback(() => {
@@ -544,7 +540,6 @@ export function Trainer() {
         currentKeyLabel={currentKeyLabel}
         scaleDegreeGameStarted={scaleDegreeGameStarted}
         sessionScaleDegreeMistakes={sessionScaleDegreeMistakes}
-        sessionScaleDegreeMelodyMistakes={sessionScaleDegreeMelodyMistakes}
         scaleDegreeReviewEnabled={scaleDegreeReviewEnabled}
         onScaleDegreeReviewChange={setScaleDegreeReviewEnabled}
         scaleDegreeTrainingMode={scaleDegreeTrainingMode}

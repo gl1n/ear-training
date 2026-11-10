@@ -11,12 +11,10 @@ import {
   type ScaleDegreeQuiz,
 } from '../../../quiz/keys'
 import type { ScaleDegreeMistakeStatsStore } from '../../../quiz/scaleDegreeMistakeStats'
-import type { ScaleDegreeMelodyMistakeStatsStore } from '../../../quiz/scaleDegreeMelodyMistakeStats'
 import { hasSessionAttempts, type SessionStats } from '../../../quiz/stats'
 import type { TrainingStatsViewModel } from '../hooks/useTrainingStats'
 import { ChallengeSessionResults } from './practice/ChallengeSessionResults'
 import { ScaleDegreeCorrectCountChart } from './ScaleDegreeCorrectCountChart'
-import { ScaleDegreeMelodyMistakeSummary } from './ScaleDegreeMelodyMistakeSummary'
 import { ScaleDegreeMistakeSummary } from './ScaleDegreeMistakeSummary'
 import { ScaleDegreeAdvancedAnalysis } from './ScaleDegreeAdvancedAnalysis'
 import { PlayAreaCard } from './PlayAreaCard'
@@ -30,7 +28,6 @@ type ScaleDegreeIdlePanelProps = {
   lastQuiz: ScaleDegreeQuiz | null
   sessionStats: SessionStats
   sessionMistakes: ScaleDegreeMistakeStatsStore
-  sessionMelodyMistakes: ScaleDegreeMelodyMistakeStatsStore
   trainingStats: TrainingStatsViewModel
   scaleDegreeReviewEnabled: boolean
   scaleDegreeTrainingMode: ScaleDegreeTrainingMode
@@ -60,7 +57,6 @@ export function ScaleDegreeIdlePanel({
   lastQuiz,
   sessionStats,
   sessionMistakes,
-  sessionMelodyMistakes,
   trainingStats,
   scaleDegreeReviewEnabled,
   scaleDegreeTrainingMode,
@@ -156,13 +152,7 @@ export function ScaleDegreeIdlePanel({
           </div>
         )}
 
-        {melodyEnabled ? (
-          <ScaleDegreeMelodyMistakeSummary
-            store={sessionMelodyMistakes}
-            sessionStats={sessionStats}
-            title="本局旋律统计"
-          />
-        ) : scaleDegreeTrainingMode === 'single' && !advancedSingle ? (
+        {scaleDegreeTrainingMode === 'single' && !advancedSingle ? (
           <ScaleDegreeMistakeSummary
             store={sessionMistakes}
             sessionStats={sessionStats}
@@ -229,20 +219,18 @@ export function ScaleDegreeIdlePanel({
           scaleDegreeReviewEnabled
             ? 'border-sky-400/35 bg-sky-500/10'
             : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] hover:border-sky-400/20',
-          !hasHistoricalMistakes || isRunning ? 'cursor-not-allowed opacity-60' : '',
+          (!melodyEnabled && !hasHistoricalMistakes) || isRunning ? 'cursor-not-allowed opacity-60' : '',
         ].join(' ')}
       >
         <span className="flex flex-col gap-1 text-left">
-          <span className="text-sm font-medium">智能弱项专项</span>
+          <span className="text-sm font-medium">{melodyEnabled ? '从收藏中随机出题' : '错题复习'}</span>
           <span className="text-xs text-[var(--text-secondary)]">
-            {hasHistoricalMistakes
-              ? melodyEnabled
-                ? '约六成易错旋律，搭配四成常规旋律'
-                : '约六成高权重错误模式，搭配四成全音级巩固'
-              : '暂无错题可复习'}
+            {melodyEnabled
+              ? '从全部收藏随机抽题（不限音数），对齐本轮调性后播放；请先收藏旋律'
+              : hasHistoricalMistakes ? '约六成高权重错误模式，搭配四成全音级巩固' : '暂无错题可复习'}
           </span>
         </span>
-        <input type="checkbox" className="h-5 w-5 shrink-0 accent-sky-500" checked={scaleDegreeReviewEnabled} disabled={!hasHistoricalMistakes || isRunning} onChange={(event) => onScaleDegreeReviewChange(event.target.checked)} />
+        <input type="checkbox" className="h-5 w-5 shrink-0 accent-sky-500" checked={scaleDegreeReviewEnabled} disabled={(!melodyEnabled && !hasHistoricalMistakes) || isRunning} onChange={(event) => onScaleDegreeReviewChange(event.target.checked)} />
       </label>}
 
       {canReset && <div className="flex w-full justify-center"><ResetStatsButton onReset={reset} /></div>}

@@ -23,10 +23,7 @@ import {
   weightedRandomScaleDegreeQuizFromMistakes,
   type ScaleDegreeMistakeStatsStore,
 } from './scaleDegreeMistakeStats'
-import {
-  weightedRandomMelodyQuizFromMistakes,
-  type ScaleDegreeMelodyMistakeStatsStore,
-} from './scaleDegreeMelodyMistakeStats'
+import { loadMelodyFavorites, randomMelodyFavoriteQuiz, recordMelodyFavoriteReview } from './melodyFavorites'
 import { getMelodySessionDegreeWeights, getSessionDegreeWeights, type SessionStats } from './stats'
 import {
   finishChallengeOnIncorrect,
@@ -469,11 +466,12 @@ export async function runScaleDegreeLoop(
   callbacks: ScaleDegreeCallbacks,
   signal: AbortSignal,
   mistakeStore: ScaleDegreeMistakeStatsStore = [],
-  melodyMistakeStore: ScaleDegreeMelodyMistakeStatsStore = [],
   reviewEnabled = false,
   trainingMode: ScaleDegreeTrainingMode = 'single',
   practice: DegreePracticeOptions = { scaleFlavor: 'major', melodyLength: 3, arcadeMode: false },
 ): Promise<void> {
+  const favorites = trainingMode === 'melody' && reviewEnabled ? loadMelodyFavorites() : null
+  if (favorites && favorites.length === 0) throw new Error('还没有收藏的旋律，请先收藏旋律后再开始。')
   const flavor = trainingMode === 'single' ? practice.scaleFlavor : 'major'
   const session = degreeSession(createMajorKeySession(settings.rootMin, settings.rootMax), flavor)
   callbacks.onSessionStart(session)
@@ -504,25 +502,13 @@ export async function runScaleDegreeLoop(
         : getSessionDegreeWeights(callbacks.getSessionStats())
       : undefined
     let quiz: ScaleDegreeQuiz
+    let sourceFavoriteId: string | null = null
     if (flavor !== 'major') {
       quiz = randomFlavorQuiz(session, flavor, settings.rootMin, settings.rootMax, previousNoteMidi, callbacks.getSessionStats?.())
-    } else if (reviewEnabled && useMistakeReview && trainingMode === 'melody' && melodyMistakeStore.length > 0) {
-      quiz =
-        weightedRandomMelodyQuizFromMistakes(
-          melodyMistakeStore.filter((record) => record.pattern.split('-').length === practice.melodyLength),
-          session,
-          settings.rootMin,
-          settings.rootMax,
-          previousNoteMidi,
-        ) ??
-        randomMelodyScaleDegreeQuiz(
-          session,
-          settings.rootMin,
-          settings.rootMax,
-          previousNoteMidi,
-          sessionDegreeWeights,
-          practice.melodyLength,
-        )
+    } else if (favorites) {
+      const favoriteQuiz = randomMelodyFavoriteQuiz(favorites, session, previousNoteMidi)!
+      sourceFavoriteId = favoriteQuiz.sourceFavoriteId
+      quiz = favoriteQuiz
     } else if (
       reviewEnabled &&
       useMistakeReview &&
@@ -597,6 +583,9 @@ export async function runScaleDegreeLoop(
       while (!results) {
         answer = await callbacks.waitForAnswer(signal)
         results = gradeMelody(quiz.degrees, answer.selectedDegree)
+      }
+      if (sourceFavoriteId && !recordMelodyFavoriteReview(sourceFavoriteId, results.every(Boolean))) {
+        throw new Error('未能保存收藏复习结果，请检查浏览器存储后重试。')
       }
       const completed = callbacks.onSequenceGroupSubmitted?.(quiz, results.every(Boolean), undefined, answer.wasReplayed) ?? false
       if (practice.arcadeMode) {

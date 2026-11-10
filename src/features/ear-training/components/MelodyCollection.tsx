@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { MelodyScaleDegreeQuiz } from '../../../quiz/keys'
-import { loadMelodyFavorites, melodyFavoriteId, removeMelodyFavorite, saveMelodyFavorite, type MelodyFavorite } from '../../../quiz/melodyFavorites'
+import { loadMelodyFavorites, melodyFavoriteErrorRate, sortMelodyFavoritesByErrorRate, melodyFavoriteId, removeMelodyFavorite, saveMelodyFavorite, type MelodyFavorite } from '../../../quiz/melodyFavorites'
 import { Button } from '../../../common/ui/Button'
 
 export function SaveMelodyButton({ quiz, answerDegrees }: { quiz: MelodyScaleDegreeQuiz; answerDegrees: number[] }) {
@@ -32,11 +32,11 @@ export function MelodyCollection({ onPlay, isReplayBusy }: { onPlay: (quiz: Melo
   const [playing, setPlaying] = useState<string | null>(null)
   const pendingCount = favorites.filter((quiz) => !quiz.mastered).length
   const query = search.trim().toLowerCase()
-  const filtered = favorites.filter((quiz) =>
+  const filtered = sortMelodyFavoritesByErrorRate(favorites).filter((quiz) =>
     (status === 'all' || (status === 'mastered' ? quiz.mastered : !quiz.mastered)) &&
     (length === 'all' || quiz.degrees.length === Number(length)) &&
     (!query || quiz.keyLabel.toLowerCase().includes(query) || quiz.degrees.join('').includes(query.replace(/[\s,，-]/g, ''))),
-  ).reverse()
+  )
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, pages - 1)
   const refresh = (success: boolean) => {
@@ -50,7 +50,7 @@ export function MelodyCollection({ onPlay, isReplayBusy }: { onPlay: (quiz: Melo
       <h2 className="font-semibold">收藏的旋律 <span className="text-sm font-normal text-[var(--text-secondary)]">{favorites.length} 句</span></h2>
       <span className="text-xs text-[var(--text-secondary)]">{pendingCount} 句待复习</span>
     </div>
-    <p className="text-xs text-[var(--text-secondary)]">红色标出收藏时答错的位置，展开可对照当时答案。收藏保存在当前浏览器中。</p>
+    <p className="text-xs text-[var(--text-secondary)]">红色标出收藏时答错的位置，展开可对照当时答案。错误率按收藏复习中整句答错次数计算，未复习的排在最后。收藏保存在当前浏览器中。</p>
     {favorites.length > 0 && <>
       <div className="flex flex-wrap gap-2" role="group" aria-label="收藏分类">
         {[['pending', `待复习 ${pendingCount}`], ['mastered', `已掌握 ${favorites.length - pendingCount}`], ['all', '全部']].map(([value, label]) =>
@@ -72,19 +72,26 @@ export function MelodyCollection({ onPlay, isReplayBusy }: { onPlay: (quiz: Melo
       {filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE).map((quiz) => {
         const id = melodyFavoriteId(quiz)
         const wrongCount = quiz.answerDegrees?.filter((degree, i) => degree !== quiz.degrees[i]).length
+        const errorRate = melodyFavoriteErrorRate(quiz)
         const isExpanded = expanded === id
         return <article key={id} className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <button type="button" aria-expanded={isExpanded} aria-label={`${quiz.keyLabel}，${quiz.degrees.join(' ')}，${isExpanded ? '收起' : '展开'}答题记录`} className="min-w-0 space-y-2 text-left" onClick={() => setExpanded(isExpanded ? null : id)}>
               <span className="block text-xs text-[var(--text-secondary)]">{quiz.keyLabel} · {quiz.degrees.length} 音 · {wrongCount === undefined ? '未记录当时答案' : wrongCount ? `${wrongCount} 处错音` : '当时全对'} · {isExpanded ? '收起 ▴' : '展开 ▾'}</span>
+              <span className="block text-xs text-[var(--text-secondary)]">{errorRate === null
+                ? '错误率 — · 尚未复习'
+                : `错误率 ${(errorRate * 100).toFixed(1)}% · ${quiz.reviewStats!.attempts} 次复习，${quiz.reviewStats!.incorrect} 次答错`}</span>
               <span className="flex flex-wrap gap-2">{quiz.degrees.map((degree, i) => {
                 const wrong = quiz.answerDegrees && quiz.answerDegrees[i] !== degree
                 return <strong key={i} aria-label={`第 ${i + 1} 音 ${degree}${wrong ? '，当时答错' : ''}`} className={`inline-flex h-8 w-8 items-center justify-center rounded-md ${wrong ? 'bg-red-500/15 text-red-400 ring-1 ring-red-400/40' : ''}`}>{degree}</strong>
               })}</span>
             </button>
-            <div className="flex flex-wrap gap-2">
+            <div className="ml-auto flex flex-wrap justify-end gap-2">
+              <Button variant="ghost" aria-label={`删除收藏：${quiz.keyLabel}，${quiz.degrees.join(' ')}`} onClick={() => {
+                if (refresh(removeMelodyFavorite(quiz))) { setRemoved(quiz); setExpanded(null) }
+              }}>删除</Button>
+              <Button variant="ghost" onClick={() => refresh(saveMelodyFavorite({ ...quiz, mastered: !quiz.mastered }))}>{quiz.mastered ? '移回待复习' : '已掌握'}</Button>
               <Button variant="ghost" disabled={isReplayBusy} onClick={() => { setPlaying(id); onPlay(quiz) }}>{isReplayBusy && playing === id ? '播放中…' : '重听'}</Button>
-              <Button variant="ghost" onClick={() => refresh(saveMelodyFavorite({ ...quiz, mastered: !quiz.mastered }))}>{quiz.mastered ? '移回待复习' : '标记已掌握'}</Button>
             </div>
           </div>
           {isExpanded && <div className="mt-3 space-y-3 border-t border-[var(--border-subtle)] pt-3">
@@ -95,15 +102,12 @@ export function MelodyCollection({ onPlay, isReplayBusy }: { onPlay: (quiz: Melo
                 <span className="block text-xs">{wrong ? `应为 ${quiz.degrees[i]}` : '✓ 正确'}</span>
               </div>
             })}</div> : <p className="text-xs text-[var(--text-secondary)]">这句是早期收藏，没有保存当时的答案；原句仍可完整重听。</p>}
-            <Button variant="ghost" onClick={() => {
-              if (refresh(removeMelodyFavorite(quiz))) { setRemoved(quiz); setExpanded(null) }
-            }}>移除收藏</Button>
           </div>}
         </article>
       })}
     </div>
     {filtered.length > 0 && <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-secondary)]">
-      <span>共 {filtered.length} 句 · 最近收藏优先 · {currentPage + 1} / {pages} 页</span>
+      <span>共 {filtered.length} 句 · 错误率从高到低 · {currentPage + 1} / {pages} 页</span>
       {pages > 1 && <div className="flex gap-2"><Button variant="ghost" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>上一页</Button><Button variant="ghost" disabled={currentPage === pages - 1} onClick={() => setPage(currentPage + 1)}>下一页</Button></div>}
     </div>}
     {removed && <div role="status" className="flex items-center justify-between gap-2 rounded-lg bg-[var(--bg-elevated)] p-3 text-sm"><span>已移除 {removed.keyLabel} · {removed.degrees.join(' ')}</span><Button variant="ghost" onClick={() => { if (refresh(saveMelodyFavorite(removed))) setRemoved(null) }}>撤销</Button></div>}
